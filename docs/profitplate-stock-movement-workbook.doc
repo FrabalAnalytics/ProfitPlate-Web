@@ -1,0 +1,410 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ProfitPlate Stock Movement & AvT Workbook</title>
+  <style>
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.35; color: #111827; }
+    h1 { font-size: 22pt; color: #064e3b; }
+    h2 { font-size: 16pt; color: #065f46; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-top: 24px; }
+    h3 { font-size: 13pt; color: #047857; margin-top: 18px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; }
+    th, td { border: 1px solid #d1d5db; padding: 7px; vertical-align: top; }
+    th { background: #ecfdf5; font-weight: bold; }
+    blockquote { border-left: 4px solid #10b981; margin-left: 0; padding: 8px 12px; background: #f0fdf4; font-style: italic; }
+    .note { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px; margin: 12px 0; }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+<h1>ProfitPlate Stock Movement & AvT Workbook</h1>
+
+<p>This workbook documents the operating model for inventory, production, sales depletion, POS imports, waste, and Actual-vs-Theoretical reporting in ProfitPlate.</p>
+
+<blockquote>Based on what we sold, what should we have consumed, and what did we actually consume?</blockquote>
+
+<p>ProfitPlate is not just a sales revenue tracker. The business already has POS/ERP revenue data. ProfitPlate uses that sales data to calculate expected ingredient consumption, compare it against physical stock counts, and explain variance.</p>
+
+<h2>1. Core operating principle</h2>
+
+<p>Every movement must answer four questions:</p>
+<ol>
+  <li>What item moved?</li>
+  <li>From which location?</li>
+  <li>Why did it move?</li>
+  <li>Who owns the action?</li>
+</ol>
+
+<table>
+  <tr><th>Stock layer</th><th>Meaning</th><th>Main owner</th><th>Examples</th></tr>
+  <tr><td>Main store stock</td><td>Purchased inventory controlled by store/procurement</td><td>Inventory / Procurement</td><td>Food Main Store, Drink Main Store</td></tr>
+  <tr><td>Department stock</td><td>Stock issued to operating areas for production, sales, and waste</td><td>Kitchen / Bar / Operations</td><td>Kitchen, Bar</td></tr>
+</table>
+
+<p>The same SKU can exist in both layers. That is expected.</p>
+
+<table>
+  <tr><th>Item</th><th>Location</th><th>Meaning</th></tr>
+  <tr><td>Salt</td><td>Food Main Store</td><td>Store balance available for issue</td></tr>
+  <tr><td>Salt</td><td>Kitchen</td><td>Department balance available for cooking/sale consumption</td></tr>
+</table>
+
+<p>The department item should retain traceability to its main-store origin through <code>origin_inventory_item_id</code>.</p>
+
+<h2>2. Role ownership</h2>
+
+<table>
+  <tr><th>Role</th><th>Owns</th><th>Can do</th><th>Should not own</th></tr>
+  <tr><td>Procurement Manager</td><td>Purchase creation and supplier ordering</td><td>Raise PO, choose receiving store, confirm supplier/order details</td><td>Department consumption</td></tr>
+  <tr><td>Inventory Manager / Storekeeper</td><td>Store stock control</td><td>Receive PO, issue stock to departments, perform store counts</td><td>Recipe costing or sales import ownership</td></tr>
+  <tr><td>Kitchen Manager</td><td>Food production and kitchen stock usage</td><td>Request items, receive department stock, produce sub-recipes, record kitchen waste</td><td>Main store purchasing control</td></tr>
+  <tr><td>Bar Manager</td><td>Beverage production and bar stock usage</td><td>Request items, receive bar stock, produce bar sub-recipes, record bar waste</td><td>Food store control</td></tr>
+  <tr><td>Finance / Cost Control</td><td>Sales import, menu costing, variance review</td><td>Import POS, review theoretical usage, approve AvT reports</td><td>Physical stock custody</td></tr>
+  <tr><td>Admin / Owner</td><td>Configuration and governance</td><td>Set operating mode, approve roles, review exceptions</td><td>Daily transaction entry</td></tr>
+</table>
+
+<h2>3. Location model</h2>
+
+<h3>Main store locations</h3>
+<p>Main stores hold purchased stock before it is issued to departments. Examples include Food Main Store, Drink Main Store, and Central Warehouse.</p>
+
+<p>Main-store stock is depleted by approved issues to departments, store waste or damage, stock-count adjustments, and transfers to other locations. It is replenished by PO receipts, transfers in, and stock-count adjustment gains.</p>
+
+<h3>Department locations</h3>
+<p>Departments hold operating stock used for prep, production, sales, and waste. Examples include Kitchen, Bar, Production Kitchen, and Sales Outlet.</p>
+
+<p>Department stock is depleted by sales depletion, POS import depletion, waste, production input consumption, and department stock-count adjustment. It is replenished by store issue / department receipt, sub-recipe production output, department transfer in, and stock-count adjustment gain.</p>
+
+<h2>4. Workflow A: Purchasing and receiving</h2>
+
+<p><strong>Purpose:</strong> bring purchased stock into the correct main store.</p>
+
+<table>
+  <tr><th>Step</th><th>Owner</th><th>System action</th><th>Stock effect</th></tr>
+  <tr><td>1. Create PO</td><td>Procurement Manager</td><td>Select supplier, item, quantity, receiving location</td><td>No stock movement yet</td></tr>
+  <tr><td>2. Approve / confirm PO</td><td>Procurement / Finance</td><td>Locks expected receipt</td><td>No stock movement yet</td></tr>
+  <tr><td>3. Receive goods</td><td>Inventory Manager</td><td>Confirm actual quantity received</td><td>Increases receiving main-store stock</td></tr>
+  <tr><td>4. Cost update</td><td>Finance / Inventory</td><td>Update latest purchase cost</td><td>Updates SKU cost basis</td></tr>
+</table>
+
+<div class="note"><strong>Control rule:</strong> PO receiving should normally go to main stores, not Kitchen or Bar. Kitchen and Bar should receive stock through internal issue/requisition flows.</div>
+
+<h2>5. Workflow B: Store issue to department</h2>
+
+<p><strong>Purpose:</strong> move stock from main store into department stock.</p>
+
+<table>
+  <tr><th>Step</th><th>Owner</th><th>System action</th><th>Stock effect</th></tr>
+  <tr><td>1. Department request</td><td>Kitchen / Bar Manager</td><td>Request item and quantity</td><td>No stock movement yet</td></tr>
+  <tr><td>2. Store approval / issue</td><td>Inventory Manager</td><td>Issue from Food/Drink Main Store</td><td>Main store decreases</td></tr>
+  <tr><td>3. Department receipt</td><td>Kitchen / Bar Manager</td><td>Confirm received quantity</td><td>Department stock increases</td></tr>
+</table>
+
+<p>Main-store stock decreases when store issues. Department stock increases when department receives. Variance can exist between issued and received quantities if the business wants to capture transit loss, short delivery, or rejection.</p>
+
+<h2>6. Workflow C: Sub-recipe creation and production</h2>
+
+<p><strong>Purpose:</strong> turn raw ingredients into a manufactured ingredient.</p>
+
+<p>Sub-recipes should become inventory items after production. For example, Pepper Sauce_SFG is a sub-recipe. After production, Pepper Sauce_SFG becomes a manufactured inventory item under Kitchen and can then be used as an ingredient in final menu items.</p>
+
+<table>
+  <tr><th>Step</th><th>Owner</th><th>System action</th><th>Stock effect</th></tr>
+  <tr><td>1. Create sub-recipe</td><td>Kitchen / Bar Manager</td><td>Define name, output UOM, batch size</td><td>No stock movement yet</td></tr>
+  <tr><td>2. Attach ingredients</td><td>Kitchen / Bar Manager</td><td>Add raw material components</td><td>No stock movement yet</td></tr>
+  <tr><td>3. Record production</td><td>Kitchen / Bar Manager</td><td>Enter actual output and actual input usage</td><td>Department ingredients decrease; manufactured sub-recipe increases</td></tr>
+  <tr><td>4. Use sub-recipe in menu item</td><td>Costing / Finance</td><td>Add sub-recipe as component</td><td>No stock movement yet</td></tr>
+</table>
+
+<div class="note"><strong>Control rule:</strong> Sub-recipe production output should land in the producing department, not the main store. A canonical main-store row may exist for traceability, but sellable/usable produced stock belongs to the department that produced it.</div>
+
+<h2>7. Workflow D: Sales depletion</h2>
+
+<p><strong>Purpose:</strong> convert sales into theoretical ingredient consumption.</p>
+
+<p>When a menu item is sold, ProfitPlate should deplete the department stock based on the recipe. Selling 1 Asun from Kitchen should deplete Goat Meat, Pepper Sauce_SFG, and Unsalted Butter from Kitchen stock.</p>
+
+<table>
+  <tr><th>Step</th><th>Owner</th><th>System action</th><th>Stock effect</th></tr>
+  <tr><td>1. Sale is captured</td><td>POS import, or manual fallback</td><td>Menu item and quantity are identified</td><td>No stock effect until processed</td></tr>
+  <tr><td>2. Recipe is resolved</td><td>System</td><td>Find menu recipe and components</td><td>No stock effect</td></tr>
+  <tr><td>3. Depletion is posted</td><td>System</td><td>Consume component quantities from selected department</td><td>Department stock decreases</td></tr>
+  <tr><td>4. Theoretical usage is stored</td><td>System</td><td>Keep sales-based expected consumption</td><td>Feeds AvT</td></tr>
+</table>
+
+<div class="note"><strong>Control rule:</strong> Sales should deplete department stock only. Sales should not deplete Food Main Store or Drink Main Store directly.</div>
+
+<h2>8. Workflow E: POS import</h2>
+
+<p><strong>Purpose:</strong> use the business POS/ERP sales file as the normal sales source.</p>
+<p><strong>Recommended operating mode:</strong> POS import.</p>
+
+<table>
+  <tr><th>Step</th><th>Owner</th><th>System action</th><th>Stock effect</th></tr>
+  <tr><td>1. Export POS file</td><td>Business / Finance</td><td>Export daily sales from POS/ERP</td><td>No stock movement</td></tr>
+  <tr><td>2. Import into ProfitPlate</td><td>Finance / Cost Control</td><td>Upload file</td><td>No stock movement until validated</td></tr>
+  <tr><td>3. Map POS item to menu item</td><td>Finance / Cost Control</td><td>Confirm item mapping</td><td>No stock movement</td></tr>
+  <tr><td>4. Process import</td><td>System</td><td>Post sales depletion by department/location</td><td>Department stock decreases</td></tr>
+  <tr><td>5. Review exceptions</td><td>Finance + Operations</td><td>Resolve unmapped items or missing stock</td><td>May require correction</td></tr>
+</table>
+
+<p>The import should be idempotent. The same POS transaction/file row should not deplete stock twice.</p>
+
+<p>Required import fields should include business date, POS transaction ID or stable row reference, menu item name or code, quantity sold, revenue or unit price, and outlet/department/sales location if available.</p>
+
+<h2>9. Workflow F: Manual sales recording</h2>
+
+<p><strong>Purpose:</strong> testing, demos, emergency fallback, or very small businesses without POS import.</p>
+
+<p>Manual sales recording can deplete stock, but it should not be used together with POS import for the same business day unless there is a clear exception process.</p>
+
+<table>
+  <tr><th>Sales capture mode</th><th>Manual sale button</th><th>POS import</th><th>Risk</th></tr>
+  <tr><td>POS import mode</td><td>Disabled or test-only</td><td>Enabled</td><td>Low</td></tr>
+  <tr><td>Manual sales mode</td><td>Enabled</td><td>Disabled or review-only</td><td>Low</td></tr>
+  <tr><td>Both enabled</td><td>Enabled</td><td>Enabled</td><td>High double-depletion risk</td></tr>
+</table>
+
+<p>At onboarding, the business should choose either POS import mode, recommended, or manual sales mode, fallback. ProfitPlate should avoid allowing both modes to post depletion for the same operating period without explicit admin override.</p>
+
+<h2>10. Workflow G: Waste</h2>
+
+<p><strong>Purpose:</strong> capture known operational losses separately from sales.</p>
+
+<table>
+  <tr><th>Waste location</th><th>Stock effect</th></tr>
+  <tr><td>Food Main Store</td><td>Depletes main-store stock</td></tr>
+  <tr><td>Drink Main Store</td><td>Depletes main-store stock</td></tr>
+  <tr><td>Kitchen</td><td>Depletes Kitchen department stock</td></tr>
+  <tr><td>Bar</td><td>Depletes Bar department stock</td></tr>
+</table>
+
+<p>Examples: spoiled tomatoes in Kitchen, broken bottle in Drink Main Store, or burnt pepper sauce after production. Waste should be classified separately from sales depletion because it explains variance.</p>
+
+<h2>11. Workflow H: Physical stock count and AvT</h2>
+
+<p><strong>Purpose:</strong> compare what should remain against what physically remains.</p>
+
+<pre>
+Opening stock
++ Receipts / transfers in / production output
+- Store issues / transfers out
+- Sales theoretical consumption
+- Recorded waste
+= Theoretical closing stock
+
+Physical count
+- Theoretical closing stock
+= Variance
+</pre>
+
+<table>
+  <tr><th>Result</th><th>Meaning</th></tr>
+  <tr><td>Physical count equals theoretical</td><td>Expected usage matches actual stock</td></tr>
+  <tr><td>Physical count is lower than theoretical</td><td>Possible unrecorded waste, over-portioning, theft, missing transfer, or incorrect recipe quantity</td></tr>
+  <tr><td>Physical count is higher than theoretical</td><td>Possible under-portioning, missed sale reversal, recipe too high, or unrecorded receipt</td></tr>
+</table>
+
+<p>The count should be done by location. Store count explains store control. Kitchen count explains kitchen usage. Bar count explains bar usage. Do not mix store and department balances when calculating AvT.</p>
+
+<h2>12. Recommended onboarding decisions</h2>
+
+<table>
+  <tr><th>Decision</th><th>Recommended default</th><th>Why it matters</th></tr>
+  <tr><td>Sales capture mode</td><td>POS import</td><td>Avoids duplicate revenue entry and aligns to existing POS/ERP</td></tr>
+  <tr><td>Default food sales depletion location</td><td>Kitchen</td><td>Food menu sales consume Kitchen stock</td></tr>
+  <tr><td>Default beverage sales depletion location</td><td>Bar</td><td>Beverage sales consume Bar stock</td></tr>
+  <tr><td>Main food receiving location</td><td>Food Main Store</td><td>Keeps procurement separate from operations</td></tr>
+  <tr><td>Main beverage receiving location</td><td>Drink Main Store</td><td>Keeps bar stock flow clean</td></tr>
+  <tr><td>Sub-recipe production location</td><td>Kitchen or Bar based on recipe/domain</td><td>Produced items should be usable where made</td></tr>
+  <tr><td>Stock count frequency</td><td>Weekly for stores, daily/shift for high-value departments</td><td>Better variance visibility</td></tr>
+</table>
+
+<h2>13. Exceptions workbook</h2>
+
+<table>
+  <tr><th>Exception</th><th>Recommended handling</th></tr>
+  <tr><td>POS item is unmapped</td><td>Import as exception; do not deplete until mapped</td></tr>
+  <tr><td>Menu item has no recipe</td><td>Import revenue if needed, but flag no theoretical usage</td></tr>
+  <tr><td>Recipe component has no department stock</td><td>Flag shortage; do not silently deplete main store</td></tr>
+  <tr><td>Manual sale recorded before POS import</td><td>Import should detect duplicate or require exclusion</td></tr>
+  <tr><td>Department received less than store issued</td><td>Record received quantity and variance/transit loss</td></tr>
+  <tr><td>Produced sub-recipe output differs from target</td><td>Use actual output; variance is captured through actual input/output</td></tr>
+  <tr><td>Physical count is below zero/theoretical impossible</td><td>Require manager review before closing count</td></tr>
+  <tr><td>Transfer to wrong department</td><td>Reverse or correction movement; do not edit historical events directly</td></tr>
+</table>
+
+<h2>14. Control matrix</h2>
+
+<table>
+  <tr><th>Control</th><th>Owner</th><th>Frequency</th><th>Evidence</th></tr>
+  <tr><td>PO receipts match supplier delivery</td><td>Inventory Manager</td><td>Every delivery</td><td>Goods received record</td></tr>
+  <tr><td>Store issues match department receipts</td><td>Inventory + Kitchen/Bar</td><td>Daily</td><td>Issue and receipt logs</td></tr>
+  <tr><td>POS import is complete</td><td>Finance / Cost Control</td><td>Daily</td><td>POS import batch summary</td></tr>
+  <tr><td>Unmapped POS items are resolved</td><td>Finance / Cost Control</td><td>Daily</td><td>Exception list</td></tr>
+  <tr><td>Recipes are current</td><td>Costing + Operations</td><td>Weekly or after menu change</td><td>Recipe version/cost review</td></tr>
+  <tr><td>Waste is recorded by location</td><td>Operations</td><td>Daily</td><td>Waste log</td></tr>
+  <tr><td>Stock counts are completed</td><td>Inventory + Operations</td><td>Per count schedule</td><td>Count sheets</td></tr>
+  <tr><td>AvT variances are reviewed</td><td>Finance + Operations</td><td>Weekly/monthly</td><td>Variance report</td></tr>
+</table>
+
+<h2>15. Recommended product behavior</h2>
+
+<ol>
+  <li>POS import is the preferred sales capture mode.</li>
+  <li>Manual sale is available only as a test/demo tool, emergency fallback, or when the business chooses manual sales mode during onboarding.</li>
+  <li>Both POS import and manual sales should not post depletion for the same business period unless an admin explicitly overrides.</li>
+  <li>Sales and waste deplete department stock.</li>
+  <li>Store issues deplete main-store stock.</li>
+  <li>Production consumes department ingredients and increases department manufactured stock.</li>
+  <li>Physical counts are used to measure actual usage and explain variance.</li>
+</ol>
+
+<div class="page-break"></div>
+
+<h2>16. Daily operational checklists</h2>
+
+<p>Accurate AvT depends on daily discipline. If the daily operational data is weak, the variance report will still calculate, but it will not explain reality.</p>
+
+<blockquote>Every team closes the day with their movements complete, their exceptions visible, and their stock position believable.</blockquote>
+
+<h3>16.1 Procurement Manager daily checklist</h3>
+
+<table>
+  <tr><th>Check</th><th>Done by</th><th>Why it matters</th></tr>
+  <tr><td>Review open POs</td><td>Procurement Manager</td><td>Prevents forgotten or duplicate orders</td></tr>
+  <tr><td>Confirm each PO has the correct receiving location</td><td>Procurement Manager</td><td>Prevents stock landing directly in Kitchen/Bar by mistake</td></tr>
+  <tr><td>Confirm item names, UOMs, and supplier prices</td><td>Procurement Manager</td><td>Prevents costing and quantity conversion errors</td></tr>
+  <tr><td>Flag delayed supplier deliveries</td><td>Procurement Manager</td><td>Explains stock-out risk before operations are affected</td></tr>
+  <tr><td>Close or cancel stale POs</td><td>Procurement Manager</td><td>Prevents false expected stock</td></tr>
+</table>
+
+<p><strong>Daily close question:</strong> Are all expected deliveries for today either received, delayed, cancelled, or still genuinely pending?</p>
+
+<h3>16.2 Inventory Manager / Storekeeper daily checklist</h3>
+
+<table>
+  <tr><th>Check</th><th>Done by</th><th>Why it matters</th></tr>
+  <tr><td>Receive all delivered POs before end of day</td><td>Inventory Manager</td><td>Keeps main-store stock current</td></tr>
+  <tr><td>Confirm actual received quantity vs PO quantity</td><td>Inventory Manager</td><td>Captures supplier short delivery or over delivery</td></tr>
+  <tr><td>Confirm received UOM and cost</td><td>Inventory Manager</td><td>Prevents stock and cost distortion</td></tr>
+  <tr><td>Issue approved requisitions to Kitchen/Bar</td><td>Inventory Manager</td><td>Moves stock out of main store correctly</td></tr>
+  <tr><td>Confirm pending department receipts</td><td>Inventory + Department Manager</td><td>Prevents stock being issued but not received</td></tr>
+  <tr><td>Record main-store waste/damage</td><td>Inventory Manager</td><td>Separates known loss from unexplained variance</td></tr>
+  <tr><td>Review negative or unusual main-store balances</td><td>Inventory Manager</td><td>Catches posting mistakes early</td></tr>
+  <tr><td>Count high-value or fast-moving store items</td><td>Inventory Manager</td><td>Improves variance accuracy</td></tr>
+</table>
+
+<p><strong>Daily close question:</strong> Does Food Main Store / Drink Main Store stock reflect what is physically still under store control?</p>
+
+<h3>16.3 Kitchen Manager daily checklist</h3>
+
+<table>
+  <tr><th>Check</th><th>Done by</th><th>Why it matters</th></tr>
+  <tr><td>Review requested items not yet received</td><td>Kitchen Manager</td><td>Prevents production using unposted stock</td></tr>
+  <tr><td>Confirm received quantities from store</td><td>Kitchen Manager</td><td>Makes Kitchen stock increase correctly</td></tr>
+  <tr><td>Record sub-recipe production output</td><td>Kitchen Manager</td><td>Makes manufactured ingredients available for sales depletion</td></tr>
+  <tr><td>Enter actual raw material usage for production</td><td>Kitchen Manager</td><td>Captures true production consumption and yield</td></tr>
+  <tr><td>Record kitchen waste immediately</td><td>Kitchen Manager</td><td>Separates known loss from unexplained variance</td></tr>
+  <tr><td>Review Kitchen stock for negative balances</td><td>Kitchen Manager</td><td>Catches missing receipts, wrong recipes, or over-depletion</td></tr>
+  <tr><td>Confirm menu components are available in Kitchen stock</td><td>Kitchen + Costing</td><td>Prevents sales showing zero stock for real ingredients</td></tr>
+  <tr><td>Count high-value/critical Kitchen items</td><td>Kitchen Manager</td><td>Supports accurate department AvT</td></tr>
+</table>
+
+<p><strong>Daily close question:</strong> Can today’s Kitchen stock movement explain what was cooked, wasted, produced, and sold?</p>
+
+<h3>16.4 Bar Manager daily checklist</h3>
+
+<table>
+  <tr><th>Check</th><th>Done by</th><th>Why it matters</th></tr>
+  <tr><td>Review requested beverage items not yet received</td><td>Bar Manager</td><td>Prevents bar usage from happening outside system stock</td></tr>
+  <tr><td>Confirm received quantities from Drink Main Store</td><td>Bar Manager</td><td>Makes Bar stock increase correctly</td></tr>
+  <tr><td>Record bar sub-recipe or batch production</td><td>Bar Manager</td><td>Captures syrups, juices, cocktails, mixes, and prep outputs</td></tr>
+  <tr><td>Record breakages, spills, comps, and spoilage</td><td>Bar Manager</td><td>Separates known loss from unexplained variance</td></tr>
+  <tr><td>Review Bar stock for negative balances</td><td>Bar Manager</td><td>Catches recipe, POS mapping, or receipt issues</td></tr>
+  <tr><td>Count high-value beverage items</td><td>Bar Manager</td><td>Improves beverage AvT accuracy</td></tr>
+</table>
+
+<p><strong>Daily close question:</strong> Can today’s Bar stock movement explain what was mixed, wasted, transferred, and sold?</p>
+
+<h3>16.5 Finance / Cost Control daily checklist</h3>
+
+<table>
+  <tr><th>Check</th><th>Done by</th><th>Why it matters</th></tr>
+  <tr><td>Import daily POS file</td><td>Finance / Cost Control</td><td>Brings actual sales into ProfitPlate</td></tr>
+  <tr><td>Confirm POS import total against POS/ERP report</td><td>Finance / Cost Control</td><td>Ensures no missing sales file or partial upload</td></tr>
+  <tr><td>Resolve unmapped POS items</td><td>Finance / Cost Control</td><td>Prevents sales without theoretical consumption</td></tr>
+  <tr><td>Review menu items without recipes</td><td>Finance / Cost Control</td><td>Prevents revenue with zero food cost</td></tr>
+  <tr><td>Review components with missing department stock</td><td>Finance + Operations</td><td>Prevents silent depletion errors</td></tr>
+  <tr><td>Review unusually high or low food cost items</td><td>Finance / Cost Control</td><td>Catches recipe/costing mistakes</td></tr>
+  <tr><td>Lock or mark the sales day as reviewed</td><td>Finance / Cost Control</td><td>Creates a clean daily control point</td></tr>
+</table>
+
+<p><strong>Daily close question:</strong> Does today’s imported sales data fully explain what should have been consumed?</p>
+
+<h3>16.6 Admin / Owner daily or weekly checklist</h3>
+
+<table>
+  <tr><th>Check</th><th>Done by</th><th>Why it matters</th></tr>
+  <tr><td>Review users and roles</td><td>Admin / Owner</td><td>Prevents wrong people posting sensitive movements</td></tr>
+  <tr><td>Confirm sales capture mode is followed</td><td>Admin / Owner</td><td>Prevents manual/POS double depletion</td></tr>
+  <tr><td>Review unresolved exceptions</td><td>Admin / Owner</td><td>Keeps operational issues visible</td></tr>
+  <tr><td>Review high-value variance items</td><td>Admin / Owner</td><td>Focuses management attention on material losses</td></tr>
+  <tr><td>Approve correction movements where required</td><td>Admin / Owner</td><td>Prevents uncontrolled history changes</td></tr>
+</table>
+
+<p><strong>Daily/weekly close question:</strong> Are exceptions being resolved, or are they becoming normal operating behavior?</p>
+
+<h2>17. Daily close sequence</h2>
+
+<ol>
+  <li>Procurement confirms open and expected supplier deliveries.</li>
+  <li>Inventory receives delivered POs into main stores.</li>
+  <li>Inventory issues approved stock to departments.</li>
+  <li>Kitchen/Bar confirms department receipts.</li>
+  <li>Kitchen/Bar records production and waste.</li>
+  <li>Finance imports POS sales.</li>
+  <li>System posts sales depletion against department stock.</li>
+  <li>Teams review exceptions: negative stock, unmapped POS items, missing recipes, missing stock.</li>
+  <li>High-value or critical stock counts are entered.</li>
+  <li>Finance reviews AvT and flags material variances.</li>
+</ol>
+
+<p>This sequence matters because sales depletion depends on clean recipes, clean department stock, and clean POS mapping.</p>
+
+<h2>18. Daily exception report</h2>
+
+<table>
+  <tr><th>Exception</th><th>Owner to resolve</th><th>Reason</th></tr>
+  <tr><td>POS item not mapped to menu item</td><td>Finance / Cost Control</td><td>No theoretical usage can be calculated</td></tr>
+  <tr><td>Menu item has no recipe</td><td>Finance / Cost Control</td><td>Food cost and depletion are incomplete</td></tr>
+  <tr><td>Recipe component has no stock item</td><td>Finance + Operations</td><td>Depletion cannot find the ingredient</td></tr>
+  <tr><td>Component stock is zero or negative</td><td>Operations + Inventory</td><td>May indicate missing receipt, wrong location, or overuse</td></tr>
+  <tr><td>Store issue not received by department</td><td>Inventory + Department Manager</td><td>Stock is stuck between control points</td></tr>
+  <tr><td>PO received into wrong location</td><td>Inventory / Procurement</td><td>Main-store vs department stock becomes distorted</td></tr>
+  <tr><td>Sub-recipe produced but not visible as inventory</td><td>Kitchen + System Admin</td><td>Final menu depletion will show zero stock</td></tr>
+  <tr><td>Waste not classified by location</td><td>Operations</td><td>Variance explanation becomes weak</td></tr>
+  <tr><td>Physical count not submitted</td><td>Responsible location owner</td><td>AvT cannot compare actual to theoretical</td></tr>
+</table>
+
+<div class="note"><strong>Exception close rule:</strong> Do not hide exceptions by forcing stock numbers. Resolve the cause, then post a clear correction movement if needed.</div>
+
+<h2>19. Department daily sign-off</h2>
+
+<h3>Inventory sign-off</h3>
+<p>I confirm all supplier receipts, store issues, store waste, and high-value store counts for today have been recorded.</p>
+
+<h3>Kitchen sign-off</h3>
+<p>I confirm all Kitchen receipts, production runs, raw material usage, sales-impacting prep items, waste, and critical counts for today have been recorded.</p>
+
+<h3>Bar sign-off</h3>
+<p>I confirm all Bar receipts, production/prep, spills/breakages/waste, and critical counts for today have been recorded.</p>
+
+<h3>Finance sign-off</h3>
+<p>I confirm today’s POS import matches the POS/ERP report, unmapped items are resolved or listed as exceptions, and theoretical usage is ready for AvT review.</p>
+
+<h3>Admin / Owner sign-off</h3>
+<p>I confirm material exceptions are visible, assigned, and not being ignored as normal variance.</p>
+
+</body>
+</html>

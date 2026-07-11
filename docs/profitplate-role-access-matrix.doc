@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ProfitPlate Role, Responsibility, and Access Matrix</title>
+  <style>
+    body { max-width: 1100px; margin: 40px auto; padding: 0 24px; font-family: Arial, sans-serif; color: #10261c; line-height: 1.5; }
+    h1, h2 { color: #10261c; }
+    h1 { border-bottom: 3px solid #126b46; padding-bottom: 12px; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; }
+    th { background: #e6f3eb; color: #10261c; text-align: left; }
+    .note { background: #f5f8f6; border-left: 4px solid #126b46; padding: 12px 16px; }
+  </style>
+</head>
+<body>
+  <h1>ProfitPlate Role, Responsibility, and Access Matrix</h1>
+  <p><strong>Last updated:</strong> July 9, 2026</p>
+
+  <h2>Purpose</h2>
+  <p>This document defines the consolidated restaurant roles in ProfitPlate, what each role owns operationally, and the level of system access each role should have.</p>
+
+  <h2>Access Legend</h2>
+  <table>
+    <tr><th>Access area</th><th>Meaning</th></tr>
+    <tr><td>Workspace Admin</td><td>Manage workspace-level settings and role administration.</td></tr>
+    <tr><td>Costing</td><td>Manage recipe costing, ingredient costs, yield impact, and margin controls.</td></tr>
+    <tr><td>Operations Entry</td><td>Record daily operational activity such as receiving, production, requisitions, waste, sales operations, or yield tests.</td></tr>
+    <tr><td>Operations Approval</td><td>Approve or acknowledge operational exceptions, stock issues, receiving, and controls.</td></tr>
+    <tr><td>Procurement</td><td>Prepare or manage purchase-related workflows.</td></tr>
+    <tr><td>Inventory</td><td>Access inventory movement, receiving, stock counts, and store controls.</td></tr>
+    <tr><td>Kitchen Production</td><td>Access production planning, production ledger, kitchen requisitions, yield tests, and kitchen waste workflows.</td></tr>
+    <tr><td>Bar Operations</td><td>Access bar stock, bar requisitions, bar waste, and beverage movement workflows.</td></tr>
+    <tr><td>Sales/POS Control</td><td>Review sales imports, POS mappings, voids, promos, discounts, and sales register accuracy.</td></tr>
+    <tr><td>Reports/Audit</td><td>Review reports, exceptions, audit trails, and management attention items.</td></tr>
+  </table>
+
+  <h2>Role Matrix</h2>
+  <table>
+    <tr><th>Role</th><th>Operational responsibility</th><th>Main access</th></tr>
+    <tr><td>Owner</td><td>Owns the business, final accountability, role control, approvals, financial oversight, and exception review.</td><td>Workspace Admin, Costing, Operations Entry, Operations Approval, Procurement, Inventory, Kitchen Production, Bar Operations, Sales/POS Control, Reports/Audit</td></tr>
+    <tr><td>Admin</td><td>Supports owner with workspace setup, user administration, high-level operations, and system configuration.</td><td>Workspace Admin, Costing, Operations Entry, Operations Approval, Reports/Audit</td></tr>
+    <tr><td>Manager</td><td>General management role for operational oversight, approvals, and daily variance review.</td><td>Costing, Operations Entry, Operations Approval, Reports/Audit</td></tr>
+    <tr><td>Operations Manager</td><td>Runs daily restaurant operations across departments and controls inventory discipline, production variance, waste, day close, exceptions, and team accountability.</td><td>Costing, Operations Entry, Operations Approval, Procurement, Inventory, Kitchen Production, Bar Operations, Reports/Audit</td></tr>
+    <tr><td>Procurement Manager</td><td>Manages supplier relationships, purchase planning, supplier price movement, procurement accuracy, and sourcing risks.</td><td>Costing, Operations Entry, Operations Approval, Procurement, Reports/Audit</td></tr>
+    <tr><td>Finance Manager</td><td>Owns recipe costing, yield and food-cost variance, selling-price and margin controls, POS imports and mappings, discounts, voids, sales-register accuracy, financial exposure, and management reporting.</td><td>Costing, Operations Entry, Operations Approval, Sales/POS Control, Reports/Audit</td></tr>
+    <tr><td>Inventory Manager</td><td>Owns store control, inventory accuracy, stock counts, reorder exposure, stock variance, and receiving supervision.</td><td>Operations Entry, Operations Approval, Inventory, Reports/Audit</td></tr>
+    <tr><td>Storekeeper</td><td>Receives fresh supplies, confirms purchase receipts, issues stock to departments, attends stock requisitions, and keeps store movement records accurate.</td><td>Operations Entry, Operations Approval, Inventory</td></tr>
+    <tr><td>Kitchen Manager</td><td>Owns kitchen planning, coordinates prep runs and production records, manages yield tests, kitchen requisitions, recipe output, waste review, production variance, and kitchen team accountability.</td><td>Operations Entry, Operations Approval, Kitchen Production</td></tr>
+    <tr><td>Chef</td><td>Records kitchen production activity, recipe execution, waste, and ingredient usage under kitchen leadership.</td><td>Operations Entry, Kitchen Production</td></tr>
+    <tr><td>Quality Assurance</td><td>Reviews supplier quality, yield tests, over-trimming, hygiene/process exceptions, production quality, and compliance alerts.</td><td>Operations Entry, Operations Approval, Kitchen Production, Reports/Audit</td></tr>
+    <tr><td>Bar Manager</td><td>Owns bar stock, bar requisitions, beverage waste, bar inventory discipline, and bar operating controls.</td><td>Operations Entry, Operations Approval, Bar Operations</td></tr>
+    <tr><td>Bartender</td><td>Records bar activity, requests stock, logs bar waste, and maintains bar stock usage under bar manager supervision.</td><td>Operations Entry, Bar Operations</td></tr>
+    <tr><td>Auditor</td><td>Reviews registers, approvals, exceptions, yield/cost events, and audit trails without routine operational entry.</td><td>Operations Approval, Reports/Audit</td></tr>
+    <tr><td>Viewer</td><td>Can review permitted dashboard information without changing records.</td><td>Limited read-only access</td></tr>
+  </table>
+
+  <h2>Important Notes</h2>
+  <div class="note">
+    <p>General Manager responsibilities are consolidated into <strong>Operations Manager</strong>.</p>
+    <p>Cost Controller and POS Supervisor responsibilities are consolidated into <strong>Finance Manager</strong>.</p>
+    <p>Production Supervisor responsibilities are consolidated into <strong>Kitchen Manager</strong>.</p>
+    <p>Storekeeper replaces the separate Receiving Officer role for now. This keeps receiving and stock issue responsibility in one practical store role.</p>
+    <p>Chef sub-roles can be introduced later under the Kitchen Manager / Chef structure without disturbing the main role model.</p>
+    <p>Bar has two levels for now: Bar Manager as department head and Bartender as the lower-authority operating role.</p>
+    <p>Quality Assurance is intentionally separate from Kitchen Manager because QA should be able to challenge supplier quality, trimming/yield outcomes, and process exceptions.</p>
+  </div>
+</body>
+</html>
