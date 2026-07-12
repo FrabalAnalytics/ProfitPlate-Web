@@ -207,12 +207,12 @@ export function FinancialTrendChart({
       </div>
 
       <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="min-w-0 overflow-x-auto">
+        <div className="min-w-0 sm:overflow-x-auto">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             role="img"
             aria-label="Financial trend line chart"
-            className="min-h-[240px] w-full min-w-[620px]"
+            className="min-h-[220px] w-full sm:min-h-[240px] sm:min-w-[620px]"
           >
             {[0, 1, 2, 3].map((line) => {
               const y = paddingTop + (line / 3) * plotHeight;

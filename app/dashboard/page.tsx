@@ -9639,7 +9639,7 @@ function WorkspaceDashboard({
                 <div className="grid gap-2">
                   {request.request_type === "inventory_requisition" &&
                   request.status === "pending" ? (
-                    <div className="grid min-w-[280px] gap-2">
+                    <div className="grid min-w-0 gap-2 sm:min-w-[280px]">
                       {Array.isArray(request.payload?.lines)
                         ? request.payload.lines.map((line, index) => {
                             const typedLine = line as Record<string, unknown>;
