@@ -134,10 +134,64 @@ body {
 }
 
 @media (max-width: 640px) {
+  .dashboard-readable {
+    font-size: 14px;
+  }
+
+  .dashboard-readable * {
+    min-width: 0;
+  }
+
+  .dashboard-readable section,
+  .dashboard-readable article,
+  .dashboard-readable aside,
+  .dashboard-readable form,
+  .dashboard-readable table,
+  .dashboard-readable div,
+  .dashboard-readable p,
+  .dashboard-readable h1,
+  .dashboard-readable h2,
+  .dashboard-readable h3 {
+    overflow-wrap: anywhere;
+  }
+
+  .dashboard-readable h1 {
+    font-size: clamp(1.85rem, 10vw, 2.45rem);
+  }
+
+  .dashboard-readable h2 {
+    font-size: clamp(1.35rem, 7vw, 1.8rem);
+  }
+
+  .dashboard-readable button,
+  .dashboard-readable a,
+  .dashboard-readable summary {
+    min-height: 40px;
+  }
+
   .dashboard-readable input,
   .dashboard-readable select,
   .dashboard-readable textarea {
     font-size: 16px;
+  }
+
+  .dashboard-readable .overflow-x-auto,
+  .dashboard-readable .overflow-auto {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-readable table {
+    min-width: 640px;
+  }
+
+  .dashboard-readable td,
+  .dashboard-readable th {
+    white-space: normal;
+  }
+
+  .dashboard-readable .shadow-2xl {
+    box-shadow: 0 18px 46px rgba(25, 65, 45, 0.16);
   }
 }
 

@@ -296,7 +296,7 @@ const ledgerFrameClass =
   "overflow-hidden rounded-sm border border-border-system bg-background";
 
 const ledgerHeaderClass =
-  "flex flex-wrap items-center justify-between gap-3 border-b border-border-system bg-card px-5 py-4";
+  "flex flex-wrap items-center justify-between gap-3 border-b border-border-system bg-card px-4 py-4 sm:px-5";
 
 const ledgerColumnHeaderClass =
   "hidden border-b border-border-system bg-card px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:grid";
@@ -8423,8 +8423,42 @@ function WorkspaceDashboard({
   }
 
   return (
-    <section className="mx-auto grid max-w-[1320px] gap-5 px-5 py-5 sm:px-8 xl:grid-cols-[260px_minmax(0,1fr)]">
+    <section className="mx-auto grid max-w-[1320px] gap-4 px-3 py-4 sm:gap-5 sm:px-8 sm:py-5 xl:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="rounded-lg border border-border-system bg-white p-3 shadow-[0_10px_30px_rgba(25,65,45,0.06)] xl:sticky xl:top-20 xl:self-start">
+        <div className="mb-3 rounded-sm border border-border-system bg-background p-3 xl:hidden">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+            Dashboard View
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center">
+            <div className="min-w-0">
+              <p className="truncate text-base font-extrabold text-foreground">
+                {roleLabels[focusRole]}
+              </p>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-text-muted">
+                {roleDescriptions[focusRole]}
+              </p>
+            </div>
+            {canManageWorkspace ? (
+              <select
+                value={focusRole}
+                onChange={(event) => {
+                  setSelectedFocusRole(normalizeRole(event.target.value));
+                  setSelectedDashboardSection("");
+                  setSelectedDashboardTargetId("");
+                  setOpenNavGroups({});
+                }}
+                className="h-10 rounded-sm border border-border-system bg-card px-2 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                aria-label="Preview dashboard role"
+              >
+                {focusRoleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {roleLabels[role]}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+        </div>
         <div className="hidden border-b border-border-system px-3 pb-4 xl:block">
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
             Restaurant Workspace
@@ -8617,7 +8651,7 @@ function WorkspaceDashboard({
       </aside>
 
       <div className="min-w-0">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border-system pb-4">
+      <div className="mb-5 grid gap-3 border-b border-border-system pb-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
       <div>
         <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
           Operating period
@@ -8626,7 +8660,7 @@ function WorkspaceDashboard({
             {dateFilterLabels[dateFilter]} activity
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {(["today", "7d", "30d", "all"] as DateFilter[]).map((filter) => (
             <button
               key={filter}
@@ -8646,7 +8680,7 @@ function WorkspaceDashboard({
           <summary className="flex h-9 cursor-pointer list-none items-center rounded-full border border-border-system bg-white px-4 text-xs font-bold text-text-muted transition hover:border-border-system-hover hover:text-foreground">
             Export reports
           </summary>
-          <div className="absolute right-0 z-20 mt-2 grid min-w-[320px] gap-2 rounded-sm border border-border-system bg-card p-3 shadow-2xl shadow-black/35">
+          <div className="absolute right-0 z-20 mt-2 grid w-[calc(100vw-2rem)] max-w-[360px] gap-2 rounded-sm border border-border-system bg-card p-3 shadow-2xl shadow-black/35 sm:min-w-[320px]">
             <div className="rounded-sm border border-border-system bg-background p-3">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Report date range
@@ -10766,7 +10800,102 @@ function WorkspaceDashboard({
         </div>
 
         {exceptionItems.length > 0 ? (
-          <div className="mt-5 overflow-x-auto rounded-sm border border-border-system bg-card">
+          <>
+          <div className="mt-5 grid gap-3 lg:hidden">
+            {exceptionItems.map((item) => {
+              const severityClass =
+                item.tone === "critical"
+                  ? "border-status-critical-border bg-status-critical-bg text-status-critical-text"
+                  : item.tone === "warning"
+                    ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                    : "border-status-info-border bg-status-info-bg text-status-info-text";
+              const estimatedMonthlyLoss =
+                item.sortImpact > 0 ? item.sortImpact * 4 : 0;
+              const owner = item.category.includes("Price") ||
+                item.category.includes("Margin")
+                ? "Finance"
+                : item.category.includes("Stock")
+                  ? "Operations"
+                  : "Manager";
+
+              return (
+                <article
+                  key={item.id}
+                  className="rounded-sm border border-border-system bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${severityClass}`}
+                      >
+                        {item.severity}
+                      </span>
+                      <h3 className="mt-3 text-base font-extrabold text-foreground">
+                        {item.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-text-muted">
+                        {item.detail}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-status-attention-border bg-status-attention-bg px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
+                      Open
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    <div className="rounded-sm border border-border-system bg-background px-3 py-2">
+                      <dt className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                        Owner
+                      </dt>
+                      <dd className="mt-1 font-bold text-foreground">
+                        {owner}
+                      </dd>
+                    </div>
+                    <div className="rounded-sm border border-border-system bg-background px-3 py-2">
+                      <dt className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                        Deadline
+                      </dt>
+                      <dd className="mt-1 font-bold text-foreground">
+                        {item.severity === "Critical" ? "Today" : "This week"}
+                      </dd>
+                    </div>
+                    <div className="col-span-2 rounded-sm border border-border-system bg-background px-3 py-2">
+                      <dt className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                        Monthly impact
+                      </dt>
+                      <dd className="mt-1 font-bold text-foreground">
+                        {organization.local_currency}{" "}
+                        {estimatedMonthlyLoss.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      className="rounded-sm bg-accent px-3 py-2 text-xs font-semibold text-background transition hover:bg-accent-hover"
+                    >
+                      Review
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-sm border border-border-system bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:border-border-system-hover"
+                    >
+                      Escalate
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-sm border border-border-system bg-background px-3 py-2 text-xs font-semibold text-text-muted transition hover:border-border-system-hover"
+                    >
+                      Defer
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 hidden overflow-x-auto rounded-sm border border-border-system bg-card lg:block">
             <div className="min-w-[1040px]">
               <div className="grid grid-cols-[0.55fr_1.2fr_0.75fr_0.75fr_0.65fr_0.85fr_1fr] gap-4 border-b border-border-system bg-background px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 <span>Priority</span>
@@ -10848,6 +10977,7 @@ function WorkspaceDashboard({
             })}
             </div>
           </div>
+          </>
         ) : (
           <div className="mt-5 rounded-sm border border-border-system bg-background px-5 py-6">
             <p className="text-sm font-semibold text-foreground">
