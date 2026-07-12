@@ -3326,6 +3326,7 @@ function WorkspaceDashboard({
   const [selectedFocusRole, setSelectedFocusRole] = useState<AppRole | "">("");
   const [selectedDashboardSection, setSelectedDashboardSection] = useState("");
   const [selectedDashboardTargetId, setSelectedDashboardTargetId] = useState("");
+  const [mobileDashboardMenuOpen, setMobileDashboardMenuOpen] = useState(false);
   const [openNavGroups, setOpenNavGroups] = useState<Record<string, boolean>>(
     {},
   );
@@ -8527,6 +8528,7 @@ function WorkspaceDashboard({
                     setSelectedFocusRole(normalizeRole(event.target.value));
                     setSelectedDashboardSection("");
                     setSelectedDashboardTargetId("");
+                    setMobileDashboardMenuOpen(false);
                     setOpenNavGroups({});
                   }}
                   className="h-9 rounded-sm border border-border-system bg-card px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
@@ -8559,17 +8561,36 @@ function WorkspaceDashboard({
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={() =>
+            setMobileDashboardMenuOpen((currentValue) => !currentValue)
+          }
+          aria-controls="dashboard-section-menu"
+          aria-expanded={mobileDashboardMenuOpen}
+          className="mt-3 flex h-11 w-full items-center justify-between rounded-sm border border-border-system bg-card px-3 text-left text-sm font-bold text-foreground shadow-sm transition hover:border-border-system-hover xl:hidden"
+        >
+          <span>Menu / dashboard sections</span>
+          <span className="font-mono text-lg leading-none">
+            {mobileDashboardMenuOpen ? "×" : "☰"}
+          </span>
+        </button>
+
         <nav
+          id="dashboard-section-menu"
           aria-label="Dashboard sections"
-          className="flex gap-3 overflow-x-auto py-1 xl:mt-3 xl:grid xl:gap-4 xl:overflow-visible xl:py-0"
+          className={`mt-3 gap-3 ${
+            mobileDashboardMenuOpen ? "grid" : "hidden"
+          } xl:grid xl:gap-4`}
         >
           {isOwnerFocus ? (
-            <div className="min-w-[210px] rounded-sm border border-border-system bg-background p-2 xl:min-w-0 xl:border-0 xl:bg-transparent xl:p-0">
+            <div className="rounded-sm border border-border-system bg-background p-2 xl:border-0 xl:bg-transparent xl:p-0">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedDashboardSection("");
                   setSelectedDashboardTargetId("");
+                  setMobileDashboardMenuOpen(false);
                   setOpenNavGroups({});
                 }}
                 aria-current={ownerOverviewActive ? "page" : undefined}
@@ -8591,7 +8612,7 @@ function WorkspaceDashboard({
           {workflowNavGroups.map((group) => (
             <div
               key={group.label}
-              className="min-w-[210px] rounded-sm border border-border-system bg-background p-2 xl:min-w-0 xl:border-0 xl:bg-transparent xl:p-0"
+              className="rounded-sm border border-border-system bg-background p-2 xl:border-0 xl:bg-transparent xl:p-0"
             >
               <button
                 type="button"
@@ -8624,9 +8645,14 @@ function WorkspaceDashboard({
                     <button
                       key={`${group.label}-${item.label}`}
                       type="button"
-                      onClick={() =>
-                        openDashboardSection(sectionId, undefined, targetElementId)
-                      }
+                      onClick={() => {
+                        openDashboardSection(
+                          sectionId,
+                          undefined,
+                          targetElementId,
+                        );
+                        setMobileDashboardMenuOpen(false);
+                      }}
                       aria-current={isActive ? "page" : undefined}
                       className={`group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-semibold transition ${
                         isActive
@@ -11207,7 +11233,161 @@ function WorkspaceDashboard({
             </span>
           </div>
 
-          <div className="overflow-hidden">
+          <div className="grid gap-3 p-3 lg:hidden">
+            {dayCloseChecks.map((check) => (
+              <article
+                key={`mobile-${check.label}`}
+                className={`rounded-sm border p-3 shadow-sm ${
+                  check.status === "exception"
+                    ? "border-status-critical-border bg-status-critical-bg/70"
+                    : check.passed
+                      ? "border-accent-muted-border bg-accent-muted-bg/45"
+                      : "border-status-attention-border bg-status-attention-bg/45"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold leading-6 text-foreground">
+                      {check.label}
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      {check.key.replaceAll("_", " ")}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {check.passed && check.status !== "exception" ? (
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-accent-muted-border bg-accent-muted-bg text-sm font-black text-accent">
+                        ✓
+                      </span>
+                    ) : null}
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${registerStatusStyles[check.status]}`}
+                    >
+                      {check.passed && check.status !== "exception"
+                        ? "Verified"
+                        : registerStatusLabels[check.status]}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 rounded-sm border border-border-system bg-background/80 p-3 text-sm leading-6 text-text-muted">
+                  <div>
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Owner
+                    </p>
+                    <p className="font-semibold text-foreground">
+                      {check.department}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Evidence
+                    </p>
+                    <p>{check.detail}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                        Activity
+                      </p>
+                      <p className="font-semibold text-foreground">
+                        {check.activityCount > 0
+                          ? `${check.activityCount.toLocaleString()} record${
+                              check.activityCount === 1 ? "" : "s"
+                            }`
+                          : check.entry?.activity_state === "no_activity"
+                            ? "Zero declared"
+                            : "Missing"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                        Submitted
+                      </p>
+                      <p className="font-semibold text-foreground">
+                        {check.submittedAt
+                          ? new Date(check.submittedAt).toLocaleString()
+                          : "Not submitted"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openDashboardSection(
+                        check.href.replace("#", ""),
+                        check.ownerRole,
+                      )
+                    }
+                    className="h-10 rounded-sm border border-border-system bg-white px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                  >
+                    Open ledger
+                  </button>
+                  {canRecordOperations ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {check.passed && check.status !== "exception" ? (
+                        <span className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 text-xs font-bold uppercase tracking-wider text-accent">
+                          <span className="text-sm leading-none">✓</span>
+                          Checked
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onDeclareOperationRegister({
+                              registerKey: check.key,
+                              department: check.department,
+                              status: "clear",
+                              activityState:
+                                check.activityCount > 0
+                                  ? "reviewed"
+                                  : check.key.includes("readiness")
+                                    ? "reviewed"
+                                    : "no_activity",
+                              notes:
+                                check.activityCount > 0
+                                  ? "Reviewed existing activity for today's register."
+                                  : check.key.includes("readiness")
+                                    ? "Readiness checklist confirmed."
+                                    : "No activity for this register today.",
+                            })
+                          }
+                          className="h-10 rounded-sm bg-accent px-3 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-accent-hover"
+                        >
+                          {check.activityCount > 0 ||
+                          check.key.includes("readiness")
+                            ? "Confirm"
+                            : "Zero"}
+                        </button>
+                      )}
+                      {check.passed && check.status !== "exception" ? null : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onDeclareOperationRegister({
+                              registerKey: check.key,
+                              department: check.department,
+                              status: "exception",
+                              activityState: "exception",
+                              notes: "Exception flagged from daily checklist.",
+                            })
+                          }
+                          className="h-10 rounded-sm border border-status-critical-border bg-status-critical-bg px-3 text-xs font-bold uppercase tracking-wider text-status-critical-text transition hover:border-status-critical-text"
+                        >
+                          Exception
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-hidden lg:block">
             <table className="w-full table-fixed border-collapse text-sm">
               <thead className="bg-card">
                 <tr className="border-b border-border-system font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
