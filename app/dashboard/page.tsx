@@ -9118,7 +9118,7 @@ function WorkspaceDashboard({
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -9162,7 +9162,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Day Close
               </p>
@@ -9205,7 +9205,7 @@ function WorkspaceDashboard({
           </section>
 
           <section className="grid gap-6 xl:grid-cols-2">
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Menu Profitability
               </p>
@@ -9256,7 +9256,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Waste This Week
               </p>
@@ -9300,7 +9300,7 @@ function WorkspaceDashboard({
           </section>
 
           <section className="grid gap-6 xl:grid-cols-3">
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Ingredient Price Changes
               </p>
@@ -9345,7 +9345,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Approvals Waiting
               </p>
@@ -9385,7 +9385,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25">
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Recent Activity
               </p>
@@ -9594,7 +9594,7 @@ function WorkspaceDashboard({
 
       <section
         id="profit-movement"
-        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -9890,7 +9890,7 @@ function WorkspaceDashboard({
 
       <section
         id="profit-movement"
-        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -9976,7 +9976,7 @@ function WorkspaceDashboard({
 
       <section
         id="overview"
-        className={`${showFinancialDashboardSection && isSectionActive("overview") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialDashboardSection && isSectionActive("overview") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -10275,7 +10275,7 @@ function WorkspaceDashboard({
 
       <section
         id="pricing"
-        className={`${showFinancialSection && isSectionActive("pricing") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialSection && isSectionActive("pricing") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -10558,7 +10558,7 @@ function WorkspaceDashboard({
 
       <section
         id="costing"
-        className={`${showFinancialSection && isSectionActive("costing") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialSection && isSectionActive("costing") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -10889,7 +10889,7 @@ function WorkspaceDashboard({
 
       <section
         id="exceptions"
-        className={`${showFinancialSection && isSectionActive("exceptions") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialSection && isSectionActive("exceptions") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -11129,7 +11129,7 @@ function WorkspaceDashboard({
 
       <section
         id="day-history"
-        className={`${showDayControlSection && isSectionActive("day") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showDayControlSection && isSectionActive("day") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -11858,7 +11858,7 @@ function WorkspaceDashboard({
       >
         <section
           id="setup"
-          className={`${showSetupSection && isSectionActive("setup") ? "" : "hidden"} scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+          className={`${showSetupSection && isSectionActive("setup") ? "" : "hidden"} scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
         >
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border-system pb-4">
             <div>
@@ -12458,7 +12458,7 @@ function WorkspaceDashboard({
 
         <section
           id="yield-tests"
-          className={`${showInventorySection && !isInventoryFocus && !isProcurementFocus && isSectionActive("yield-tests") ? "" : "hidden"} min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+          className={`${showInventorySection && !isInventoryFocus && !isProcurementFocus && isSectionActive("yield-tests") ? "" : "hidden"} min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -14147,7 +14147,7 @@ function WorkspaceDashboard({
 
       <section
         id="waste"
-        className={`${showOperationsSection && isSectionActive("waste") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showOperationsSection && isSectionActive("waste") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -14426,7 +14426,7 @@ function WorkspaceDashboard({
 
       <section
         id="recipes"
-        className={`${showMasterDataSection && isSectionActive("recipes") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showMasterDataSection && isSectionActive("recipes") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -14759,7 +14759,7 @@ function WorkspaceDashboard({
 
       <section
         id="production-plan"
-        className={`${showProductionPlanningSection && isSectionActive("production-plan") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showProductionPlanningSection && isSectionActive("production-plan") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="flex flex-col gap-4 border-b border-border-system pb-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -15095,7 +15095,7 @@ function WorkspaceDashboard({
 
       <section
         id="ledger"
-        className={`${showProductionLedgerSection && isSectionActive("ledger") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showProductionLedgerSection && isSectionActive("ledger") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div className="border-b border-border-system pb-4">
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -15477,7 +15477,7 @@ function WorkspaceDashboard({
 
       <section
         id="sales-pos"
-        className={`${showFinancialSection && isSectionActive("sales-pos") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+        className={`${showFinancialSection && isSectionActive("sales-pos") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
         <div>
           <div className="mb-4">
