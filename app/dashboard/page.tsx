@@ -15763,7 +15763,117 @@ function WorkspaceDashboard({
             </div>
 
             {salesImportPreview.length > 0 ? (
-              <div className="max-h-72 overflow-auto rounded-sm border border-border-system">
+              <div className="rounded-sm border border-border-system">
+                <div className="grid max-h-96 gap-3 overflow-auto p-3 lg:hidden">
+                  {salesImportPreview.slice(0, 20).map((row) => (
+                    <article
+                      key={`mobile-import-${row.id}`}
+                      className="rounded-sm border border-border-system bg-card p-3 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            Row {row.rowNumber}
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {row.menuItem || "Blank menu item"}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-text-ghost">
+                            POS code: {row.posItemCode || "-"}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                            row.error
+                              ? "border-status-critical-border bg-status-critical-bg text-status-critical-text"
+                              : "border-accent-muted-border bg-accent-muted-bg text-accent"
+                          }`}
+                        >
+                          {row.error ?? row.matchSource}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-sm border border-border-system bg-background p-2">
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                            Date
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {row.businessDate ||
+                              (row.dateStatus === "missing_date"
+                                ? "Unreadable"
+                                : "Not supplied")}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-border-system bg-background p-2">
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                            Qty
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {row.soldQuantity.toLocaleString(undefined, {
+                              maximumFractionDigits: 3,
+                            })}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-border-system bg-background p-2">
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                            Net sales
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {row.hasRevenueData
+                              ? `${organization.local_currency} ${row.netSales.toLocaleString(
+                                  undefined,
+                                  { maximumFractionDigits: 2 },
+                                )}`
+                              : "-"}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-border-system bg-background p-2">
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                            Effective price
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {row.hasRevenueData && row.soldQuantity > 0
+                              ? `${organization.local_currency} ${(
+                                  row.netSales / row.soldQuantity
+                                ).toLocaleString(undefined, {
+                                  maximumFractionDigits: 2,
+                                })}`
+                              : "-"}
+                          </p>
+                        </div>
+                      </div>
+                      <label className="mt-3 block">
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                          Maps to
+                        </span>
+                        <select
+                          value={row.recipeId}
+                          onChange={(event) =>
+                            handleSalesImportMappingChange(
+                              row,
+                              event.target.value,
+                            )
+                          }
+                          disabled={saleSaving || !row.posItemKey}
+                          className="mt-2 h-10 w-full rounded-sm border border-border-system bg-background px-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label={`Map POS row ${row.rowNumber} to final menu item`}
+                        >
+                          <option value="">Choose item</option>
+                          {activeFinalMenuItems.map((recipe) => (
+                            <option
+                              key={getRecipeId(recipe)}
+                              value={getRecipeId(recipe)}
+                            >
+                              {recipe.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden max-h-72 overflow-auto lg:block">
                 <table className="min-w-full divide-y divide-border-system text-sm">
                   <thead className="bg-card">
                     <tr>
@@ -15874,6 +15984,8 @@ function WorkspaceDashboard({
                     ))}
                   </tbody>
                 </table>
+                </div>
+
                 {salesImportPreview.length > 20 ? (
                   <p className="border-t border-border-system px-4 py-3 text-xs font-semibold text-text-muted">
                     Showing first 20 rows only.
