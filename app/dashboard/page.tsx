@@ -166,6 +166,12 @@ type ProductionPlanInputRow = {
   targetOutputQty: string;
 };
 
+type ProductionRunLineInputRow = {
+  id: string;
+  recipeId: string;
+  targetOutputQty: string;
+};
+
 type ProductionPlanRequirement = {
   id: string;
   inventoryItemId: string;
@@ -2530,6 +2536,9 @@ export default function DashboardPage() {
     const rawActualComponentUsages = String(
       formData.get("actual_component_usages") ?? "[]",
     );
+    const rawProductionRunLines = String(
+      formData.get("production_run_lines") ?? "",
+    );
 
     if (!recipeId || !Number.isFinite(targetOutputQty) || targetOutputQty <= 0) {
       setMessage("Choose a production item and actual output before recording production.");
@@ -2552,43 +2561,112 @@ export default function DashboardPage() {
       return false;
     }
 
-    const invalidActualUsage = actualComponentUsages.some(
-      (usage) =>
-        !extractUuid(usage.component_inventory_item_id) ||
-        usage.actual_qty_used === null ||
-        !Number.isFinite(usage.actual_qty_used) ||
-        usage.actual_qty_used < 0,
-    );
+    type ProductionRunRpcLine = {
+      target_recipe_id: string;
+      target_output_quantity: number;
+      actual_output_quantity: number;
+      production_origin: string;
+      actual_component_usages: Array<{
+        component_inventory_item_id: string;
+        actual_qty_used: number | null;
+      }>;
+      output_location_id_value: string | null;
+    };
 
-    if (actualComponentUsages.length === 0 || invalidActualUsage) {
+    let productionRunLines: ProductionRunRpcLine[] = [
+      {
+        target_recipe_id: recipeId,
+        target_output_quantity: targetOutputQty,
+        actual_output_quantity:
+          Number.isFinite(actualOutputQty) && actualOutputQty > 0
+            ? actualOutputQty
+            : targetOutputQty,
+        production_origin: origin,
+        actual_component_usages: actualComponentUsages,
+        output_location_id_value: outputLocationId || null,
+      },
+    ];
+
+    if (rawProductionRunLines) {
+      try {
+        const parsedProductionRunLines = JSON.parse(rawProductionRunLines);
+
+        if (Array.isArray(parsedProductionRunLines)) {
+          productionRunLines = parsedProductionRunLines.map((line) => ({
+            target_recipe_id: extractUuid(line.target_recipe_id),
+            target_output_quantity: Number(line.target_output_quantity ?? 0),
+            actual_output_quantity: Number(line.actual_output_quantity ?? 0),
+            production_origin: String(
+              line.production_origin ?? "kitchen_prep_line",
+            ),
+            actual_component_usages: Array.isArray(
+              line.actual_component_usages,
+            )
+              ? line.actual_component_usages
+              : [],
+            output_location_id_value:
+              extractUuid(line.output_location_id_value) || null,
+          }));
+        }
+      } catch {
+        setMessage("Production lines could not be read.");
+        setProductionSaving(false);
+        return false;
+      }
+    }
+
+    const invalidProductionLine = productionRunLines.some((line) => {
+      const invalidActualUsage = line.actual_component_usages.some(
+        (usage) =>
+          !extractUuid(usage.component_inventory_item_id) ||
+          usage.actual_qty_used === null ||
+          !Number.isFinite(usage.actual_qty_used) ||
+          usage.actual_qty_used < 0,
+      );
+
+      return (
+        !extractUuid(line.target_recipe_id) ||
+        !Number.isFinite(line.target_output_quantity) ||
+        line.target_output_quantity <= 0 ||
+        !Number.isFinite(line.actual_output_quantity) ||
+        line.actual_output_quantity <= 0 ||
+        line.actual_component_usages.length === 0 ||
+        invalidActualUsage
+      );
+    });
+
+    if (invalidProductionLine) {
       setMessage(
-        "Enter actual raw material quantity used for every production ingredient.",
+        "Enter a valid production item, output quantity, and raw material usage for every production line.",
       );
       setProductionSaving(false);
       return false;
     }
 
-    const { error } = await supabase.rpc("create_dashboard_production_run", {
-      target_recipe_id: recipeId,
-      target_output_quantity: targetOutputQty,
-      actual_output_quantity:
-        Number.isFinite(actualOutputQty) && actualOutputQty > 0
-          ? actualOutputQty
-          : targetOutputQty,
-      production_origin: origin,
-      actual_component_usages: actualComponentUsages,
-      output_location_id_value: outputLocationId || null,
-    });
+    for (const line of productionRunLines) {
+      const { error } = await supabase.rpc("create_dashboard_production_run", {
+        target_recipe_id: line.target_recipe_id,
+        target_output_quantity: line.target_output_quantity,
+        actual_output_quantity: line.actual_output_quantity,
+        production_origin: line.production_origin,
+        actual_component_usages: line.actual_component_usages,
+        output_location_id_value: line.output_location_id_value,
+      });
 
-    if (error) {
-      setMessage(error.message);
-      setProductionSaving(false);
-      return false;
+      if (error) {
+        setMessage(error.message);
+        setProductionSaving(false);
+        return false;
+      }
     }
 
     form.reset();
     await reloadOperatingWorkspace(organization.id);
-    setMessage("Production run recorded. Inventory and transformation events updated.");
+    setMessage(
+      productionRunLines.length > 1
+        ? `${productionRunLines.length.toLocaleString()} production lines recorded. Inventory and transformation events updated.`
+        : "Production run recorded. Inventory and transformation events updated.",
+    );
     setProductionSaving(false);
     return true;
   }
@@ -3355,6 +3433,8 @@ function WorkspaceDashboard({
   const [selectedProductionRecipeId, setSelectedProductionRecipeId] =
     useState("");
   const [targetProductionOutput, setTargetProductionOutput] = useState("");
+  const [additionalProductionRunRows, setAdditionalProductionRunRows] =
+    useState<ProductionRunLineInputRow[]>([]);
   const [actualProductionInputs, setActualProductionInputs] = useState<
     Record<string, string>
   >({});
@@ -4212,6 +4292,102 @@ function WorkspaceDashboard({
 
       return Number.isFinite(enteredQty) && enteredQty >= 0;
     });
+  const additionalProductionRunLinePayloads = additionalProductionRunRows
+    .filter((row) => row.recipeId || row.targetOutputQty)
+    .map((row) => {
+      const rowRecipe = productionRunRecipeOptions.find(
+        (recipe) => getRecipeId(recipe) === row.recipeId,
+      );
+      const rowOutputQty = Number(row.targetOutputQty);
+      const rowIsFinalMenu =
+        Boolean(rowRecipe) && rowRecipe?.recipe_type !== "sub_recipe";
+      const rowRecipeFamily = rowRecipe
+        ? activeRecipes.filter(
+            (recipe) =>
+              recipe.recipe_type === rowRecipe.recipe_type &&
+              recipe.name.trim().toLowerCase() ===
+                rowRecipe.name.trim().toLowerCase(),
+          )
+        : [];
+      const rowRecipeIds = rowRecipeFamily.map(getRecipeId);
+      const rowBatchOutput = Math.max(
+        1,
+        ...rowRecipeFamily.map((recipe) =>
+          Number(recipe.standard_batch_output_qty ?? 1),
+        ),
+      );
+      const rowComponents = rowRecipe
+        ? dedupeRecipeComponentsByIngredient(
+            recipeComponents.filter(
+              (component) =>
+                rowRecipeIds.includes(extractUuid(component.recipe_id)) &&
+                component.component_inventory_item_id,
+            ),
+          )
+        : [];
+
+      return {
+        id: row.id,
+        target_recipe_id: extractUuid(row.recipeId),
+        target_output_quantity: rowOutputQty,
+        actual_output_quantity: rowOutputQty,
+        production_origin: "kitchen_prep_line",
+        output_location_id_value: rowIsFinalMenu
+          ? extractUuid(defaultSalesOutletLocation?.id)
+          : null,
+        actual_component_usages: rowComponents.map((component) => ({
+          component_inventory_item_id: extractUuid(
+            component.component_inventory_item_id,
+          ),
+          actual_qty_used:
+            Number.isFinite(rowOutputQty) && rowOutputQty > 0
+              ? (component.qty_in_recipe_uom / rowBatchOutput) * rowOutputQty
+              : null,
+        })),
+      };
+    });
+  const productionRunLinePayloads =
+    selectedProductionRecipe && hasValidTargetOutput
+      ? [
+          {
+            target_recipe_id: extractUuid(selectedProductionRecipeId),
+            target_output_quantity: targetOutputQty,
+            actual_output_quantity: targetOutputQty,
+            production_origin: "kitchen_prep_line",
+            output_location_id_value: selectedProductionIsFinalMenu
+              ? resolvedProductionOutputLocationId
+              : null,
+            actual_component_usages: actualComponentUsages,
+          },
+          ...additionalProductionRunLinePayloads.map((line) => ({
+            target_recipe_id: line.target_recipe_id,
+            target_output_quantity: line.target_output_quantity,
+            actual_output_quantity: line.actual_output_quantity,
+            production_origin: line.production_origin,
+            output_location_id_value: line.output_location_id_value,
+            actual_component_usages: line.actual_component_usages,
+          })),
+        ]
+      : [];
+  const hasInvalidAdditionalProductionRunLine =
+    additionalProductionRunLinePayloads.some(
+      (line) =>
+        !line.target_recipe_id ||
+        !Number.isFinite(line.target_output_quantity) ||
+        line.target_output_quantity <= 0 ||
+        line.actual_component_usages.length === 0 ||
+        line.actual_component_usages.some(
+          (usage) =>
+            !usage.component_inventory_item_id ||
+            usage.actual_qty_used === null ||
+            !Number.isFinite(usage.actual_qty_used) ||
+            usage.actual_qty_used < 0,
+        ) ||
+        (productionRunRecipeOptions.find(
+          (recipe) => getRecipeId(recipe) === line.target_recipe_id,
+        )?.recipe_type !== "sub_recipe" &&
+          !line.output_location_id_value),
+    );
   const canRecordProduction =
     !productionSaving &&
     canRecordOperations &&
@@ -4219,6 +4395,7 @@ function WorkspaceDashboard({
     hasValidTargetOutput &&
     productionComponents.length > 0 &&
     hasActualProductionUsageInputs &&
+    !hasInvalidAdditionalProductionRunLine &&
     (!selectedProductionIsFinalMenu ||
       Boolean(resolvedProductionOutputLocationId));
   const selectedSaleRecipe = activeFinalMenuItems.find(
@@ -8524,6 +8701,7 @@ function WorkspaceDashboard({
     if (recorded) {
       setSelectedProductionRecipeId("");
       setTargetProductionOutput("");
+      setAdditionalProductionRunRows([]);
       setActualProductionInputs({});
     }
   }
@@ -15555,6 +15733,117 @@ function WorkspaceDashboard({
             </button>
           </div>
 
+          <div className="rounded-sm border border-border-system bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  More production lines
+                </p>
+                <p className="mt-1 text-sm text-text-muted">
+                  Add other final menu items or sub-recipes produced in this
+                  kitchen session. Extra lines use standard recipe usage; keep
+                  the first line for detailed actual-usage variance.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setAdditionalProductionRunRows((currentRows) => [
+                    ...currentRows,
+                    {
+                      id: `production-run-line-${Date.now()}`,
+                      recipeId: "",
+                      targetOutputQty: "",
+                    },
+                  ])
+                }
+                className={secondaryButtonClass}
+              >
+                Add production line
+              </button>
+            </div>
+
+            {additionalProductionRunRows.length > 0 ? (
+              <div className="mt-4 grid gap-3">
+                {additionalProductionRunRows.map((row, index) => (
+                  <div
+                    key={row.id}
+                    className="grid gap-3 md:grid-cols-[1fr_0.45fr_auto]"
+                  >
+                    <select
+                      value={row.recipeId}
+                      onChange={(event) =>
+                        setAdditionalProductionRunRows((currentRows) =>
+                          currentRows.map((currentRow) =>
+                            currentRow.id === row.id
+                              ? { ...currentRow, recipeId: event.target.value }
+                              : currentRow,
+                          ),
+                        )
+                      }
+                      className={formControlClass}
+                      aria-label={`Additional production item ${index + 1}`}
+                    >
+                      <option value="">Additional production item</option>
+                      {productionRunRecipeOptions.map((recipe) => (
+                        <option
+                          key={`extra-production-${row.id}-${getRecipeId(recipe)}`}
+                          value={getRecipeId(recipe)}
+                        >
+                          {recipe.name}{" "}
+                          {recipe.recipe_type === "sub_recipe"
+                            ? "(Sub-recipe)"
+                            : "(Final menu item)"}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={row.targetOutputQty}
+                      placeholder="Output produced"
+                      onChange={(event) =>
+                        setAdditionalProductionRunRows((currentRows) =>
+                          currentRows.map((currentRow) =>
+                            currentRow.id === row.id
+                              ? {
+                                  ...currentRow,
+                                  targetOutputQty: event.target.value,
+                                }
+                              : currentRow,
+                          ),
+                        )
+                      }
+                      className={formControlClass}
+                      aria-label={`Additional output produced ${index + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAdditionalProductionRunRows((currentRows) =>
+                          currentRows.filter(
+                            (currentRow) => currentRow.id !== row.id,
+                          ),
+                        )
+                      }
+                      className={secondaryButtonClass}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {hasInvalidAdditionalProductionRunLine ? (
+              <p className="mt-3 rounded-sm border border-status-attention-border bg-status-attention-bg px-4 py-3 text-sm font-semibold text-status-attention-text">
+                Complete or remove every additional production line before
+                logging the batch.
+              </p>
+            ) : null}
+          </div>
+
           {selectedProductionIsFinalMenu ? (
             <div className="grid gap-3 rounded-sm border border-status-info-border bg-status-info-bg p-4 md:grid-cols-[0.8fr_1.2fr] md:items-start">
               <div className="rounded-sm border border-status-info-border bg-white/80 px-4 py-3">
@@ -15612,6 +15901,11 @@ function WorkspaceDashboard({
             type="hidden"
             name="actual_component_usages"
             value={JSON.stringify(actualComponentUsages)}
+          />
+          <input
+            type="hidden"
+            name="production_run_lines"
+            value={JSON.stringify(productionRunLinePayloads)}
           />
 
           {selectedProductionRecipe ? (
