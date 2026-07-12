@@ -12222,6 +12222,7 @@ function WorkspaceDashboard({
                 >
                   <option value="main_store">Main store / stockroom</option>
                   <option value="department">User department</option>
+                  <option value="sales_outlet">Sales outlet / front counter</option>
                   <option value="central_warehouse">Central warehouse</option>
                 </select>
                 <select
@@ -12278,6 +12279,9 @@ function WorkspaceDashboard({
                         >
                           <option value="main_store">Main store / stockroom</option>
                           <option value="department">User department</option>
+                          <option value="sales_outlet">
+                            Sales outlet / front counter
+                          </option>
                           <option value="central_warehouse">
                             Central warehouse
                           </option>
@@ -12288,7 +12292,6 @@ function WorkspaceDashboard({
                           <option value="local_kitchen">Local kitchen legacy</option>
                           <option value="kitchen_line">Kitchen line legacy</option>
                           <option value="bar">Bar legacy</option>
-                          <option value="sales_outlet">Sales outlet legacy</option>
                         </select>
                         <select
                           name="edit_inventory_domain"
@@ -15575,7 +15578,11 @@ function WorkspaceDashboard({
                   required
                   className={formControlClass}
                 >
-                  <option value="">Select front counter / sales outlet</option>
+                  <option value="">
+                    {salesOutletLocations.length > 0
+                      ? "Select front counter / sales outlet"
+                      : "Create a sales outlet location first"}
+                  </option>
                   {salesOutletLocations.map((location) => (
                     <option
                       key={extractUuid(location.id)}
@@ -15597,6 +15604,20 @@ function WorkspaceDashboard({
                   . POS sales can then deplete it 1-to-1 from counter stock.
                 </p>
               </div>
+              {salesOutletLocations.length === 0 ? (
+                <div className="rounded-sm border border-status-attention-border bg-status-attention-bg px-4 py-3 text-sm font-semibold text-status-attention-text md:col-span-2">
+                  No sales outlet/front counter location exists yet. Create one
+                  in Operating Setup, then return here to receive finished goods
+                  into that counter.
+                  <button
+                    type="button"
+                    onClick={() => openDashboardSection("setup")}
+                    className="ml-0 mt-3 block rounded-sm border border-status-attention-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-border-system-hover sm:ml-3 sm:mt-0 sm:inline-flex"
+                  >
+                    Create sales outlet
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <input
@@ -15639,7 +15660,11 @@ function WorkspaceDashboard({
                   ).toLocaleString(undefined, {
                     maximumFractionDigits: 3,
                   })} ${selectedProductionFinishedGood.on_hand_uom ?? selectedProductionRecipe?.output_uom ?? "unit"} on hand.`
-                : "No finished-goods SKU exists yet for this recipe/counter. Recording this run will create it and credit the produced quantity."}
+                : salesOutletLocations.length === 0
+                  ? "Create a sales outlet/front counter first. Finished-goods SKUs are created per recipe and per counter location."
+                  : !resolvedProductionOutputLocationId
+                    ? "Select the counter that will receive this finished good."
+                    : "No finished-goods SKU exists yet for this recipe/counter. Recording this run will create it and credit the produced quantity."}
             </p>
           ) : null}
 
