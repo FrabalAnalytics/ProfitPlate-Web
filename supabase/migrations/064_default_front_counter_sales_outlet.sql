@@ -2,6 +2,59 @@
 -- goods. Create one sales outlet/front counter during onboarding, and backfill
 -- existing restaurant workspaces that do not have any active sales outlet yet.
 
+-- The default Front Counter is platform infrastructure for QSR finished-goods
+-- flow, not a customer-added operating branch. Keep normal subscription limits
+-- intact, but allow exactly one active sales outlet/front counter to be created
+-- for a workspace that does not already have one.
+create or replace function public.enforce_location_subscription_limit()
+returns trigger
+language plpgsql
+as $$
+declare
+  plan_limit integer;
+  existing_count integer;
+begin
+  if new.organization_id is null then
+    return new;
+  end if;
+
+  if coalesce(new.is_active, true)
+     and new.location_type::text = 'sales_outlet'
+     and lower(trim(coalesce(new.name, ''))) = 'front counter'
+     and new.routing_model::text = 'model_1_single_location'
+     and coalesce(new.inventory_domain, 'shared') = 'shared'
+     and not exists (
+       select 1
+       from public.locations location
+       where location.organization_id = new.organization_id
+         and location.is_active = true
+         and location.location_type = 'sales_outlet'::public.location_type
+         and (tg_op = 'INSERT' or location.id <> new.id)
+     ) then
+    return new;
+  end if;
+
+  select sp.max_locations
+    into plan_limit
+  from public.organizations o
+  join public.subscription_plans sp on sp.tier = o.subscription_tier
+  where o.id = new.organization_id;
+
+  select count(*)
+    into existing_count
+  from public.locations
+  where organization_id = new.organization_id
+    and is_active = true
+    and (tg_op = 'INSERT' or id <> new.id);
+
+  if plan_limit is not null and existing_count >= plan_limit then
+    raise exception 'Location limit reached for current subscription tier. Upgrade to add more locations.';
+  end if;
+
+  return new;
+end;
+$$;
+
 create or replace function public.create_workspace(
   workspace_name text,
   workspace_subscription_tier public.subscription_tier default 'solo',
