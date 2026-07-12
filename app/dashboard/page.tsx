@@ -11914,7 +11914,7 @@ function WorkspaceDashboard({
 
         <section
           id="inventory"
-          className={`${showInventorySection && isSectionActive("inventory") ? "" : "hidden"} min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+          className={`${showInventorySection && isSectionActive("inventory") ? "" : "hidden"} min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
         >
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border-system pb-4">
             <div>
@@ -11999,7 +11999,7 @@ function WorkspaceDashboard({
 
           <form
             onSubmit={onCreateInventoryItem}
-            className={`${canSubmitInventoryMasterData ? "" : "hidden"} mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.2fr_0.8fr_0.75fr_0.85fr_0.55fr_0.7fr_0.55fr_0.65fr_110px_auto]`}
+            className={`${canSubmitInventoryMasterData ? "" : "hidden"} mt-5 grid gap-3 rounded-sm border border-border-system bg-background p-3 md:grid-cols-2 xl:grid-cols-[1.2fr_0.8fr_0.75fr_0.85fr_0.55fr_0.7fr_0.55fr_0.65fr_110px_auto] xl:border-0 xl:bg-transparent xl:p-0`}
           >
             <input
               name="name"
@@ -12094,7 +12094,7 @@ function WorkspaceDashboard({
 
           <div className={`mt-5 w-full min-w-0 max-w-full ${ledgerFrameClass}`}>
             <div>
-              <div className="grid gap-3 border-b border-border-system bg-card px-5 py-4 md:grid-cols-[minmax(220px,1fr)_180px_160px_150px_auto] md:items-center">
+              <div className="grid gap-3 border-b border-border-system bg-card px-4 py-4 md:grid-cols-[minmax(220px,1fr)_180px_160px_150px_auto] md:items-center sm:px-5">
                 <input
                   type="search"
                   value={inventorySearch}
@@ -12385,7 +12385,7 @@ function WorkspaceDashboard({
             showStockAdjustmentWorkspace
               ? ""
               : "hidden"
-          } min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-6 shadow-2xl shadow-black/25`}
+          } min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
         >
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
             {showRequisitionWorkspace
@@ -12539,7 +12539,7 @@ function WorkspaceDashboard({
               {requisitionRows.map((row) => (
                 <div
                   key={row.id}
-                  className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)_96px]"
+                  className="grid min-w-0 gap-3 rounded-sm border border-border-system bg-card p-3 xl:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)_96px] xl:border-0 xl:bg-transparent xl:p-0"
                 >
                   <select
                     value={row.inventoryItemId}
@@ -13619,7 +13619,7 @@ function WorkspaceDashboard({
           </h4>
           <form
             onSubmit={onAdjustStock}
-            className={`${showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 grid gap-3 rounded-sm border border-border-system bg-background p-4`}
+            className={`${showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 grid gap-3 rounded-sm border border-border-system bg-background p-3 sm:p-4`}
           >
             <input
               type="hidden"
@@ -13689,7 +13689,7 @@ function WorkspaceDashboard({
           </p>
           <form
             onSubmit={handleStockCountFormSubmit}
-            className={`${showStockCountWorkspace ? "" : "hidden"} mt-5 grid gap-3 rounded-sm border border-border-system bg-background p-4`}
+            className={`${showStockCountWorkspace ? "" : "hidden"} mt-5 grid gap-3 rounded-sm border border-border-system bg-background p-3 sm:p-4`}
           >
             <input
               type="hidden"
@@ -13705,7 +13705,7 @@ function WorkspaceDashboard({
               {stockCountRows.map((row) => (
                 <div
                   key={row.id}
-                  className="grid gap-3"
+                  className="grid gap-3 rounded-sm border border-border-system bg-card p-3 md:grid-cols-[minmax(0,1fr)_150px_auto] md:border-0 md:bg-transparent md:p-0"
                 >
                   <select
                     value={row.inventoryItemId}

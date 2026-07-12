@@ -89,12 +89,19 @@ export function InventoryItemRow({
         : "text-foreground";
 
   return (
-    <div className="grid gap-4 border-t border-border-system px-5 py-4 text-sm text-text-muted transition hover:bg-background/70 lg:grid-cols-[minmax(0,1.35fr)_minmax(180px,0.8fr)_minmax(220px,0.95fr)_130px] lg:items-center">
+    <div className="grid gap-4 border-t border-border-system px-4 py-4 text-sm text-text-muted transition hover:bg-background/70 sm:px-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(180px,0.8fr)_minmax(220px,0.95fr)_130px] lg:items-center">
       <div className="min-w-0">
-        <p className="truncate text-base font-extrabold text-foreground">
-          {item.name ?? "Unnamed item"}
-        </p>
-        <p className="truncate text-xs text-text-ghost">
+        <div className="flex flex-wrap items-start justify-between gap-2 lg:block">
+          <p className="min-w-0 text-base font-extrabold text-foreground lg:truncate">
+            {item.name ?? "Unnamed item"}
+          </p>
+          <span
+            className={`inline-flex rounded-full border px-2 py-1 font-mono text-[9px] font-black uppercase tracking-widest lg:hidden ${statusClass}`}
+          >
+            {item.is_active ? stockStatus : "Inactive"}
+          </span>
+        </div>
+        <p className="text-xs text-text-ghost lg:truncate">
           {item.sku || "No SKU"}
           {` / ${stockScopeLabel}`}
           {item.department ? ` / ${item.department}` : ""}
@@ -106,7 +113,10 @@ export function InventoryItemRow({
           {item.base_uom ?? item.on_hand_uom ?? "unit"}
         </p>
       </div>
-      <div>
+      <div className="rounded-sm border border-border-system bg-card px-3 py-3 lg:border-0 lg:bg-transparent lg:p-0">
+        <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost lg:hidden">
+          Stock posture
+        </p>
         <p className={`font-mono text-xl font-black leading-none tracking-tight ${stockNumberClass}`}>
           {onHandQty.toLocaleString(undefined, {
             maximumFractionDigits: 3,
@@ -123,7 +133,7 @@ export function InventoryItemRow({
       </div>
       <form
         onSubmit={handleCostUpdate}
-        className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-2"
+        className="grid grid-cols-[minmax(0,1fr)_76px] items-center gap-2 rounded-sm border border-border-system bg-card p-3 lg:border-0 lg:bg-transparent lg:p-0"
       >
         <label className="grid gap-1">
           <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
@@ -153,7 +163,7 @@ export function InventoryItemRow({
         type="button"
         disabled={disabled}
         onClick={() => onUpdate(item.id, { is_active: !item.is_active })}
-        className={`min-h-11 w-full rounded-sm border px-3 font-mono text-[11px] font-black uppercase tracking-[0.18em] transition hover:border-border-system-hover disabled:cursor-not-allowed disabled:opacity-60 ${statusClass}`}
+        className={`hidden min-h-11 w-full rounded-sm border px-3 font-mono text-[11px] font-black uppercase tracking-[0.18em] transition hover:border-border-system-hover disabled:cursor-not-allowed disabled:opacity-60 lg:block ${statusClass}`}
       >
         {item.is_active ? stockStatus : "Inactive"}
       </button>
