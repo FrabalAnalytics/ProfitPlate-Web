@@ -500,6 +500,15 @@ export default function DashboardPage() {
       setProfile(loadedProfile);
 
       if (!loadedProfile.organization_id) {
+        const { data: isPlatformAdmin } = await supabase.rpc(
+          "current_user_is_platform_admin",
+        );
+
+        if (isPlatformAdmin) {
+          router.replace("/admin");
+          return;
+        }
+
         setOrganization(null);
         setStats(emptyStats);
         setLocations([]);
@@ -641,7 +650,7 @@ export default function DashboardPage() {
       );
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     async function loadWorkspace() {
