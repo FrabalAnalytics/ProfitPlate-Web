@@ -14819,7 +14819,95 @@ function WorkspaceDashboard({
           </div>
         </div>
 
-        <div className="mt-5 overflow-x-auto rounded-sm border border-border-system bg-background">
+        <div className="mt-5 grid gap-3 lg:hidden">
+          {productionPlanRequirements.length > 0 ? (
+            productionPlanRequirements.map((requirement) => (
+              <article
+                key={`mobile-${requirement.id}`}
+                className="rounded-sm border border-border-system bg-background p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">
+                      {requirement.ingredientName}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-text-ghost">
+                      {requirement.uom}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                      requirement.shortageQty > 0
+                        ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                        : "border-accent-muted-border bg-accent-muted-bg text-accent"
+                    }`}
+                  >
+                    {requirement.shortageQty > 0 ? "Short" : "Covered"}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-sm border border-border-system bg-card p-3">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Required
+                    </p>
+                    <p className="mt-1 font-semibold text-foreground">
+                      {requirement.requiredQty.toLocaleString(undefined, {
+                        maximumFractionDigits: 3,
+                      })}
+                    </p>
+                  </div>
+                  <div className="rounded-sm border border-border-system bg-card p-3">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      On hand
+                    </p>
+                    <p className="mt-1 font-semibold text-foreground">
+                      {requirement.onHandQty.toLocaleString(undefined, {
+                        maximumFractionDigits: 3,
+                      })}
+                    </p>
+                  </div>
+                  <div className="rounded-sm border border-border-system bg-card p-3">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Shortage
+                    </p>
+                    <p
+                      className={`mt-1 font-semibold ${
+                        requirement.shortageQty > 0
+                          ? "text-status-attention-text"
+                          : "text-accent"
+                      }`}
+                    >
+                      {requirement.shortageQty.toLocaleString(undefined, {
+                        maximumFractionDigits: 3,
+                      })}
+                    </p>
+                  </div>
+                  <div className="rounded-sm border border-border-system bg-card p-3">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Est. cost
+                    </p>
+                    <p className="mt-1 font-semibold text-foreground">
+                      {formatCurrencyAmount(
+                        organization.local_currency,
+                        requirement.estimatedCost,
+                        0,
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs font-semibold leading-5 text-text-ghost">
+                  Plan source: {requirement.sourceRecipes.join(", ")}
+                </p>
+              </article>
+            ))
+          ) : (
+            <p className="rounded-sm border border-border-system bg-background px-5 py-6 text-sm text-text-muted">
+              Select one or more recipes and target outputs to generate ingredient demand.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-5 hidden overflow-x-auto rounded-sm border border-border-system bg-background lg:block">
           <div className="min-w-[900px]">
             <div className="grid grid-cols-[1.15fr_0.6fr_0.6fr_0.6fr_0.65fr_1fr] gap-4 border-b border-border-system px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
               <span>Ingredient</span>
@@ -14995,7 +15083,170 @@ function WorkspaceDashboard({
           ) : null}
 
           {selectedProductionRecipe ? (
-            <div className="overflow-x-auto rounded-sm border border-border-system bg-card">
+            <div className="grid gap-3 lg:hidden">
+              {productionComponents.length > 0 ? (
+                productionComponents.map((component) => {
+                  const item = inventoryItems.find(
+                    (inventoryItem) =>
+                      extractUuid(inventoryItem.id) ===
+                      extractUuid(component.component_inventory_item_id),
+                  );
+                  const ingredientUnitCost = Number(
+                    item?.current_cost_per_base_uom ??
+                      component.ingredient_unit_cost ??
+                      0,
+                  );
+                  const requiredQty = hasValidTargetOutput
+                    ? (component.qty_in_recipe_uom / selectedRecipeBatchOutput) *
+                      targetOutputQty
+                    : 0;
+                  const enteredQty = Number(actualProductionInputs[component.id]);
+                  const actualQty =
+                    Number.isFinite(enteredQty) && enteredQty >= 0
+                      ? enteredQty
+                      : 0;
+                  const varianceQty = actualQty - requiredQty;
+                  const expectedOutputFromActualQty =
+                    component.qty_in_recipe_uom > 0
+                      ? (actualQty / component.qty_in_recipe_uom) *
+                        selectedRecipeBatchOutput
+                      : 0;
+                  const outputVarianceQty =
+                    expectedOutputFromActualQty - targetOutputQty;
+                  const currencyImpact = varianceQty * ingredientUnitCost;
+
+                  return (
+                    <article
+                      key={`mobile-production-${component.id}`}
+                      className="rounded-sm border border-border-system bg-card p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground">
+                            {item?.name ?? component.ingredient_name ?? "Ingredient"}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-text-ghost">
+                            {component.recipe_uom}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                            outputVarianceQty > 0
+                              ? "border-status-critical-border bg-status-critical-bg text-status-critical-text"
+                              : outputVarianceQty < 0
+                                ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                                : "border-border-system bg-background text-text-muted"
+                          }`}
+                        >
+                          {outputVarianceQty > 0
+                            ? "Over"
+                            : outputVarianceQty < 0
+                              ? "Under"
+                              : "Flat"}
+                        </span>
+                      </div>
+                      <label className="mt-4 block">
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                          Actual used
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={actualProductionInputs[component.id] ?? ""}
+                          placeholder={requiredQty.toLocaleString(undefined, {
+                            maximumFractionDigits: 3,
+                          })}
+                          onChange={(event) =>
+                            setActualProductionInputs((currentInputs) => ({
+                              ...currentInputs,
+                              [component.id]: event.target.value,
+                            }))
+                          }
+                          className="mt-2 h-11 w-full rounded-sm border border-border-system bg-background px-3 text-base font-semibold text-foreground outline-none transition placeholder:text-text-ghost focus:border-accent focus:ring-2 focus:ring-accent/20"
+                          required
+                          aria-label={`Actual quantity used for ${
+                            item?.name ?? "ingredient"
+                          }`}
+                        />
+                      </label>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-sm border border-border-system bg-background p-3">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            Standard
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {requiredQty.toLocaleString(undefined, {
+                              maximumFractionDigits: 3,
+                            })}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-border-system bg-background p-3">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            Should output
+                          </p>
+                          <p
+                            className={`mt-1 font-semibold ${
+                              outputVarianceQty > 0
+                                ? "text-status-critical-text"
+                                : outputVarianceQty < 0
+                                  ? "text-accent"
+                                  : "text-text-muted"
+                            }`}
+                          >
+                            {expectedOutputFromActualQty.toLocaleString(undefined, {
+                              maximumFractionDigits: 3,
+                            })}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-border-system bg-background p-3">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            Output gap
+                          </p>
+                          <p
+                            className={`mt-1 font-semibold ${
+                              outputVarianceQty > 0
+                                ? "text-status-critical-text"
+                                : outputVarianceQty < 0
+                                  ? "text-accent"
+                                  : "text-text-muted"
+                            }`}
+                          >
+                            {outputVarianceQty.toLocaleString(undefined, {
+                              maximumFractionDigits: 3,
+                            })}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-border-system bg-background p-3">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            Cost impact
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {organization.local_currency}{" "}
+                            {currencyImpact.toLocaleString(undefined, {
+                              maximumFractionDigits: 2,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="rounded-sm border border-border-system bg-card px-5 py-6 text-sm text-text-muted">
+                  <span
+                    className={`${inlineSignalClass} ${inlineSignalToneStyles.info}`}
+                  >
+                    Attach ingredients
+                  </span>{" "}
+                  to this sub-recipe before recording production.
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {selectedProductionRecipe ? (
+            <div className="hidden overflow-x-auto rounded-sm border border-border-system bg-card lg:block">
               <div className="min-w-[760px]">
                 <div className="grid grid-cols-[1.1fr_0.55fr_0.55fr_0.6fr_0.55fr_0.5fr] items-center gap-4 border-b border-border-system bg-background px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                   <span>Ingredient</span>
