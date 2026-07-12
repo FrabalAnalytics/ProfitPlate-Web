@@ -204,6 +204,7 @@ export default function PlatformAdminPage() {
       selectedWorkspace?.local_currency !== normalizedCurrency;
 
     if (!hasChanges) {
+      setSelectedWorkspaceId("");
       setMessage("No restaurant workspace changes to save.");
       setManagementSaving(false);
       return;
@@ -226,6 +227,7 @@ export default function PlatformAdminPage() {
     }
 
     await loadPlatformAdminDashboard();
+    setSelectedWorkspaceId("");
     setMessage("Restaurant workspace settings updated.");
     setManagementSaving(false);
   }
