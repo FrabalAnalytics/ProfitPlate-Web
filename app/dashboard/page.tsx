@@ -6667,11 +6667,15 @@ function WorkspaceDashboard({
       tone: "critical" | "attention" | "info";
     } => Boolean(action),
   );
-  const visibleManagementActionSource = isInventoryFocus
+  const visibleManagementActionSource = isKitchenFocus
     ? managementActions.filter((action) =>
-        ["Critical", "Control", "Waste"].includes(action.priority),
+        ["Critical", "Waste"].includes(action.priority),
       )
-    : managementActions;
+    : isInventoryFocus
+      ? managementActions.filter((action) =>
+          ["Critical", "Control", "Waste"].includes(action.priority),
+        )
+      : managementActions;
   const visibleManagementActions =
     visibleManagementActionSource.length > 0
       ? visibleManagementActionSource.slice(0, 4)
@@ -6680,10 +6684,14 @@ function WorkspaceDashboard({
             priority: "Stable",
             action: isInventoryFocus
               ? "Keep inventory movement clean"
-              : "Maintain margin discipline",
+              : isKitchenFocus
+                ? "Keep kitchen execution clean"
+                : "Maintain margin discipline",
             detail: isInventoryFocus
               ? "No urgent stock, receipt, requisition, or waste action is open."
-              : "No urgent margin loss is visible from current data.",
+              : isKitchenFocus
+                ? "No urgent kitchen waste, stock, or production exception is open."
+                : "No urgent margin loss is visible from current data.",
             tone: "info" as const,
           },
         ];
@@ -14608,9 +14616,9 @@ function WorkspaceDashboard({
             </form>
           </div>
 
-          <div className="overflow-x-auto rounded-sm border border-border-system bg-card shadow-2xl shadow-black/20">
-            <div className="min-w-[900px]">
-              <div className="grid grid-cols-[1.1fr_0.65fr_0.55fr_0.7fr_1.2fr] gap-4 border-b border-border-system bg-background px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+          <div className="rounded-sm border border-border-system bg-card shadow-2xl shadow-black/20">
+            <div className="lg:min-w-[900px]">
+              <div className="hidden grid-cols-[1.1fr_0.65fr_0.55fr_0.7fr_1.2fr] gap-4 border-b border-border-system bg-background px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:grid">
                 <span>Recipe</span>
                 <span>Type</span>
                 <span>Cost</span>
