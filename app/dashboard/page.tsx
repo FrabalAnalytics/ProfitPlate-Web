@@ -746,6 +746,7 @@ export default function DashboardPage() {
     setYieldTestNotifications([]);
     setPurchaseOrders([]);
     setPurchaseOrderLines([]);
+    await reloadOperatingWorkspace(createdOrg.id);
     setSaving(false);
   }
 
@@ -3353,8 +3354,6 @@ function WorkspaceDashboard({
 }) {
   const [selectedProductionRecipeId, setSelectedProductionRecipeId] =
     useState("");
-  const [selectedProductionOutputLocationId, setSelectedProductionOutputLocationId] =
-    useState("");
   const [targetProductionOutput, setTargetProductionOutput] = useState("");
   const [actualProductionInputs, setActualProductionInputs] = useState<
     Record<string, string>
@@ -3574,6 +3573,10 @@ function WorkspaceDashboard({
   const salesOutletLocations = activeLocations.filter(
     (location) => location.location_type === "sales_outlet",
   );
+  const defaultSalesOutletLocation =
+    salesOutletLocations.find(
+      (location) => location.name.trim().toLowerCase() === "front counter",
+    ) ?? salesOutletLocations[0];
   const isDepartmentStockLocation = (location: Location) => {
     const normalizedName = location.name.trim().toLowerCase();
 
@@ -4135,11 +4138,10 @@ function WorkspaceDashboard({
     Boolean(selectedProductionRecipe) &&
     selectedProductionRecipe?.recipe_type !== "sub_recipe";
   const defaultProductionOutputLocationId =
-    selectedProductionIsFinalMenu && salesOutletLocations.length === 1
-      ? extractUuid(salesOutletLocations[0]?.id)
+    selectedProductionIsFinalMenu
+      ? extractUuid(defaultSalesOutletLocation?.id)
       : "";
-  const resolvedProductionOutputLocationId =
-    selectedProductionOutputLocationId || defaultProductionOutputLocationId;
+  const resolvedProductionOutputLocationId = defaultProductionOutputLocationId;
   const selectedProductionOutputLocation = activeLocations.find(
     (location) =>
       extractUuid(location.id) === extractUuid(resolvedProductionOutputLocationId),
@@ -7937,7 +7939,7 @@ function WorkspaceDashboard({
             : "Purchase order tasks",
           badge: `${openPurchaseOrderCount.toLocaleString()} open`,
           tone: openPurchaseOrderCount > 0 ? "warning" : "healthy",
-          visible: showProcurementSection,
+          visible: showPurchaseOrderDraftSection || showInventoryMovementSection,
         },
         {
           href: "#stock-counts",
@@ -15510,13 +15512,12 @@ function WorkspaceDashboard({
           onSubmit={handleProductionFormSubmit}
           className="mt-5 grid gap-4 rounded-sm border border-border-system bg-background p-4"
         >
-          <div className="grid gap-3 md:grid-cols-[1fr_0.55fr_0.55fr_0.8fr_auto]">
+          <div className="grid gap-3 md:grid-cols-[1fr_0.55fr_auto]">
             <select
               name="production_recipe_id"
               value={selectedProductionRecipeId}
               onChange={(event) => {
                 setSelectedProductionRecipeId(event.target.value);
-                setSelectedProductionOutputLocationId("");
                 setActualProductionInputs({});
               }}
               required
@@ -15544,16 +15545,7 @@ function WorkspaceDashboard({
               className={formControlClass}
             />
             <input type="hidden" name="actual_output_qty" value={targetProductionOutput} />
-            <select
-              name="origin"
-              defaultValue="kitchen_prep_line"
-              className={formControlClass}
-            >
-              <option value="kitchen_prep_line">Kitchen prep line</option>
-              <option value="storage_defrosting">Storage defrosting</option>
-              <option value="central_transit">Central transit</option>
-              <option value="cold_room_storage">Cold room storage</option>
-            </select>
+            <input type="hidden" name="origin" value="kitchen_prep_line" />
             <button
               type="submit"
               disabled={!canRecordProduction}
@@ -15564,44 +15556,28 @@ function WorkspaceDashboard({
           </div>
 
           {selectedProductionIsFinalMenu ? (
-            <div className="grid gap-3 rounded-sm border border-status-info-border bg-status-info-bg p-4 md:grid-cols-[1fr_1fr] md:items-end">
-              <label className="grid gap-1">
-                <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                  Finished goods output location
-                </span>
-                <select
-                  name="output_location_id_value"
-                  value={resolvedProductionOutputLocationId}
-                  onChange={(event) =>
-                    setSelectedProductionOutputLocationId(event.target.value)
-                  }
-                  required
-                  className={formControlClass}
-                >
-                  <option value="">
-                    {salesOutletLocations.length > 0
-                      ? "Select front counter / sales outlet"
-                      : "Create a sales outlet location first"}
-                  </option>
-                  {salesOutletLocations.map((location) => (
-                    <option
-                      key={extractUuid(location.id)}
-                      value={extractUuid(location.id)}
-                    >
-                      {formatStockLocationOption(location)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="grid gap-3 rounded-sm border border-status-info-border bg-status-info-bg p-4 md:grid-cols-[0.8fr_1.2fr] md:items-start">
+              <div className="rounded-sm border border-status-info-border bg-white/80 px-4 py-3">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Auto destination
+                </p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  {selectedProductionOutputLocation?.name ?? "Front Counter not set"}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-text-muted">
+                  Final menu production lands in sales outlet stock.
+                </p>
+              </div>
               <div className="text-sm leading-6 text-status-info-text">
                 <p className="font-semibold text-foreground">
                   QSR finished-goods run
                 </p>
                 <p>
-                  Output will be credited as a manufactured final product in{" "}
+                  ProfitPlate will credit the produced quantity as manufactured
+                  final-product stock in{" "}
                   {selectedProductionOutputLocation?.name ??
-                    "the selected sales outlet"}
-                  . POS sales can then deplete it 1-to-1 from counter stock.
+                    "Front Counter"}
+                  . POS sales can then deplete it 1-to-1.
                 </p>
               </div>
               {salesOutletLocations.length === 0 ? (
@@ -15618,6 +15594,11 @@ function WorkspaceDashboard({
                   </button>
                 </div>
               ) : null}
+              <input
+                type="hidden"
+                name="output_location_id_value"
+                value={resolvedProductionOutputLocationId}
+              />
             </div>
           ) : (
             <input
