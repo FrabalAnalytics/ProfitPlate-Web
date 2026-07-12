@@ -146,8 +146,8 @@ as $$
     from public.inventory_items item
     where item.organization_id = organization.id
       and item.is_active
-      and item.item_type = 'final_product'::public.inventory_item_type
-      and item.cost_type = 'manufactured'::public.inventory_cost_type
+      and item.item_type::text = 'final_product'
+      and item.cost_type::text = 'manufactured'
   ) final_product_counts on true
   left join lateral (
     select count(*) as pending_approval_count
