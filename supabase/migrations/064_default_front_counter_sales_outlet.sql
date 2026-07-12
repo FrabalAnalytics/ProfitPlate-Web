@@ -82,6 +82,56 @@ begin
   end loop;
 end $$;
 
+-- If the live database still has the old public.locations.type column, it may
+-- be NOT NULL and backed by a legacy enum. Give it a safe legacy default so the
+-- modern sales_outlet value can live in public.locations.location_type.
+do $$
+declare
+  legacy_type_name text;
+  legacy_default_value text;
+begin
+  select format('%I.%I', column_item.udt_schema, column_item.udt_name)
+    into legacy_type_name
+  from information_schema.columns column_item
+  where column_item.table_schema = 'public'
+    and column_item.table_name = 'locations'
+    and column_item.column_name = 'type';
+
+  if legacy_type_name is null then
+    return;
+  end if;
+
+  select enum_item.enumlabel
+    into legacy_default_value
+  from pg_type type_item
+  join pg_enum enum_item on enum_item.enumtypid = type_item.oid
+  join pg_namespace namespace_item on namespace_item.oid = type_item.typnamespace
+  where format('%I.%I', namespace_item.nspname, type_item.typname) = legacy_type_name
+  order by case enum_item.enumlabel
+    when 'main_store' then 0
+    when 'store' then 1
+    when 'central_warehouse' then 2
+    else 3
+  end, enum_item.enumsortorder
+  limit 1;
+
+  if legacy_default_value is null then
+    return;
+  end if;
+
+  execute format(
+    'alter table public.locations alter column type set default %L::%s',
+    legacy_default_value,
+    legacy_type_name
+  );
+
+  execute format(
+    'update public.locations set type = %L::%s where type is null',
+    legacy_default_value,
+    legacy_type_name
+  );
+end $$;
+
 create or replace function public.create_workspace(
   workspace_name text,
   workspace_subscription_tier public.subscription_tier default 'solo',
