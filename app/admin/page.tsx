@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type PlatformWorkspaceSummary = {
@@ -46,58 +46,67 @@ export default function PlatformAdminPage() {
   const [message, setMessage] = useState("");
   const [adminRole, setAdminRole] = useState("");
   const [workspaces, setWorkspaces] = useState<PlatformWorkspaceSummary[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
+  const [selectedSystemStatus, setSelectedSystemStatus] = useState("");
+  const [selectedSubscriptionTier, setSelectedSubscriptionTier] = useState("");
+  const [selectedCurrency, setSelectedCurrency] = useState("");
+  const [managementSaving, setManagementSaving] = useState(false);
 
-  useEffect(() => {
-    async function loadPlatformAdminDashboard() {
-      setLoading(true);
-      setMessage("");
+  const loadPlatformAdminDashboard = useCallback(async () => {
+    setLoading(true);
+    setMessage("");
 
-      const { data: sessionData } = await supabase.auth.getSession();
+    const { data: sessionData } = await supabase.auth.getSession();
 
-      if (!sessionData.session) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data: adminData, error: adminError } = await supabase
-        .from("platform_admins")
-        .select("role")
-        .eq("user_id", sessionData.session.user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (adminError) {
-        setMessage(adminError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!adminData) {
-        setMessage(
-          "This account is not a ProfitPlate platform admin. Ask a Super Admin to grant platform access.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      setAdminRole(String(adminData.role ?? "platform_admin"));
-
-      const { data, error } = await supabase.rpc(
-        "get_platform_admin_workspace_summary",
-      );
-
-      if (error) {
-        setMessage(error.message);
-        setLoading(false);
-        return;
-      }
-
-      setWorkspaces((data ?? []) as PlatformWorkspaceSummary[]);
-      setLoading(false);
+    if (!sessionData.session) {
+      router.replace("/login");
+      return;
     }
 
-    void loadPlatformAdminDashboard();
+    const { data: adminData, error: adminError } = await supabase
+      .from("platform_admins")
+      .select("role")
+      .eq("user_id", sessionData.session.user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (adminError) {
+      setMessage(adminError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!adminData) {
+      setMessage(
+        "This account is not a ProfitPlate platform admin. Ask a Super Admin to grant platform access.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    setAdminRole(String(adminData.role ?? "platform_admin"));
+
+    const { data, error } = await supabase.rpc(
+      "get_platform_admin_workspace_summary",
+    );
+
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setWorkspaces((data ?? []) as PlatformWorkspaceSummary[]);
+    setLoading(false);
   }, [router]);
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => {
+      void loadPlatformAdminDashboard();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
+  }, [loadPlatformAdminDashboard]);
 
   const totals = useMemo(
     () =>
@@ -126,6 +135,56 @@ export default function PlatformAdminPage() {
       workspace.open_operating_day_count > 0 ||
       workspace.system_status !== "live_operations",
   );
+  const selectedWorkspace = workspaces.find(
+    (workspace) => workspace.organization_id === selectedWorkspaceId,
+  );
+
+  function beginManageWorkspace(workspace: PlatformWorkspaceSummary) {
+    setSelectedWorkspaceId(workspace.organization_id);
+    setSelectedSystemStatus(workspace.system_status);
+    setSelectedSubscriptionTier(workspace.subscription_tier);
+    setSelectedCurrency(workspace.local_currency);
+    setMessage("");
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
+  async function handleUpdateWorkspaceSettings(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!selectedWorkspaceId) {
+      setMessage("Select a restaurant entity to manage.");
+      return;
+    }
+
+    setManagementSaving(true);
+    setMessage("");
+
+    const { error } = await supabase.rpc(
+      "update_platform_admin_workspace_settings",
+      {
+        target_organization_id: selectedWorkspaceId,
+        system_status_value: selectedSystemStatus,
+        subscription_tier_value: selectedSubscriptionTier,
+        local_currency_value: selectedCurrency,
+      },
+    );
+
+    if (error) {
+      setMessage(error.message);
+      setManagementSaving(false);
+      return;
+    }
+
+    await loadPlatformAdminDashboard();
+    setMessage("Restaurant workspace settings updated.");
+    setManagementSaving(false);
+  }
 
   return (
     <main className="min-h-screen bg-background font-sans text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--text-ghost:#71877c] [--text-muted:#4f665b]">
@@ -151,12 +210,21 @@ export default function PlatformAdminPage() {
               </span>
             </span>
           </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-md border border-border-system bg-white px-4 py-2.5 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
-          >
-            Workspace dashboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="rounded-md border border-border-system bg-white px-4 py-2.5 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+            >
+              Workspace dashboard
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-md border border-border-system bg-white px-4 py-2.5 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -277,8 +345,63 @@ export default function PlatformAdminPage() {
                   </h2>
                 </div>
 
+                {selectedWorkspace ? (
+                  <form
+                    onSubmit={handleUpdateWorkspaceSettings}
+                    className="grid gap-3 border-b border-border-system bg-background px-5 py-4 lg:grid-cols-[minmax(180px,1fr)_180px_180px_110px_auto]"
+                  >
+                    <div>
+                      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                        Managing
+                      </p>
+                      <p className="mt-1 font-bold">
+                        {selectedWorkspace.organization_name}
+                      </p>
+                    </div>
+                    <select
+                      value={selectedSystemStatus}
+                      onChange={(event) =>
+                        setSelectedSystemStatus(event.target.value)
+                      }
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none"
+                    >
+                      <option value="implementation_mode">
+                        Implementation mode
+                      </option>
+                      <option value="live_operations">Live operations</option>
+                    </select>
+                    <select
+                      value={selectedSubscriptionTier}
+                      onChange={(event) =>
+                        setSelectedSubscriptionTier(event.target.value)
+                      }
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none"
+                    >
+                      <option value="solo">Solo</option>
+                      <option value="multi_unit">Multi Unit</option>
+                      <option value="enterprise_grid">Enterprise Grid</option>
+                    </select>
+                    <input
+                      value={selectedCurrency}
+                      onChange={(event) =>
+                        setSelectedCurrency(event.target.value.toUpperCase())
+                      }
+                      maxLength={3}
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold uppercase text-foreground outline-none"
+                      aria-label="Workspace currency"
+                    />
+                    <button
+                      type="submit"
+                      disabled={managementSaving}
+                      className="h-11 rounded-md bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {managementSaving ? "Saving..." : "Save"}
+                    </button>
+                  </form>
+                ) : null}
+
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+                  <table className="w-full min-w-[980px] border-collapse text-left text-sm">
                     <thead>
                       <tr className="border-b border-border-system bg-background font-mono text-[10px] uppercase tracking-widest text-text-ghost">
                         <th className="px-5 py-3">Entity</th>
@@ -288,6 +411,7 @@ export default function PlatformAdminPage() {
                         <th className="px-5 py-3">SKUs</th>
                         <th className="px-5 py-3">Approvals</th>
                         <th className="px-5 py-3">Latest day</th>
+                        <th className="px-5 py-3">Manage</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -342,6 +466,15 @@ export default function PlatformAdminPage() {
                             <p className="mt-1 text-xs capitalize text-text-muted">
                               {formatLabel(workspace.latest_operating_status)}
                             </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => beginManageWorkspace(workspace)}
+                              className="rounded-md border border-border-system bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                            >
+                              Manage
+                            </button>
                           </td>
                         </tr>
                       ))}
