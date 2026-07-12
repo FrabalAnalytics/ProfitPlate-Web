@@ -243,7 +243,7 @@ const yieldTestRows = [
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
+    <div className="max-w-full overflow-x-hidden flex min-h-screen flex-col bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
       <header className="sticky top-0 z-50 border-b border-border-system/80 bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-8">
           <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
@@ -289,7 +289,7 @@ export default function Home() {
             </Link>
             <Link
               href="/signup"
-              className="whitespace-nowrap rounded-md bg-accent px-3 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent-hover sm:px-5"
+              className="whitespace-nowrap rounded-md bg-accent px-2.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent-hover sm:px-5"
             >
               Get started
             </Link>
@@ -302,13 +302,13 @@ export default function Home() {
         {/* CORE HERO VALUE PROPOSITION */}
         <section className="border-b border-border-system bg-background">
           <div className="mx-auto max-w-7xl px-5 pb-8 pt-10 sm:px-8 sm:pt-14 lg:pb-10 lg:pt-16">
-            <div className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center xl:gap-16">
-              <div className="max-w-2xl">
-                <span className="inline-flex rounded-full border border-accent-muted-border bg-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-accent shadow-sm">
+            <div className="grid min-w-0 gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center xl:gap-16">
+              <div className="min-w-0 max-w-2xl">
+                <span className="inline-flex max-w-full rounded-full border border-accent-muted-border bg-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-accent shadow-sm">
                   Operational Discipline Protocol
                 </span>
 
-                <h1 className="mt-6 max-w-[15ch] font-sans font-extrabold tracking-tight text-4xl leading-[1.08] text-foreground sm:text-5xl lg:text-[3.65rem]">
+                <h1 className="mt-6 max-w-[15ch] font-sans font-extrabold tracking-tight text-[2.35rem] leading-[1.08] text-foreground sm:text-5xl lg:text-[3.65rem]">
                   Turn restaurant activity into financial visibility.
                 </h1>
 
@@ -339,7 +339,7 @@ export default function Home() {
               {/* LIVE PREVIEW MODULE */}
               <div
                 id="live-preview"
-                className="relative rounded-lg border border-border-system bg-white p-5 shadow-[0_24px_70px_rgba(25,65,45,0.12)] sm:p-6"
+                className="relative min-w-0 rounded-lg border border-border-system bg-white p-4 shadow-[0_24px_70px_rgba(25,65,45,0.12)] sm:p-6"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-system pb-4">
                   <div>
@@ -460,7 +460,7 @@ export default function Home() {
 
       {/* IMPLEMENTATION ROADMAP ARCHITECTURE */}
       <section className="border-b border-border-system bg-card/10">
-        <div className="mx-auto max-w-7xl px-6 py-24 sm:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
           <div className="mb-20">
             <div className="mb-8 border-b border-border-system pb-4">
               <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
@@ -512,14 +512,14 @@ export default function Home() {
                 </span>
                 <span className="h-2 w-2 rounded-full bg-accent" />
               </div>
-              <div className="overflow-x-auto">
-                <div className="divide-y divide-border-system font-mono text-[11px] min-w-[500px]">
+              <div>
+                <div className="divide-y divide-border-system font-mono text-[11px]">
                   {locationMetrics.map((location) => (
                     <div
                       key={location.name}
-                      className={`flex items-center justify-between gap-5 px-5 py-4 transition hover:bg-card/30 ${location.rowStyle}`}
+                      className={`grid gap-3 px-4 py-4 transition hover:bg-card/30 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5 ${location.rowStyle}`}
                     >
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-sans text-xs font-bold text-foreground">
                           {location.name}
                         </p>
@@ -527,7 +527,7 @@ export default function Home() {
                           Price vs contract: {location.priceVar}
                         </p>
                       </div>
-                      <div className="space-y-0.5 text-right">
+                      <div className="space-y-0.5 sm:text-right">
                         <p className="text-foreground">
                           Yield loss:{" "}
                           <span className="font-bold text-status-critical-text">
@@ -548,7 +548,7 @@ export default function Home() {
       </section>
 
       {/* STRATEGIC CONTROL INDEX */}
-      <section id="platform" className="mx-auto max-w-7xl px-6 py-24 sm:px-8">
+      <section id="platform" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
         <div className="mx-auto mb-16 max-w-3xl text-center">
           <span className="text-xs font-bold uppercase tracking-widest text-accent">
             What ProfitPlate Controls
@@ -566,7 +566,7 @@ export default function Home() {
           {strategicIndexes.map((index) => (
             <div
               key={index.title}
-              className="group relative flex flex-col justify-between border border-border-system bg-card/40 p-8 transition hover:border-border-system-hover hover:bg-card"
+              className="group relative flex flex-col justify-between border border-border-system bg-card/40 p-5 transition hover:border-border-system-hover hover:bg-card sm:p-8"
             >
               <div className="absolute left-0 top-0 h-0.5 w-0 bg-accent transition-all duration-300 group-hover:w-12" />
               <div>
@@ -592,10 +592,10 @@ export default function Home() {
 
       {/* WORKFLOW VERIFICATION ENGINES */}
       <section id="workflows" className="border-y border-border-system bg-card/20">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-24 sm:px-8 lg:grid-cols-2">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-2">
           
           {/* INTERACTION DECK 1: POS CODES */}
-          <div className="rounded-sm border border-border-system bg-card p-6">
+          <div className="rounded-sm border border-border-system bg-card p-4 sm:p-6">
             <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
               POS Import & Mapping
             </span>
@@ -608,9 +608,9 @@ export default function Home() {
             </p>
 
             <div className="mt-6 overflow-hidden rounded-sm border border-border-system bg-background">
-              <div className="overflow-x-auto">
-                <div className="min-w-[600px]">
-                  <div className="grid grid-cols-[0.7fr_1fr_1fr_0.45fr_0.8fr] gap-3 border-b border-border-system bg-card px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+              <div>
+                <div>
+                  <div className="hidden grid-cols-[0.7fr_1fr_1fr_0.45fr_0.8fr] gap-3 border-b border-border-system bg-card px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost sm:grid">
                     <span>POS</span>
                     <span>Export item</span>
                     <span>Maps to</span>
@@ -620,13 +620,32 @@ export default function Home() {
                   {posImportRows.map((row) => (
                     <div
                       key={`${row.pos}-${row.item}`}
-                      className="grid grid-cols-[0.7fr_1fr_1fr_0.45fr_0.8fr] gap-3 border-t border-border-system px-4 py-3 text-xs text-text-muted"
+                      className="grid gap-2 border-t border-border-system px-4 py-3 text-xs text-text-muted sm:grid-cols-[0.7fr_1fr_1fr_0.45fr_0.8fr]"
                     >
-                      <span className="font-mono text-text-ghost">{row.pos}</span>
-                      <span className="font-semibold text-foreground">{row.item}</span>
-                      <span>{row.mapped}</span>
-                      <span>{row.qty}</span>
-                      <span className="font-semibold text-foreground">{row.net}</span>
+                      <span className="font-mono text-text-ghost">
+                        <span className="mr-2 font-bold uppercase tracking-widest sm:hidden">
+                          POS
+                        </span>
+                        {row.pos}
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {row.item}
+                      </span>
+                      <span>
+                        <span className="mr-2 font-bold uppercase tracking-widest sm:hidden">
+                          Maps to
+                        </span>
+                        {row.mapped}
+                      </span>
+                      <span>
+                        <span className="mr-2 font-bold uppercase tracking-widest sm:hidden">
+                          Qty
+                        </span>
+                        {row.qty}
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {row.net}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -635,7 +654,7 @@ export default function Home() {
           </div>
 
           {/* INTERACTION DECK 2: ZERO-EDIT COMPLIANCE RUNNER */}
-          <div className="rounded-sm border border-border-system bg-card p-6">
+          <div className="rounded-sm border border-border-system bg-card p-4 sm:p-6">
             <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
               Daily Operations Compliance
             </span>
@@ -675,7 +694,7 @@ export default function Home() {
 
       {/* CONTINUOUS YIELD ENGINE METRICS */}
       <section className="border-b border-border-system bg-background">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-24 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-accent">
               Periodic Yield Testing
@@ -688,7 +707,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="rounded-sm border border-border-system bg-card p-6">
+          <div className="rounded-sm border border-border-system bg-card p-4 sm:p-6">
             <div className="flex items-start justify-between gap-4 border-b border-border-system pb-4">
               <div>
                 <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -734,8 +753,8 @@ export default function Home() {
       </section>
 
       {/* FINAL CALL TO ACCOUNTABILITY */}
-      <section className="mx-auto max-w-7xl px-6 py-24 sm:px-8">
-        <div className="relative overflow-hidden rounded-sm border border-border-system bg-card px-8 py-16 sm:px-12 lg:flex lg:items-center lg:justify-between lg:gap-12">
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
+        <div className="relative overflow-hidden rounded-sm border border-border-system bg-card px-5 py-12 sm:px-12 sm:py-16 lg:flex lg:items-center lg:justify-between lg:gap-12">
           <div className="absolute left-0 top-0 h-full w-0.5 bg-accent" />
 
           <div className="max-w-2xl">
