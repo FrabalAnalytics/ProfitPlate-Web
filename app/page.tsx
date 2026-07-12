@@ -243,7 +243,7 @@ const yieldTestRows = [
 
 export default function Home() {
   return (
-    <div className="max-w-full overflow-x-hidden flex min-h-screen flex-col bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
+    <div id="top" className="max-w-full overflow-x-hidden flex min-h-screen flex-col bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
       <header className="sticky top-0 z-50 border-b border-border-system/80 bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-8">
           <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
@@ -885,6 +885,13 @@ export default function Home() {
         </div>
       </div>
     </footer>
+    <a
+      href="#top"
+      className="fixed bottom-5 right-5 z-50 rounded-full border border-accent-muted-border bg-white/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-[0_12px_36px_rgba(25,65,45,0.20)] backdrop-blur transition hover:bg-accent-muted-bg"
+      aria-label="Back to top"
+    >
+      ↑ Top
+    </a>
   </div>
   );
 }

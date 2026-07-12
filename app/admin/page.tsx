@@ -53,6 +53,11 @@ export default function PlatformAdminPage() {
   const [managementSaving, setManagementSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [newWorkspaceTier, setNewWorkspaceTier] = useState("multi_unit");
+  const [newWorkspaceCurrency, setNewWorkspaceCurrency] = useState("NGN");
+  const [newWorkspaceOwnerEmail, setNewWorkspaceOwnerEmail] = useState("");
+  const [workspaceCreating, setWorkspaceCreating] = useState(false);
 
   const loadPlatformAdminDashboard = useCallback(async () => {
     setLoading(true);
@@ -213,6 +218,47 @@ export default function PlatformAdminPage() {
     setManagementSaving(false);
   }
 
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!newWorkspaceName.trim()) {
+      setMessage("Enter the restaurant name before creating a workspace.");
+      return;
+    }
+
+    setWorkspaceCreating(true);
+    setMessage("");
+
+    const { data, error } = await supabase.rpc(
+      "create_platform_admin_workspace",
+      {
+        workspace_name: newWorkspaceName.trim(),
+        subscription_tier_value: newWorkspaceTier,
+        local_currency_value: newWorkspaceCurrency.trim().toUpperCase(),
+        owner_email_value: newWorkspaceOwnerEmail.trim() || null,
+      },
+    );
+
+    if (error) {
+      setMessage(error.message);
+      setWorkspaceCreating(false);
+      return;
+    }
+
+    setNewWorkspaceName("");
+    setNewWorkspaceTier("multi_unit");
+    setNewWorkspaceCurrency("NGN");
+    setNewWorkspaceOwnerEmail("");
+    await loadPlatformAdminDashboard();
+    setSelectedWorkspaceId(
+      typeof data === "object" && data !== null && "id" in data
+        ? String((data as { id?: string }).id ?? "")
+        : "",
+    );
+    setMessage("Restaurant workspace created in implementation mode.");
+    setWorkspaceCreating(false);
+  }
+
   return (
     <main className="min-h-screen bg-background font-sans text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--text-ghost:#71877c] [--text-muted:#4f665b]">
       <header className="border-b border-border-system bg-white/90 backdrop-blur">
@@ -270,11 +316,19 @@ export default function PlatformAdminPage() {
                 open approvals, and operating-day hygiene from one privileged
                 platform vantage point.
               </p>
-              {adminRole ? (
-                <span className="mt-5 inline-flex rounded-full border border-accent-muted-border bg-accent-muted-bg px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
-                  {formatLabel(adminRole)}
-                </span>
-              ) : null}
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {adminRole ? (
+                  <span className="inline-flex rounded-full border border-accent-muted-border bg-accent-muted-bg px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+                    {formatLabel(adminRole)}
+                  </span>
+                ) : null}
+                <a
+                  href="#add-restaurant"
+                  className="inline-flex rounded-md border border-border-system bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                >
+                  Add restaurant entity
+                </a>
+              </div>
             </div>
 
             <div className="grid overflow-hidden rounded-md border border-border-system bg-background min-[420px]:grid-cols-2">
@@ -304,12 +358,103 @@ export default function PlatformAdminPage() {
           <p className="mt-6 rounded-md border border-border-system bg-white px-5 py-4 text-sm font-semibold text-text-muted">
             Loading platform dashboard...
           </p>
-        ) : message ? (
-          <p className="mt-6 rounded-md border border-status-critical-border bg-status-critical-bg px-5 py-4 text-sm font-semibold text-status-critical-text">
-            {message}
-          </p>
         ) : (
           <>
+            {message ? (
+              <p className="mt-6 rounded-md border border-status-info-border bg-status-info-bg px-5 py-4 text-sm font-semibold text-status-info-text">
+                {message}
+              </p>
+            ) : null}
+            <section
+              id="add-restaurant"
+              className="mt-6 rounded-lg border border-border-system bg-white p-5 shadow-sm"
+            >
+              <div className="grid gap-5 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
+                <div>
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                    Platform onboarding
+                  </p>
+                  <h2 className="mt-1 text-xl font-extrabold">
+                    Add restaurant entity
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-text-muted">
+                    Create a restaurant workspace in implementation mode. Add an
+                    owner email only if that user already exists in Supabase Auth.
+                  </p>
+                </div>
+                <form
+                  onSubmit={handleCreateWorkspace}
+                  className="grid gap-3 rounded-md border border-border-system bg-background p-4 sm:grid-cols-2"
+                >
+                  <label className="grid gap-1 sm:col-span-2">
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                      Restaurant name
+                    </span>
+                    <input
+                      value={newWorkspaceName}
+                      onChange={(event) =>
+                        setNewWorkspaceName(event.target.value)
+                      }
+                      placeholder="e.g. Lagos Island Grill"
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                      Subscription tier
+                    </span>
+                    <select
+                      value={newWorkspaceTier}
+                      onChange={(event) =>
+                        setNewWorkspaceTier(event.target.value)
+                      }
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                    >
+                      <option value="solo">Solo</option>
+                      <option value="multi_unit">Multi Unit</option>
+                      <option value="enterprise_grid">Enterprise Grid</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                      Currency
+                    </span>
+                    <input
+                      value={newWorkspaceCurrency}
+                      onChange={(event) =>
+                        setNewWorkspaceCurrency(
+                          event.target.value.toUpperCase(),
+                        )
+                      }
+                      maxLength={3}
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold uppercase text-foreground outline-none transition focus:border-accent"
+                    />
+                  </label>
+                  <label className="grid gap-1 sm:col-span-2">
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                      Owner email, optional
+                    </span>
+                    <input
+                      type="email"
+                      value={newWorkspaceOwnerEmail}
+                      onChange={(event) =>
+                        setNewWorkspaceOwnerEmail(event.target.value)
+                      }
+                      placeholder="owner@restaurant.com"
+                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={workspaceCreating}
+                    className="h-11 rounded-md bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
+                  >
+                    {workspaceCreating ? "Creating..." : "Create restaurant"}
+                  </button>
+                </form>
+              </div>
+            </section>
+
             <section className="mt-6 grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
               <div className="rounded-lg border border-border-system bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between border-b border-border-system pb-4">
@@ -671,6 +816,14 @@ export default function PlatformAdminPage() {
           </>
         )}
       </div>
+      <button
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="fixed bottom-5 right-5 z-50 rounded-full border border-accent-muted-border bg-white/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-[0_12px_36px_rgba(25,65,45,0.20)] backdrop-blur transition hover:bg-accent-muted-bg"
+        aria-label="Back to top"
+      >
+        ↑ Top
+      </button>
     </main>
   );
 }

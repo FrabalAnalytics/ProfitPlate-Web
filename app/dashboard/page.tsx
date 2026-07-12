@@ -3140,6 +3140,14 @@ export default function DashboardPage() {
           onSubmit={handleCreateOrganization}
         />
       )}
+      <button
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="fixed bottom-5 right-5 z-50 rounded-full border border-accent-muted-border bg-white/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-[0_12px_36px_rgba(25,65,45,0.20)] backdrop-blur transition hover:bg-accent-muted-bg"
+        aria-label="Back to top"
+      >
+        ↑ Top
+      </button>
     </main>
   );
 }
@@ -5946,11 +5954,22 @@ function WorkspaceDashboard({
   const complianceRegisters = baseComplianceRegisters.map((register) => {
     const entry = currentRegisterByKey.get(register.key);
     const hasActivity = register.activityCount > 0;
+    const hasExplicitChecklistDecision =
+      entry?.activity_state === "reviewed" ||
+      entry?.activity_state === "no_activity" ||
+      entry?.activity_state === "exception" ||
+      entry?.status === "clear";
     const status: OperationRegisterStatus | "pending" =
-      entry?.status ?? (hasActivity ? "completed" : "pending");
+      entry?.status === "exception"
+        ? "exception"
+        : hasExplicitChecklistDecision
+          ? entry?.status ?? "clear"
+          : "pending";
     const passed = status === "completed" || status === "clear";
     const detail = entry
-      ? entry.activity_state === "no_activity"
+      ? entry.activity_state === "activity_recorded"
+        ? register.activityDetail
+        : entry.activity_state === "no_activity"
         ? register.noActivityDetail
         : entry.activity_state === "exception"
           ? entry.notes || "Exception declared for this register"
@@ -5965,7 +5984,7 @@ function WorkspaceDashboard({
       status,
       passed,
       detail,
-      submittedAt: entry?.submitted_at ?? "",
+      submittedAt: hasExplicitChecklistDecision ? entry?.submitted_at ?? "" : "",
     };
   });
   const visibleComplianceRegisters = complianceRegisters.filter(
@@ -6055,6 +6074,9 @@ function WorkspaceDashboard({
     directWasteImpact +
     priceIncreaseImpact +
     menuMarginRecovery;
+  const visibleMarginLeakage = Math.max(potentialLossExposure, 0);
+  const visibleLeakageRate =
+    latestDayRevenue > 0 ? (visibleMarginLeakage / latestDayRevenue) * 100 : null;
   const marginBaseScore =
     totalSalesMarginPct === null
       ? targetMenuMarginPct
@@ -7262,7 +7284,53 @@ function WorkspaceDashboard({
             ? ("attention" as const)
             : ("healthy" as const),
     },
+    {
+      label: "Visible leakage",
+      value: formatCurrency(visibleMarginLeakage),
+      detail:
+        visibleMarginLeakage > 0
+          ? "Waste, stock variance, supplier cost, production loss, and menu underpricing"
+          : "No visible activity leakage in the selected period",
+      tone:
+        visibleMarginLeakage > Math.max(1000, latestDayRevenue * 0.08)
+          ? ("critical" as const)
+          : visibleMarginLeakage > 0
+            ? ("attention" as const)
+            : ("healthy" as const),
+    },
+    {
+      label: "Leakage rate",
+      value:
+        visibleLeakageRate === null
+          ? "N/A"
+          : `${visibleLeakageRate.toLocaleString(undefined, {
+              maximumFractionDigits: 1,
+            })}%`,
+      detail:
+        visibleLeakageRate === null
+          ? "Record sales to benchmark leakage against revenue"
+          : "Visible leakage as a share of latest revenue",
+      tone:
+        visibleLeakageRate === null
+          ? ("info" as const)
+          : visibleLeakageRate >= 8
+            ? ("critical" as const)
+            : visibleLeakageRate > 0
+              ? ("attention" as const)
+              : ("healthy" as const),
+    },
   ];
+  const ownerLeakageRows = profitMovementRows
+    .map((row) => ({
+      ...row,
+      leakage: Math.max(-row.value, 0),
+      recovery: Math.max(row.value, 0),
+    }))
+    .sort(
+      (leftRow, rightRow) =>
+        Math.max(rightRow.leakage, rightRow.recovery) -
+        Math.max(leftRow.leakage, leftRow.recovery),
+    );
   const ownerAttentionItems: Array<{
     label: string;
     title: string;
@@ -9107,6 +9175,66 @@ function WorkspaceDashboard({
                   </p>
                 </article>
               ))}
+            </div>
+
+            <div className="mt-4 rounded-lg border border-border-system bg-white p-5 shadow-[0_10px_30px_rgba(25,65,45,0.05)]">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                    Margin Leakage Map
+                  </p>
+                  <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
+                    Activities converted to financial impact
+                  </h2>
+                </div>
+                <span
+                  className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                    visibleMarginLeakage > 0
+                      ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                      : "border-accent-muted-border bg-accent-muted-bg text-accent"
+                  }`}
+                >
+                  {formatCurrency(visibleMarginLeakage, 0)} visible
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-5">
+                {ownerLeakageRows.map((row) => {
+                  const isRecovery = row.recovery > 0;
+                  const displayValue = isRecovery ? row.recovery : row.leakage;
+                  const rowToneClass = isRecovery
+                    ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                    : displayValue > 0
+                      ? "border-status-critical-border bg-status-critical-bg text-status-critical-text"
+                      : "border-border-system bg-background text-text-muted";
+
+                  return (
+                    <button
+                      key={row.label}
+                      type="button"
+                      onClick={() =>
+                        openDashboardSection(row.href.replace("#", ""))
+                      }
+                      className="rounded-md border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover hover:bg-white"
+                    >
+                      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                        {row.owner}
+                      </span>
+                      <span className="mt-2 block text-sm font-bold text-foreground">
+                        {row.label}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-text-muted">
+                        {row.detail}
+                      </span>
+                      <span
+                        className={`mt-3 inline-flex rounded-full border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${rowToneClass}`}
+                      >
+                        {isRecovery ? "+" : displayValue > 0 ? "-" : ""}
+                        {formatCurrency(displayValue, 0)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
