@@ -6243,6 +6243,99 @@ function WorkspaceDashboard({
           : "Daily register complete",
     },
   ];
+  const inventoryOperatingDayMetrics = [
+    {
+      label: "Production runs",
+      value: latestDayProductionRunCount.toLocaleString(),
+      detail: "Logged on latest operating day",
+    },
+    {
+      label: "Waste",
+      value: latestDayWasteRows.length.toLocaleString(),
+      detail: `${latestDayWasteRows.length.toLocaleString()} event${
+        latestDayWasteRows.length === 1 ? "" : "s"
+      } recorded`,
+    },
+    {
+      label: "Stock counts",
+      value: latestDayStockCountCount.toLocaleString(),
+      detail: "Submitted for control review",
+    },
+    {
+      label: "Readiness",
+      value: `${readinessScore.toLocaleString(undefined, {
+        maximumFractionDigits: 0,
+      })}%`,
+      detail:
+        compliancePendingCount > 0
+          ? `${compliancePendingCount} register${
+              compliancePendingCount === 1 ? "" : "s"
+            } open`
+          : "Daily register complete",
+    },
+  ];
+  const kitchenOperatingDayMetrics = [
+    {
+      label: "Production runs",
+      value: latestDayProductionRunCount.toLocaleString(),
+      detail: "Logged on latest operating day",
+    },
+    {
+      label: "Waste",
+      value: latestDayWasteRows.length.toLocaleString(),
+      detail: `${latestDayWasteRows.length.toLocaleString()} kitchen waste event${
+        latestDayWasteRows.length === 1 ? "" : "s"
+      }`,
+    },
+    {
+      label: "Requisitions",
+      value: openRequisitionRequestCount.toLocaleString(),
+      detail: "Open or awaiting receipt",
+    },
+    {
+      label: "Readiness",
+      value: `${readinessScore.toLocaleString(undefined, {
+        maximumFractionDigits: 0,
+      })}%`,
+      detail:
+        compliancePendingCount > 0
+          ? `${compliancePendingCount} register${
+              compliancePendingCount === 1 ? "" : "s"
+            } open`
+          : "Daily register complete",
+    },
+  ];
+  const procurementOperatingDayMetrics = [
+    {
+      label: "Purchase orders",
+      value: openPurchaseOrderCount.toLocaleString(),
+      detail: "Open supplier queue",
+    },
+    {
+      label: "Partial deliveries",
+      value: partialPurchaseOrders.length.toLocaleString(),
+      detail: "Follow-up required",
+    },
+    {
+      label: "Supplier price changes",
+      value: latestDayPriceMovements.length.toLocaleString(),
+      detail: `${latestDayPriceMovements.length.toLocaleString()} price move${
+        latestDayPriceMovements.length === 1 ? "" : "s"
+      } logged`,
+    },
+    {
+      label: "Readiness",
+      value: `${readinessScore.toLocaleString(undefined, {
+        maximumFractionDigits: 0,
+      })}%`,
+      detail:
+        compliancePendingCount > 0
+          ? `${compliancePendingCount} register${
+              compliancePendingCount === 1 ? "" : "s"
+            } open`
+          : "Daily register complete",
+    },
+  ];
   const inventoryExecutiveKpis: typeof executiveKpis = [
     {
       label: "Inventory Accuracy",
@@ -6411,17 +6504,13 @@ function WorkspaceDashboard({
       : isProcurementFocus
         ? procurementExecutiveKpis
         : executiveKpis;
-  const visibleOperatingDayMetrics = isInventoryFocus || isKitchenFocus || isProcurementFocus
-    ? operatingDayMetrics.filter(
-        (metric) =>
-          ![
-            "Sales",
-            "Gross margin",
-            ...(isProcurementFocus ? ["Production runs", "Waste", "Stock counts"] : []),
-            ...(isInventoryFocus || isKitchenFocus ? ["Price impact"] : []),
-          ].includes(metric.label),
-      )
-    : operatingDayMetrics;
+  const visibleOperatingDayMetrics = isKitchenFocus
+    ? kitchenOperatingDayMetrics
+    : isInventoryFocus
+      ? inventoryOperatingDayMetrics
+      : isProcurementFocus
+        ? procurementOperatingDayMetrics
+        : operatingDayMetrics;
   const dayCloseChecks = visibleComplianceRegisters.filter(
     (register) => register.key !== "closing_readiness",
   );
@@ -6879,7 +6968,7 @@ function WorkspaceDashboard({
       : isStorekeeperFocus
         ? "Store receipts, stock issues, SKU exceptions, and storage accuracy across"
         : isProcurementFocus
-          ? "Supplier ordering, purchase order exposure, delivery follow-up, and cost movement across"
+          ? "Supplier ordering, purchase order exposure, delivery follow-up, and supplier price activity across"
           : isOperationsFocus
             ? "Requisitions, production evidence, waste exposure, and day-close accountability across"
             : isAdminFocus
