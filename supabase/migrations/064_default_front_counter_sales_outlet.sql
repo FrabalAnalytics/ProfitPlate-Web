@@ -55,6 +55,33 @@ begin
 end;
 $$;
 
+-- Some older databases still have a legacy compatibility trigger named around
+-- sync_legacy_location_type(). That trigger casts modern public.location_type
+-- values into an older location_type_enum, which cannot represent sales_outlet.
+-- The current dashboard reads public.locations.location_type directly, so remove
+-- only triggers that call that legacy sync function before creating Front Counter.
+do $$
+declare
+  legacy_trigger record;
+begin
+  for legacy_trigger in
+    select trigger_item.tgname
+    from pg_trigger trigger_item
+    join pg_proc proc_item on proc_item.oid = trigger_item.tgfoid
+    join pg_class class_item on class_item.oid = trigger_item.tgrelid
+    join pg_namespace namespace_item on namespace_item.oid = class_item.relnamespace
+    where namespace_item.nspname = 'public'
+      and class_item.relname = 'locations'
+      and proc_item.proname = 'sync_legacy_location_type'
+      and not trigger_item.tgisinternal
+  loop
+    execute format(
+      'drop trigger if exists %I on public.locations',
+      legacy_trigger.tgname
+    );
+  end loop;
+end $$;
+
 create or replace function public.create_workspace(
   workspace_name text,
   workspace_subscription_tier public.subscription_tier default 'solo',
