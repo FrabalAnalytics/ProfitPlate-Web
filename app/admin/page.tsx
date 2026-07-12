@@ -197,13 +197,25 @@ export default function PlatformAdminPage() {
     setManagementSaving(true);
     setMessage("");
 
+    const normalizedCurrency = selectedCurrency.trim().toUpperCase();
+    const hasChanges =
+      selectedWorkspace?.system_status !== selectedSystemStatus ||
+      selectedWorkspace?.subscription_tier !== selectedSubscriptionTier ||
+      selectedWorkspace?.local_currency !== normalizedCurrency;
+
+    if (!hasChanges) {
+      setMessage("No restaurant workspace changes to save.");
+      setManagementSaving(false);
+      return;
+    }
+
     const { error } = await supabase.rpc(
       "update_platform_admin_workspace_settings",
       {
         target_organization_id: selectedWorkspaceId,
         system_status_value: selectedSystemStatus,
         subscription_tier_value: selectedSubscriptionTier,
-        local_currency_value: selectedCurrency,
+        local_currency_value: normalizedCurrency,
       },
     );
 
