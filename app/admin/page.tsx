@@ -16,7 +16,9 @@ type PlatformWorkspaceSummary = {
   created_at: string;
   profile_count: number;
   active_location_count: number;
+  active_sales_outlet_count?: number;
   active_sku_count: number;
+  manufactured_final_product_count?: number;
   pending_approval_count: number;
   open_operating_day_count: number;
   latest_operating_date: string | null;
@@ -58,6 +60,7 @@ export default function PlatformAdminPage() {
   const [newWorkspaceCurrency, setNewWorkspaceCurrency] = useState("NGN");
   const [newWorkspaceOwnerEmail, setNewWorkspaceOwnerEmail] = useState("");
   const [workspaceCreating, setWorkspaceCreating] = useState(false);
+  const [frontCounterEnsuring, setFrontCounterEnsuring] = useState(false);
 
   const loadPlatformAdminDashboard = useCallback(async () => {
     setLoading(true);
@@ -165,6 +168,13 @@ export default function PlatformAdminPage() {
   const selectedWorkspace = workspaces.find(
     (workspace) => workspace.organization_id === selectedWorkspaceId,
   );
+  const selectedSalesOutletCount = Number(
+    selectedWorkspace?.active_sales_outlet_count ?? 0,
+  );
+  const selectedFinalProductCount = Number(
+    selectedWorkspace?.manufactured_final_product_count ?? 0,
+  );
+  const selectedHasSalesOutlet = selectedSalesOutletCount > 0;
 
   function beginManageWorkspace(workspace: PlatformWorkspaceSummary) {
     setSelectedWorkspaceId(workspace.organization_id);
@@ -273,6 +283,30 @@ export default function PlatformAdminPage() {
     setWorkspaceCreating(false);
   }
 
+  async function handleEnsureFrontCounter() {
+    if (!selectedWorkspaceId) {
+      setMessage("Select a restaurant entity to manage.");
+      return;
+    }
+
+    setFrontCounterEnsuring(true);
+    setMessage("");
+
+    const { error } = await supabase.rpc("ensure_platform_admin_front_counter", {
+      target_organization_id: selectedWorkspaceId,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setFrontCounterEnsuring(false);
+      return;
+    }
+
+    await loadPlatformAdminDashboard();
+    setMessage("Front Counter sales outlet is ready for this restaurant.");
+    setFrontCounterEnsuring(false);
+  }
+
   return (
     <main className="min-h-screen bg-background font-sans text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--text-ghost:#71877c] [--text-muted:#4f665b]">
       <header className="border-b border-border-system bg-white/90 backdrop-blur">
@@ -302,7 +336,7 @@ export default function PlatformAdminPage() {
               href="/dashboard"
               className="rounded-md border border-border-system bg-white px-3 py-2.5 text-center text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover sm:px-4"
             >
-              Workspace dashboard
+              My workspace dashboard
             </Link>
             <button
               type="button"
@@ -592,22 +626,67 @@ export default function PlatformAdminPage() {
                         ))}
                       </div>
                       <div className="mt-4 rounded-md border border-status-info-border bg-status-info-bg px-4 py-3 text-sm leading-6 text-status-info-text">
-                        <p className="font-bold text-foreground">
-                          Operating model setup
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-bold text-foreground">
+                              Operating model readiness
+                            </p>
+                            <p className="mt-1">
+                              Standard entities can run recipe depletion. QSR /
+                              fast-food entities also need a sales outlet and
+                              manufactured final-product SKUs for 1-to-1 counter
+                              depletion.
+                            </p>
+                          </div>
+                          {!selectedHasSalesOutlet ? (
+                            <button
+                              type="button"
+                              onClick={handleEnsureFrontCounter}
+                              disabled={frontCounterEnsuring}
+                              className="inline-flex rounded-md border border-status-info-border bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {frontCounterEnsuring
+                                ? "Creating..."
+                                : "Ensure Front Counter"}
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                          <div
+                            className={`rounded-md border px-3 py-2 ${
+                              selectedHasSalesOutlet
+                                ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                                : "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                            }`}
+                          >
+                            <p className="font-mono text-[9px] font-bold uppercase tracking-widest">
+                              Sales outlets
+                            </p>
+                            <p className="mt-1 text-lg font-extrabold">
+                              {selectedSalesOutletCount.toLocaleString()}
+                            </p>
+                          </div>
+                          <div
+                            className={`rounded-md border px-3 py-2 ${
+                              selectedFinalProductCount > 0
+                                ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                                : "border-status-info-border bg-white text-status-info-text"
+                            }`}
+                          >
+                            <p className="font-mono text-[9px] font-bold uppercase tracking-widest">
+                              Final-product SKUs
+                            </p>
+                            <p className="mt-1 text-lg font-extrabold">
+                              {selectedFinalProductCount.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-xs leading-5 text-text-muted">
+                          Super Admin can ensure the counter here. Recipes,
+                          production runs, and finished-good SKUs are still
+                          created inside the restaurant workspace by an assigned
+                          workspace user.
                         </p>
-                        <p className="mt-1">
-                          Standard restaurants can post sales through recipe
-                          depletion. QSR / fast-food entities also need an
-                          active sales outlet/front counter and manufactured
-                          final-product SKUs so POS imports can deplete counter
-                          stock 1-to-1.
-                        </p>
-                        <Link
-                          href="/dashboard"
-                          className="mt-3 inline-flex rounded-md border border-status-info-border bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
-                        >
-                          Open workspace setup
-                        </Link>
                       </div>
                     </div>
                     <div className="grid gap-3 rounded-md border border-border-system bg-white p-4 sm:grid-cols-2">
