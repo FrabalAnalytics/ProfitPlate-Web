@@ -1295,6 +1295,15 @@ export default function DashboardPage() {
         ? Number(selectedItem.on_hand_qty ?? 0) + quantity
         : quantity;
     const currentOnHandQty = Number(selectedItem.on_hand_qty ?? 0);
+    const adjustmentQuantity = nextOnHandQty - currentOnHandQty;
+
+    if (nextOnHandQty < 0) {
+      setMessage(
+        "Stock adjustment cannot push the final balance below zero. Enter a smaller negative adjustment or use a stock count exception.",
+      );
+      return;
+    }
+
     const varianceQuantity = currentOnHandQty - nextOnHandQty;
     const unitCost = Number(selectedItem.current_cost_per_base_uom ?? 0);
 
@@ -1310,10 +1319,12 @@ export default function DashboardPage() {
         target_location_id: targetLocationId,
         adjustment_type: "stock_adjustment",
         adjustment_mode: adjustmentMode,
+        adjustment_quantity: adjustmentQuantity,
         lines: [
           {
             inventory_item_id: inventoryItemId,
             item_name: selectedItem.name ?? "Inventory item",
+            adjustment_quantity: adjustmentQuantity,
             counted_quantity: nextOnHandQty,
             system_quantity: currentOnHandQty,
             variance_quantity: varianceQuantity,
@@ -1579,6 +1590,23 @@ export default function DashboardPage() {
     shortSupplyReason: string,
   ) {
     if (!organization) {
+      return;
+    }
+
+    const receivingUserRole = normalizeRole(profile?.role);
+
+    if (
+      ![
+        "owner",
+        "admin",
+        "operations_manager",
+        "inventory_manager",
+        "storekeeper",
+      ].includes(receivingUserRole)
+    ) {
+      setMessage(
+        "Only Inventory, Store, Operations, Admin, or Owner users can confirm supplier receipts. Procurement can draft and follow up, but Inventory must receive.",
+      );
       return;
     }
 
@@ -3446,14 +3474,15 @@ function WorkspaceDashboard({
     "operations_manager",
     "finance_manager",
   ].includes(currentRole);
-  const canReceivePurchaseOrders = [
-    "owner",
-    "admin",
-    "manager",
-    "operations_manager",
-    "inventory_manager",
-    "storekeeper",
-  ].includes(currentRole);
+  const canReceivePurchaseOrders =
+    focusRole !== "procurement_manager" &&
+    [
+      "owner",
+      "admin",
+      "operations_manager",
+      "inventory_manager",
+      "storekeeper",
+    ].includes(currentRole);
   const canDraftPurchaseOrders = [
     "owner",
     "admin",
@@ -8176,6 +8205,49 @@ function WorkspaceDashboard({
       };
     });
   });
+  const stockAdjustmentReportRows = approvalRequests
+    .filter(
+      (request) =>
+        request.request_type === "stock_count_approval" &&
+        request.payload?.adjustment_type === "stock_adjustment",
+    )
+    .flatMap((request) => {
+      const payload = request.payload ?? {};
+      const lines = Array.isArray(payload.lines) ? payload.lines : [];
+      const location = activeLocations.find(
+        (candidate) =>
+          extractUuid(candidate.id) === extractUuid(payload.target_location_id),
+      );
+
+      return lines.map((line, index) => {
+        const linePayload =
+          line && typeof line === "object"
+            ? (line as Record<string, unknown>)
+            : {};
+        const systemQuantity = Number(linePayload.system_quantity ?? 0);
+        const countedQuantity = Number(linePayload.counted_quantity ?? 0);
+        const adjustmentQuantity = Number(
+          linePayload.adjustment_quantity ?? countedQuantity - systemQuantity,
+        );
+        const unitCost = Number(linePayload.unit_cost ?? 0);
+
+        return {
+          request_id: request.id,
+          created_at: request.created_at,
+          status: request.status,
+          approved_at: request.approved_at ?? "",
+          location: location?.name ?? "Unassigned",
+          adjustment_mode: String(payload.adjustment_mode ?? "set"),
+          item: String(linePayload.item_name ?? `Adjustment line ${index + 1}`),
+          system_quantity: systemQuantity,
+          adjustment_quantity: adjustmentQuantity,
+          final_quantity: countedQuantity,
+          uom: String(linePayload.uom ?? "unit"),
+          unit_cost: unitCost,
+          estimated_impact: adjustmentQuantity * unitCost,
+        };
+      });
+    });
   const exportReportOptions = [
     {
       label: "Daily registers",
@@ -8205,6 +8277,12 @@ function WorkspaceDashboard({
       label: "Stock variance",
       filename: `stock-variance-${reportDateLabel}.csv`,
       rows: stockVarianceReportRows,
+      dateScoped: true,
+    },
+    {
+      label: "Stock adjustments",
+      filename: `stock-adjustments-${reportDateLabel}.csv`,
+      rows: stockAdjustmentReportRows,
       dateScoped: true,
     },
     {
@@ -8239,6 +8317,7 @@ function WorkspaceDashboard({
           "Inventory by location",
           "Production variance",
           "Stock variance",
+          "Stock adjustments",
           "Waste",
           "Purchase orders",
           "Goods received notes",
@@ -13622,13 +13701,17 @@ function WorkspaceDashboard({
               </div>
               {visiblePurchaseOrderQueue.length > 0 ? (
                 visiblePurchaseOrderQueue.slice(0, 10).map((order) => {
+                  const orderHasReceivedLines = order.lines.some(
+                    (line) => Number(line.received_qty ?? 0) > 0,
+                  );
                   const orderCanBeReceived =
                     canReceivePurchaseOrders &&
                     ["draft", "pending", "accepted"].includes(order.status) &&
                     order.outstandingLineCount > 0;
                   const orderCanBeEdited =
                     canDraftPurchaseOrders &&
-                    ["draft", "pending", "accepted"].includes(order.status);
+                    ["draft", "pending", "accepted"].includes(order.status) &&
+                    !orderHasReceivedLines;
                   const isExpanded = expandedPurchaseOrderId === order.id;
 
                   return (
@@ -13683,6 +13766,11 @@ function WorkspaceDashboard({
                             type="button"
                             disabled={!orderCanBeEdited}
                             onClick={() => handleEditPurchaseOrder(order)}
+                            title={
+                              orderHasReceivedLines
+                                ? "PO lines are locked after Inventory confirms any receipt."
+                                : undefined
+                            }
                             className={
                               orderCanBeEdited
                                 ? compactActionButtonClass
@@ -13770,6 +13858,13 @@ function WorkspaceDashboard({
                               const lineTotal =
                                 Number(line.qty ?? 0) *
                                 Number(line.landed_unit_cost ?? 0);
+                              const outstandingQty = Math.max(
+                                Number(line.qty ?? 0) -
+                                  Number(line.received_qty ?? 0),
+                                0,
+                              );
+                              const lineCanReceive =
+                                orderCanBeReceived && outstandingQty > 0;
 
                               return (
                                 <div
@@ -13815,22 +13910,14 @@ function WorkspaceDashboard({
                                   <input
                                     type="number"
                                     min="0"
-                                    max={Math.max(
-                                      Number(line.qty) -
-                                        Number(line.received_qty ?? 0),
-                                      0,
-                                    )}
+                                    max={outstandingQty}
                                     step="any"
                                     aria-label={`Received quantity for ${
                                       lineItem?.name ?? "purchase order item"
                                     }`}
                                     value={
                                       purchaseReceiptQuantities[line.id] ??
-                                      Math.max(
-                                        Number(line.qty) -
-                                          Number(line.received_qty ?? 0),
-                                        0,
-                                      ).toString()
+                                      outstandingQty.toString()
                                     }
                                     onChange={(event) =>
                                       setPurchaseReceiptQuantities((current) => ({
@@ -13838,9 +13925,18 @@ function WorkspaceDashboard({
                                         [line.id]: event.target.value,
                                       }))
                                     }
-                                    disabled={!orderCanBeReceived}
-                                    className={formControlClass}
+                                    disabled={!lineCanReceive}
+                                    className={
+                                      lineCanReceive
+                                        ? formControlClass
+                                        : `${formControlClass} opacity-60`
+                                    }
                                   />
+                                  {!lineCanReceive && outstandingQty === 0 ? (
+                                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+                                      Complete
+                                    </p>
+                                  ) : null}
                                 </div>
                               );
                             })
@@ -13978,7 +14074,74 @@ function WorkspaceDashboard({
             >
               Submit adjustment to Finance
             </button>
+            <p className="text-xs font-semibold text-text-muted">
+              Use “Adjust by” for signed movements, for example -5 to reduce stock
+              or 5 to increase it. Finance approval still controls the final post.
+            </p>
           </form>
+
+          <div className={`${showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 ${ledgerFrameClass}`}>
+            <div className={`${ledgerColumnHeaderClass} grid-cols-[minmax(0,1fr)_130px_130px_130px]`}>
+              <span>Adjustment report</span>
+              <span>Status</span>
+              <span>Change</span>
+              <span>Final qty</span>
+            </div>
+            {stockAdjustmentReportRows.length > 0 ? (
+              stockAdjustmentReportRows.slice(0, 8).map((row) => {
+                const changeClass =
+                  row.adjustment_quantity < 0
+                    ? "font-semibold text-status-critical-text"
+                    : row.adjustment_quantity > 0
+                      ? "font-semibold text-accent"
+                      : "font-semibold text-foreground";
+
+                return (
+                  <div
+                    key={`${row.request_id}-${row.item}-${row.created_at}`}
+                    className="grid gap-3 border-t border-border-system px-5 py-4 text-sm text-text-muted lg:grid-cols-[minmax(0,1fr)_130px_130px_130px] lg:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">
+                        {row.item}
+                      </p>
+                      <p className="text-xs text-text-ghost">
+                        {row.location} / {row.adjustment_mode} /{" "}
+                        {row.created_at
+                          ? new Date(row.created_at).toLocaleString()
+                          : "No date"}
+                      </p>
+                    </div>
+                    <span className="w-fit rounded-full border border-status-info-border bg-status-info-bg px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-info-text">
+                      {row.status}
+                    </span>
+                    <span className={changeClass}>
+                      <span className="mr-2 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:hidden">
+                        Change
+                      </span>
+                      {row.adjustment_quantity.toLocaleString(undefined, {
+                        maximumFractionDigits: 3,
+                      })}{" "}
+                      {row.uom}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      <span className="mr-2 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:hidden">
+                        Final
+                      </span>
+                      {row.final_quantity.toLocaleString(undefined, {
+                        maximumFractionDigits: 3,
+                      })}{" "}
+                      {row.uom}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="border-t border-border-system px-4 py-4 text-sm text-text-muted">
+                No stock adjustments submitted yet.
+              </p>
+            )}
+          </div>
 
           <h4
             id="stock-counts"
