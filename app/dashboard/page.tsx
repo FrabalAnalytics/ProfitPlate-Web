@@ -2523,12 +2523,15 @@ export default function DashboardPage() {
     const targetOutputQty = Number(formData.get("target_output_qty") ?? 0);
     const actualOutputQty = Number(formData.get("actual_output_qty") ?? 0);
     const origin = String(formData.get("origin") ?? "kitchen_prep_line");
+    const outputLocationId = extractUuid(
+      formData.get("output_location_id_value"),
+    );
     const rawActualComponentUsages = String(
       formData.get("actual_component_usages") ?? "[]",
     );
 
     if (!recipeId || !Number.isFinite(targetOutputQty) || targetOutputQty <= 0) {
-      setMessage("Choose a sub-recipe and actual output before recording production.");
+      setMessage("Choose a production item and actual output before recording production.");
       return false;
     }
 
@@ -2573,6 +2576,7 @@ export default function DashboardPage() {
           : targetOutputQty,
       production_origin: origin,
       actual_component_usages: actualComponentUsages,
+      output_location_id_value: outputLocationId || null,
     });
 
     if (error) {
@@ -3349,6 +3353,8 @@ function WorkspaceDashboard({
 }) {
   const [selectedProductionRecipeId, setSelectedProductionRecipeId] =
     useState("");
+  const [selectedProductionOutputLocationId, setSelectedProductionOutputLocationId] =
+    useState("");
   const [targetProductionOutput, setTargetProductionOutput] = useState("");
   const [actualProductionInputs, setActualProductionInputs] = useState<
     Record<string, string>
@@ -3565,6 +3571,9 @@ function WorkspaceDashboard({
     ? activeRecipes
     : activeSubRecipes;
   const activeLocations = locations.filter((location) => location.is_active);
+  const salesOutletLocations = activeLocations.filter(
+    (location) => location.location_type === "sales_outlet",
+  );
   const isDepartmentStockLocation = (location: Location) => {
     const normalizedName = location.name.trim().toLowerCase();
 
@@ -3889,6 +3898,59 @@ function WorkspaceDashboard({
       }) ?? sourceItem
     );
   };
+  const resolveSalesImportRowLocation = (row: SalesImportPreviewRow) => {
+    const matchedSourceLocation = departmentStockLocations.find(
+      (location) =>
+        row.sourceLocationName &&
+        location.name.trim().toLowerCase() ===
+          row.sourceLocationName.trim().toLowerCase(),
+    );
+    const rowLocationId =
+      extractUuid(matchedSourceLocation?.id) || selectedSaleLocationId;
+
+    return activeLocations.find(
+      (location) => extractUuid(location.id) === extractUuid(rowLocationId),
+    );
+  };
+  const getSalesImportDepletionMode = (row: SalesImportPreviewRow) => {
+    if (row.error || !row.recipeId) {
+      return {
+        label: "Needs mapping",
+        detail: "Map before import",
+        badgeClass:
+          "border-status-critical-border bg-status-critical-bg text-status-critical-text",
+      };
+    }
+
+    const rowLocation = resolveSalesImportRowLocation(row);
+    const rowLocationId = extractUuid(rowLocation?.id);
+    const finishedGood = inventoryItems.find(
+      (item) =>
+        item.is_active &&
+        item.item_type === "final_product" &&
+        item.cost_type === "manufactured" &&
+        extractUuid(item.recipe_id) === extractUuid(row.recipeId) &&
+        extractUuid(item.location_id) === rowLocationId,
+    );
+
+    if (rowLocation?.location_type === "sales_outlet" && finishedGood) {
+      return {
+        label: "Finished goods",
+        detail: `1-to-1 from ${rowLocation.name}`,
+        badgeClass:
+          "border-accent-muted-border bg-accent-muted-bg text-accent",
+      };
+    }
+
+    return {
+      label: "Recipe explosion",
+      detail: rowLocation
+        ? `Components from ${rowLocation.name}`
+        : "Default depletion routing",
+      badgeClass:
+        "border-status-info-border bg-status-info-bg text-status-info-text",
+    };
+  };
   const openYieldTestNotifications = yieldTestNotifications.filter(
     (notification) => notification.status === "open",
   );
@@ -3912,6 +3974,7 @@ function WorkspaceDashboard({
     activeRecipes.map((recipe) => [getRecipeId(recipe), recipe]),
   );
   const productionPlanRecipeOptions = activeRecipes;
+  const productionRunRecipeOptions = activeRecipes;
   const validProductionPlanRows = productionPlanRows
     .map((row) => {
       const recipe = activeRecipesById.get(extractUuid(row.recipeId));
@@ -4065,9 +4128,33 @@ function WorkspaceDashboard({
       total + requirement.shortageQty * requirement.unitCost,
     0,
   );
-  const selectedProductionRecipe = activeSubRecipes.find(
+  const selectedProductionRecipe = productionRunRecipeOptions.find(
     (recipe) => getRecipeId(recipe) === selectedProductionRecipeId,
   );
+  const selectedProductionIsFinalMenu =
+    Boolean(selectedProductionRecipe) &&
+    selectedProductionRecipe?.recipe_type !== "sub_recipe";
+  const defaultProductionOutputLocationId =
+    selectedProductionIsFinalMenu && salesOutletLocations.length === 1
+      ? extractUuid(salesOutletLocations[0]?.id)
+      : "";
+  const resolvedProductionOutputLocationId =
+    selectedProductionOutputLocationId || defaultProductionOutputLocationId;
+  const selectedProductionOutputLocation = activeLocations.find(
+    (location) =>
+      extractUuid(location.id) === extractUuid(resolvedProductionOutputLocationId),
+  );
+  const selectedProductionFinishedGood = selectedProductionIsFinalMenu
+    ? inventoryItems.find(
+        (item) =>
+          item.is_active &&
+          item.item_type === "final_product" &&
+          item.cost_type === "manufactured" &&
+          extractUuid(item.recipe_id) === extractUuid(selectedProductionRecipeId) &&
+          extractUuid(item.location_id) ===
+            extractUuid(resolvedProductionOutputLocationId),
+      )
+    : null;
   const targetOutputQty = Number(targetProductionOutput);
   const hasValidTargetOutput =
     Number.isFinite(targetOutputQty) && targetOutputQty > 0;
@@ -4129,7 +4216,9 @@ function WorkspaceDashboard({
     Boolean(selectedProductionRecipe) &&
     hasValidTargetOutput &&
     productionComponents.length > 0 &&
-    hasActualProductionUsageInputs;
+    hasActualProductionUsageInputs &&
+    (!selectedProductionIsFinalMenu ||
+      Boolean(resolvedProductionOutputLocationId));
   const selectedSaleRecipe = activeFinalMenuItems.find(
     (recipe) => getRecipeId(recipe) === selectedSaleRecipeId,
   );
@@ -15424,15 +15513,19 @@ function WorkspaceDashboard({
               value={selectedProductionRecipeId}
               onChange={(event) => {
                 setSelectedProductionRecipeId(event.target.value);
+                setSelectedProductionOutputLocationId("");
                 setActualProductionInputs({});
               }}
               required
               className={formControlClass}
             >
-              <option value="">Sub-recipe</option>
-              {activeSubRecipes.map((recipe) => (
+              <option value="">Production item</option>
+              {productionRunRecipeOptions.map((recipe) => (
                 <option key={getRecipeId(recipe)} value={getRecipeId(recipe)}>
-                  {recipe.name}
+                  {recipe.name}{" "}
+                  {recipe.recipe_type === "sub_recipe"
+                    ? "(Sub-recipe)"
+                    : "(Final menu item)"}
                 </option>
               ))}
             </select>
@@ -15467,6 +15560,52 @@ function WorkspaceDashboard({
             </button>
           </div>
 
+          {selectedProductionIsFinalMenu ? (
+            <div className="grid gap-3 rounded-sm border border-status-info-border bg-status-info-bg p-4 md:grid-cols-[1fr_1fr] md:items-end">
+              <label className="grid gap-1">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Finished goods output location
+                </span>
+                <select
+                  name="output_location_id_value"
+                  value={resolvedProductionOutputLocationId}
+                  onChange={(event) =>
+                    setSelectedProductionOutputLocationId(event.target.value)
+                  }
+                  required
+                  className={formControlClass}
+                >
+                  <option value="">Select front counter / sales outlet</option>
+                  {salesOutletLocations.map((location) => (
+                    <option
+                      key={extractUuid(location.id)}
+                      value={extractUuid(location.id)}
+                    >
+                      {formatStockLocationOption(location)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="text-sm leading-6 text-status-info-text">
+                <p className="font-semibold text-foreground">
+                  QSR finished-goods run
+                </p>
+                <p>
+                  Output will be credited as a manufactured final product in{" "}
+                  {selectedProductionOutputLocation?.name ??
+                    "the selected sales outlet"}
+                  . POS sales can then deplete it 1-to-1 from counter stock.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <input
+              type="hidden"
+              name="output_location_id_value"
+              value=""
+            />
+          )}
+
           <input
             type="hidden"
             name="actual_component_usages"
@@ -15481,9 +15620,26 @@ function WorkspaceDashboard({
           ) : null}
           {selectedProductionRecipe ? (
             <p className="text-sm leading-6 text-text-muted">
-              Enter the actual output produced and the actual raw material used.
-              ProfitPlate calculates what that material should have produced,
-              then flags the output gap as production variance.
+              {selectedProductionIsFinalMenu
+                ? "Enter the actual output produced and the raw materials used. ProfitPlate will add finished goods to the selected counter, then POS imports can deplete that final product 1-to-1."
+                : "Enter the actual output produced and the actual raw material used. ProfitPlate calculates what that material should have produced, then flags the output gap as production variance."}
+            </p>
+          ) : null}
+          {selectedProductionIsFinalMenu ? (
+            <p
+              className={`rounded-sm border px-4 py-3 text-sm font-semibold ${
+                selectedProductionFinishedGood
+                  ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                  : "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+              }`}
+            >
+              {selectedProductionFinishedGood
+                ? `Counter SKU ready: ${selectedProductionFinishedGood.name ?? selectedProductionRecipe?.name} has ${Number(
+                    selectedProductionFinishedGood.on_hand_qty ?? 0,
+                  ).toLocaleString(undefined, {
+                    maximumFractionDigits: 3,
+                  })} ${selectedProductionFinishedGood.on_hand_uom ?? selectedProductionRecipe?.output_uom ?? "unit"} on hand.`
+                : "No finished-goods SKU exists yet for this recipe/counter. Recording this run will create it and credit the produced quantity."}
             </p>
           ) : null}
 
@@ -15644,7 +15800,7 @@ function WorkspaceDashboard({
                   >
                     Attach ingredients
                   </span>{" "}
-                  to this sub-recipe before recording production.
+                  to this production item before recording production.
                 </p>
               )}
             </div>
@@ -15773,7 +15929,7 @@ function WorkspaceDashboard({
                     >
                       Attach ingredients
                     </span>{" "}
-                    to this sub-recipe before recording production.
+                    to this production item before recording production.
                   </p>
                 )}
               </div>
@@ -16162,7 +16318,10 @@ function WorkspaceDashboard({
             {salesImportPreview.length > 0 ? (
               <div className="rounded-sm border border-border-system">
                 <div className="grid max-h-96 gap-3 overflow-auto p-3 lg:hidden">
-                  {salesImportPreview.slice(0, 20).map((row) => (
+                  {salesImportPreview.slice(0, 20).map((row) => {
+                    const depletionMode = getSalesImportDepletionMode(row);
+
+                    return (
                     <article
                       key={`mobile-import-${row.id}`}
                       className="rounded-sm border border-border-system bg-card p-3 shadow-sm"
@@ -16190,6 +16349,17 @@ function WorkspaceDashboard({
                         </span>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-sm border border-border-system bg-background p-2">
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                            Depletion
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {depletionMode.label}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-4 text-text-muted">
+                            {depletionMode.detail}
+                          </p>
+                        </div>
                         <div className="rounded-sm border border-border-system bg-background p-2">
                           <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                             Date
@@ -16267,7 +16437,8 @@ function WorkspaceDashboard({
                         </select>
                       </label>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="hidden max-h-72 overflow-auto lg:block">
@@ -16299,12 +16470,18 @@ function WorkspaceDashboard({
                         Maps to
                       </th>
                       <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-widest text-text-ghost">
+                        Depletion
+                      </th>
+                      <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-widest text-text-ghost">
                         Status
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-system">
-                    {salesImportPreview.slice(0, 20).map((row) => (
+                    {salesImportPreview.slice(0, 20).map((row) => {
+                      const depletionMode = getSalesImportDepletionMode(row);
+
+                      return (
                       <tr key={row.id}>
                         <td className="px-4 py-3 text-text-muted">
                           {row.rowNumber}
@@ -16367,6 +16544,16 @@ function WorkspaceDashboard({
                             ))}
                           </select>
                         </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${depletionMode.badgeClass}`}
+                          >
+                            {depletionMode.label}
+                          </span>
+                          <p className="mt-1 text-xs text-text-muted">
+                            {depletionMode.detail}
+                          </p>
+                        </td>
                         <td
                           className={`px-4 py-3 font-semibold ${
                             row.error ? "text-status-critical-text" : "text-accent"
@@ -16378,7 +16565,8 @@ function WorkspaceDashboard({
                               : "Name match")}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
                 </div>

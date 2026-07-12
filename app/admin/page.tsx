@@ -591,6 +591,24 @@ export default function PlatformAdminPage() {
                           </div>
                         ))}
                       </div>
+                      <div className="mt-4 rounded-md border border-status-info-border bg-status-info-bg px-4 py-3 text-sm leading-6 text-status-info-text">
+                        <p className="font-bold text-foreground">
+                          Operating model setup
+                        </p>
+                        <p className="mt-1">
+                          Standard restaurants can post sales through recipe
+                          depletion. QSR / fast-food entities also need an
+                          active sales outlet/front counter and manufactured
+                          final-product SKUs so POS imports can deplete counter
+                          stock 1-to-1.
+                        </p>
+                        <Link
+                          href="/dashboard"
+                          className="mt-3 inline-flex rounded-md border border-status-info-border bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                        >
+                          Open workspace setup
+                        </Link>
+                      </div>
                     </div>
                     <div className="grid gap-3 rounded-md border border-border-system bg-white p-4 sm:grid-cols-2">
                       <label className="grid gap-1">
