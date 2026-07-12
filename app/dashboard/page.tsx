@@ -5257,79 +5257,76 @@ function WorkspaceDashboard({
         ),
       };
     });
-  const latestDaySupplierCostIncreaseImpact = latestDayPriceMovements.reduce(
-    (total, event) => total + Math.max(event.onHandImpact, 0),
-    0,
-  );
-  const latestDayMenuMarginRecovery = underpricedMenuItems.reduce((total, item) => {
-    const latestSoldQuantity = latestDaySales
-      .filter(
-        (sale) =>
-          sale.recipe_name.trim().toLowerCase() ===
-          item.recipe.name.trim().toLowerCase(),
-      )
-      .reduce((soldTotal, sale) => soldTotal + sale.sold_quantity, 0);
-
-    return total + Math.max(item.priceGap, 0) * latestSoldQuantity;
-  }, 0);
+  const operatingScopeLabel =
+    dateFilter === "today"
+      ? "today's operating activity"
+      : dateFilter === "7d"
+        ? "the selected 7-day operating window"
+        : dateFilter === "30d"
+          ? "the selected 30-day operating window"
+          : "all recorded operating activity";
   const profitMovementRows = [
     {
       label: "Purchased SKU cost increases",
       owner: "Procurement",
-      value: -latestDaySupplierCostIncreaseImpact,
+      value: -priceIncreaseImpact,
       detail:
-        latestDayPriceMovements.length > 0
-          ? `${latestDayPriceMovements.length.toLocaleString()} ingredient cost movement${
-              latestDayPriceMovements.length === 1 ? "" : "s"
-            } reviewed`
+        priceIncreaseMovements.length > 0
+          ? `${priceIncreaseMovements.length.toLocaleString()} ingredient cost movement${
+              priceIncreaseMovements.length === 1 ? "" : "s"
+            } in ${operatingScopeLabel}`
           : "No purchased SKU cost increase captured",
       href: "#costing",
     },
     {
       label: "Waste events",
       owner: "Operations",
-      value: -latestDayWasteImpact,
+      value: -directWasteImpact,
       detail:
-        latestDayWasteRows.length > 0
-          ? `${latestDayWasteRows.length.toLocaleString()} waste event${
-              latestDayWasteRows.length === 1 ? "" : "s"
-            } logged`
+        wasteHistory.length > 0
+          ? `${wasteHistory.length.toLocaleString()} waste event${
+              wasteHistory.length === 1 ? "" : "s"
+            } logged in ${operatingScopeLabel}`
           : "No direct waste loss captured",
       href: "#waste",
     },
     {
       label: "Production yield variance",
       owner: "Chef",
-      value: -latestDayProductionLoss,
+      value: -productionLossImpact,
       detail:
-        latestDayProductionRunCount > 0
-          ? `${latestDayProductionRunCount.toLocaleString()} production run${
-              latestDayProductionRunCount === 1 ? "" : "s"
-            } analyzed`
+        productionHistory.length > 0
+          ? `${productionHistory.length.toLocaleString()} production run${
+              productionHistory.length === 1 ? "" : "s"
+            } analyzed in ${operatingScopeLabel}`
           : "No production variance captured",
       href: "#ledger",
     },
     {
       label: "Stock count variance",
       owner: "Inventory manager",
-      value: -latestDayStockLoss,
+      value: -stockLossImpact,
       detail:
-        latestDayStockCountCount > 0
-          ? `${latestDayStockCountCount.toLocaleString()} approved count batch${
-              latestDayStockCountCount === 1 ? "" : "es"
-            } applied`
+        stockVarianceHistory.length > 0
+          ? `${stockVarianceHistory.length.toLocaleString()} approved variance row${
+              stockVarianceHistory.length === 1 ? "" : "s"
+            } in ${operatingScopeLabel}`
           : "No approved stock count impact",
       href: "#inventory",
     },
     {
       label: "Menu price recovery opportunity",
       owner: "Finance",
-      value: latestDayMenuMarginRecovery,
+      value: menuMarginRecovery,
       detail:
-        underpricedMenuItems.length > 0
+        menuMarginRecovery > 0
           ? `${underpricedMenuItems.length.toLocaleString()} menu price action${
               underpricedMenuItems.length === 1 ? "" : "s"
-            } available`
+            } linked to sales in ${operatingScopeLabel}`
+          : underpricedMenuItems.length > 0
+            ? `${underpricedMenuItems.length.toLocaleString()} menu price action${
+                underpricedMenuItems.length === 1 ? "" : "s"
+              } available but no selected-period sales impact`
           : "Menu pricing is protected",
       href: "#pricing",
     },
@@ -6076,7 +6073,7 @@ function WorkspaceDashboard({
     menuMarginRecovery;
   const visibleMarginLeakage = Math.max(potentialLossExposure, 0);
   const visibleLeakageRate =
-    latestDayRevenue > 0 ? (visibleMarginLeakage / latestDayRevenue) * 100 : null;
+    totalSalesRevenue > 0 ? (visibleMarginLeakage / totalSalesRevenue) * 100 : null;
   const marginBaseScore =
     totalSalesMarginPct === null
       ? targetMenuMarginPct
@@ -6107,14 +6104,6 @@ function WorkspaceDashboard({
       ),
     ),
   );
-  const operatingScopeLabel =
-    dateFilter === "today"
-      ? "today's operating activity"
-      : dateFilter === "7d"
-        ? "the selected 7-day operating window"
-        : dateFilter === "30d"
-          ? "the selected 30-day operating window"
-          : "all recorded operating activity";
   const latestOperatingDayLabel =
     dateFilter === "today"
       ? "Current operating day"
@@ -7292,7 +7281,7 @@ function WorkspaceDashboard({
           ? "Waste, stock variance, supplier cost, production loss, and menu underpricing"
           : "No visible activity leakage in the selected period",
       tone:
-        visibleMarginLeakage > Math.max(1000, latestDayRevenue * 0.08)
+        visibleMarginLeakage > Math.max(1000, totalSalesRevenue * 0.08)
           ? ("critical" as const)
           : visibleMarginLeakage > 0
             ? ("attention" as const)
