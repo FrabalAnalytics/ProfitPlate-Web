@@ -40,7 +40,7 @@ export const roleDescriptions: Record<AppRole, string> = {
   operations_manager:
     "Runs daily restaurant operations, inventory discipline, production variance, waste, day close, exceptions, and team accountability.",
   procurement_manager:
-    "Focused on purchase intake, supplier price changes, ingredient inflation, and sourcing losses.",
+    "Focused on supplier onboarding, purchase intake, purchase orders, supplier price changes, and delivery follow-up.",
   finance_manager:
     "Owns recipe costing, food-cost variance, menu margins, pricing recovery, POS controls, inflation exposure, and executive reporting.",
   inventory_manager:

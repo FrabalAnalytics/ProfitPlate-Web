@@ -995,6 +995,16 @@ export default function DashboardPage() {
       return;
     }
 
+    if (
+      !["owner", "admin", "operations_manager", "finance_manager"].includes(
+        currentUserRole,
+      )
+    ) {
+      setMessage("Only Procurement can submit vendor requests. Active supplier records require Finance or workspace leadership.");
+      setSetupSaving(false);
+      return;
+    }
+
     const { error } = await supabase.from("suppliers").insert({
       organization_id: organization.id,
       name,
@@ -3418,6 +3428,19 @@ function WorkspaceDashboard({
     "procurement_manager",
   ].includes(currentRole);
   const canMaintainLiveInventoryCost = [
+    "owner",
+    "admin",
+    "operations_manager",
+    "finance_manager",
+  ].includes(currentRole);
+  const canSubmitSupplierMasterData = [
+    "owner",
+    "admin",
+    "operations_manager",
+    "finance_manager",
+    "procurement_manager",
+  ].includes(currentRole);
+  const canDirectMaintainSuppliers = [
     "owner",
     "admin",
     "operations_manager",
@@ -8252,6 +8275,11 @@ function WorkspaceDashboard({
   ) {
     event.preventDefault();
 
+    if (!canDirectMaintainSuppliers) {
+      setEditingSupplierId("");
+      return;
+    }
+
     const formData = new FormData(event.currentTarget);
 
     await onUpdateSupplier(supplier.id, {
@@ -12095,7 +12123,7 @@ function WorkspaceDashboard({
                 />
                 <button
                   type="submit"
-                  disabled={setupSaving || !canRecordOperations}
+                  disabled={setupSaving || !canSubmitSupplierMasterData}
                   className={primaryButtonClass}
                 >
                   {currentRole === "procurement_manager" ? "Submit" : "Add"}
@@ -12140,7 +12168,7 @@ function WorkspaceDashboard({
                         />
                         <button
                           type="submit"
-                          disabled={setupSaving || !canRecordOperations}
+                          disabled={setupSaving || !canDirectMaintainSuppliers}
                           className={primaryButtonClass}
                         >
                           Save
@@ -12169,7 +12197,7 @@ function WorkspaceDashboard({
                         </div>
                         <button
                           type="button"
-                          disabled={setupSaving || !canRecordOperations}
+                          disabled={setupSaving || !canDirectMaintainSuppliers}
                           onClick={() => setEditingSupplierId(supplier.id)}
                           className={secondaryButtonClass}
                         >
