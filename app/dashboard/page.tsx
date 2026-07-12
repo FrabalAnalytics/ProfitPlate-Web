@@ -8992,7 +8992,7 @@ function WorkspaceDashboard({
                   <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                     {metric.label}
                   </p>
-                  <p className="mt-2 whitespace-nowrap font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight text-foreground">
+                  <p className="mt-2 break-words font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight text-foreground sm:whitespace-nowrap">
                     {metric.value}
                   </p>
                   <p className="mt-auto pt-3 text-[11px] leading-4 text-text-muted">
@@ -9047,7 +9047,7 @@ function WorkspaceDashboard({
                       <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                         {item.valueLabel}
                       </span>
-                      <span className="whitespace-nowrap font-mono text-xs font-semibold text-foreground">
+                      <span className="break-words font-mono text-xs font-semibold text-foreground sm:whitespace-nowrap">
                         {item.value}
                       </span>
                       <span
@@ -9107,7 +9107,7 @@ function WorkspaceDashboard({
                       <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                         Stock value
                       </p>
-                      <p className="mt-1 whitespace-nowrap font-mono text-sm font-semibold text-foreground">
+                      <p className="mt-1 break-words font-mono text-sm font-semibold text-foreground sm:whitespace-nowrap">
                         {formatCurrency(location.stockValue, 0)}
                       </p>
                     </div>
@@ -9498,7 +9498,7 @@ function WorkspaceDashboard({
                     Live
                   </span>
                 </div>
-                <p className="mt-3 whitespace-nowrap font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight text-foreground">
+                <p className="mt-3 break-words font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight text-foreground sm:whitespace-nowrap">
                   {signal.value}
                 </p>
                 <p className="mt-2 text-sm text-text-muted">{signal.detail}</p>
@@ -11155,7 +11155,7 @@ function WorkspaceDashboard({
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                   {metric.label}
                 </p>
-                <p className="mt-3 whitespace-nowrap font-mono text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
+                <p className="mt-3 break-words font-mono text-xl font-semibold leading-tight tracking-tight text-foreground sm:whitespace-nowrap sm:text-2xl">
                   {metric.value}
                 </p>
               </div>

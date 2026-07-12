@@ -91,7 +91,7 @@ export function ExecutiveKpiCard({
             {metric.label}
           </p>
           <p
-            className={`mt-4 max-w-full whitespace-nowrap font-mono font-semibold leading-tight tracking-tight text-foreground ${valueClass}`}
+            className={`mt-4 max-w-full break-words font-mono font-semibold leading-tight tracking-tight text-foreground sm:whitespace-nowrap ${valueClass}`}
           >
             {metric.value}
           </p>
@@ -360,7 +360,9 @@ export function MetricPill({
       <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
         {label}
       </p>
-      <p className={`mt-1 whitespace-nowrap ${valueClassName}`}>{value}</p>
+      <p className={`mt-1 break-words sm:whitespace-nowrap ${valueClassName}`}>
+        {value}
+      </p>
       {detail ? (
         <p className="mt-1 text-xs leading-4 text-text-muted">{detail}</p>
       ) : null}
