@@ -16500,9 +16500,9 @@ function WorkspaceDashboard({
                 return (
                 <div
                   key={row.id}
-                  className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_132px_112px_128px_112px_96px]"
+                  className="grid min-w-0 gap-3 rounded-sm border border-border-system bg-card p-3 lg:grid-cols-12 lg:items-start"
                 >
-                  <div className="grid gap-1">
+                  <div className="grid gap-1 lg:col-span-5">
                     <input
                       type="search"
                       placeholder={
@@ -16583,7 +16583,7 @@ function WorkspaceDashboard({
                           } in selected location`}
                     </p>
                   </div>
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-2">
                     Stock in hand
                     <div className="flex min-w-0 items-center gap-2">
                       <input
@@ -16611,25 +16611,28 @@ function WorkspaceDashboard({
                       </span>
                     </div>
                   </label>
-                  <input
-                    type="number"
-                    min="0.000001"
-                    step="any"
-                    placeholder="Qty"
-                    value={row.quantity}
-                    onChange={(event) =>
-                      setPurchaseReceiptRows((currentRows) =>
-                        currentRows.map((currentRow) =>
-                          currentRow.id === row.id
-                            ? { ...currentRow, quantity: event.target.value }
-                            : currentRow,
-                        ),
-                      )
-                    }
-                    required
-                    className={formControlClass}
-                  />
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-1">
+                    Qty
+                    <input
+                      type="number"
+                      min="0.000001"
+                      step="any"
+                      placeholder="Qty"
+                      value={row.quantity}
+                      onChange={(event) =>
+                        setPurchaseReceiptRows((currentRows) =>
+                          currentRows.map((currentRow) =>
+                            currentRow.id === row.id
+                              ? { ...currentRow, quantity: event.target.value }
+                              : currentRow,
+                          ),
+                        )
+                      }
+                      required
+                      className={formControlClass}
+                    />
+                  </label>
+                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-2">
                     Unit cost
                     <div className="flex min-w-0 items-center gap-2">
                       <input
@@ -16665,7 +16668,7 @@ function WorkspaceDashboard({
                       </span>
                     </div>
                   </label>
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-1">
                     VAT / Tax %
                     <div className="flex min-w-0 items-center gap-2">
                       <input
