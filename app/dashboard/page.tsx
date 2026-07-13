@@ -3675,6 +3675,9 @@ function WorkspaceDashboard({
         request.status === "accepted" &&
         request.payload?.awaiting_receipt === true),
   );
+  const pendingStockCountApprovalCount = pendingApprovalRequests.filter(
+    (request) => request.request_type === "stock_count_approval",
+  ).length;
   const activeRecipes = useMemo(
     () => recipes.filter((recipe) => recipe.is_active),
     [recipes],
@@ -3907,6 +3910,29 @@ function WorkspaceDashboard({
 
     return stockHoldingLocationIds.has(itemLocationId);
   });
+  const selectedStockControlLocation = activeLocations.find(
+    (location) => extractUuid(location.id) === extractUuid(stockControlLocationId),
+  );
+  const highValueStockControlItemCount = stockControlInventoryItems.filter(
+    (item) => item.is_high_value,
+  ).length;
+  const countedStockCountLineCount = stockCountRows.filter(
+    (row) => extractUuid(row.inventoryItemId) && row.countedQuantity.trim() !== "",
+  ).length;
+  const estimatedStockCountVariance = stockCountRows.reduce((total, row) => {
+    const item = allActiveInventoryItems.find(
+      (inventoryItem) =>
+        extractUuid(inventoryItem.id) === extractUuid(row.inventoryItemId),
+    );
+    const countedQuantity = Number(row.countedQuantity);
+
+    if (!item || !Number.isFinite(countedQuantity)) {
+      return total;
+    }
+
+    return total + (Number(item.on_hand_qty ?? 0) - countedQuantity) *
+      Number(item.current_cost_per_base_uom ?? 0);
+  }, 0);
   const highValueYieldItems = activePurchasedIngredients.filter(
     (item) => item.is_high_value,
   );
@@ -6272,6 +6298,26 @@ function WorkspaceDashboard({
         "Unmapped POS review has not been declared; blank means unknown, not zero",
     },
     {
+      key: "finance_stock_variance_reconciliation",
+      label: "Physical count variance reconciled",
+      department: "Finance",
+      ownerRole: "finance_manager" as AppRole,
+      href: "#approvals",
+      activityCount: pendingStockCountApprovalCount + todayStockCountCount,
+      activityDetail:
+        pendingStockCountApprovalCount > 0
+          ? `${pendingStockCountApprovalCount.toLocaleString()} stock count or adjustment request${
+              pendingStockCountApprovalCount === 1 ? "" : "s"
+            } awaiting Finance approval before AvT can be trusted`
+          : todayStockCountCount > 0
+            ? `${todayStockCountCount.toLocaleString()} approved stock count batch${
+                todayStockCountCount === 1 ? "" : "es"
+              } available for AvT variance review`
+            : "No physical stock count variance is currently visible",
+      noActivityDetail:
+        "Physical count variance reconciliation has not been confirmed for today's close",
+    },
+    {
       key: "procurement_register",
       label: "Procurement register",
       department: "Procurement",
@@ -8401,7 +8447,21 @@ function WorkspaceDashboard({
   const showInventorySection =
     showOperationsSection || showProcurementSection || showMasterDataSection;
   const showSetupSection = showLocationSetupSection || showSupplierSetupSection;
-  const allWorkflowNavGroups = [
+  type WorkflowNavItem = {
+    href: string;
+    label: string;
+    badge: string;
+    tone: string;
+    visible: boolean;
+    targetRole?: AppRole;
+    targetElementId?: string;
+  };
+  type WorkflowNavGroup = {
+    label: string;
+    defaultOpen: boolean;
+    items: WorkflowNavItem[];
+  };
+  const allWorkflowNavGroups: WorkflowNavGroup[] = [
     {
       label: "Daily Overview",
       defaultOpen: true,
@@ -8481,8 +8541,7 @@ function WorkspaceDashboard({
           visible: showInventorySection,
         },
         {
-          href: "#inventory",
-          targetElementId: "sku-movement",
+          href: "#stock-movement",
           label: "Stock Movement",
           badge: `${stockMovementLedger.length.toLocaleString()} moves`,
           tone: stockMovementLedger.length > 0 ? "healthy" : "setup",
@@ -13851,11 +13910,13 @@ function WorkspaceDashboard({
               )}
             </div>
           </div>
+        </section>
 
-          <div
-            id="sku-movement"
-            className="mt-5 scroll-mt-24 rounded-sm border border-border-system bg-background"
-          >
+        <section
+          id="stock-movement"
+          className={`${showInventorySection && isSectionActive("stock-movement") ? "" : "hidden"} min-w-0 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
+        >
+          <div className="rounded-sm border border-border-system bg-background">
             <div className="flex flex-col gap-3 border-b border-border-system px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -15725,9 +15786,9 @@ function WorkspaceDashboard({
           <p
             className={`${showStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-1 text-sm text-text-muted`}
           >
-            Select the target main store first. Counts and adjustments are
-            submitted to Finance for final approval before any stock balance or
-            margin impact is posted.
+            Select the target storage location first. Counts and adjustments
+            are submitted to Finance for approval before stock balance, AvT
+            variance, or margin impact is trusted.
           </p>
           <div
             className={`${showStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 rounded-sm border border-border-system bg-background p-4`}
@@ -15756,6 +15817,34 @@ function WorkspaceDashboard({
                 ))}
               </select>
             </label>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricPill
+                label="Count scope"
+                value={selectedStockControlLocation?.name ?? "No store selected"}
+              />
+              <MetricPill
+                label="High-value SKUs"
+                value={highValueStockControlItemCount.toLocaleString()}
+                valueClassName={
+                  highValueStockControlItemCount > 0
+                    ? "font-semibold text-status-attention-text"
+                    : "font-semibold text-text-muted"
+                }
+              />
+              <MetricPill
+                label="Lines ready"
+                value={`${countedStockCountLineCount.toLocaleString()} / ${stockCountRows.length.toLocaleString()}`}
+              />
+              <MetricPill
+                label="Pending Finance"
+                value={pendingStockCountApprovalCount.toLocaleString()}
+                valueClassName={
+                  pendingStockCountApprovalCount > 0
+                    ? "font-semibold text-status-attention-text"
+                    : "font-semibold text-accent"
+                }
+              />
+            </div>
           </div>
 
           <h4
@@ -15898,9 +15987,35 @@ function WorkspaceDashboard({
           <p
             className={`${showStockCountWorkspace ? "" : "hidden"} mt-1 text-sm text-text-muted`}
           >
-            Submitted counts go to Finance before inventory variance or margin
-            changes are applied.
+            Count all high-value items daily where applicable. Finance compares
+            the physical count against expected stock after receipts, issues,
+            production, sales depletion, and waste confirmations are complete.
           </p>
+          <div
+            className={`${showStockCountWorkspace ? "" : "hidden"} mt-4 rounded-sm border border-status-info-border bg-status-info-bg px-4 py-3 text-sm text-status-info-text`}
+          >
+            <p className="font-semibold text-foreground">
+              Count sequence
+            </p>
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+              {[
+                "Confirm receipts and transfers",
+                "Count high-value SKUs",
+                "Submit to Finance",
+                "Finance approves AvT variance",
+              ].map((step, index) => (
+                <div
+                  key={step}
+                  className="rounded-sm border border-status-info-border bg-card px-3 py-2"
+                >
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                    Step {index + 1}
+                  </span>
+                  <p className="mt-1 font-semibold text-foreground">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
           <form
             onSubmit={handleStockCountFormSubmit}
             className={`${showStockCountWorkspace ? "" : "hidden"} mt-5 grid gap-3 rounded-sm border border-border-system bg-background p-3 sm:p-4`}
@@ -15916,75 +16031,156 @@ function WorkspaceDashboard({
               value={JSON.stringify(stockCountLinesPayload)}
             />
             <div className="grid gap-2">
-              {stockCountRows.map((row) => (
-                <div
-                  key={row.id}
-                  className="grid gap-3 rounded-sm border border-border-system bg-card p-3 md:grid-cols-[minmax(0,1fr)_150px_auto] md:border-0 md:bg-transparent md:p-0"
+              {stockCountRows.map((row) => {
+                const selectedItem = stockControlInventoryItems.find(
+                  (item) =>
+                    extractUuid(item.id) === extractUuid(row.inventoryItemId),
+                );
+                const countedQuantity = Number(row.countedQuantity);
+                const hasCount = Number.isFinite(countedQuantity);
+                const systemQuantity = Number(selectedItem?.on_hand_qty ?? 0);
+                const varianceQuantity = hasCount
+                  ? systemQuantity - countedQuantity
+                  : 0;
+                const varianceImpact =
+                  varianceQuantity *
+                  Number(selectedItem?.current_cost_per_base_uom ?? 0);
+                const uom =
+                  selectedItem?.on_hand_uom ||
+                  selectedItem?.base_uom ||
+                  selectedItem?.recipe_uom ||
+                  "unit";
+
+                return (
+                  <div
+                    key={row.id}
+                    className="grid gap-3 rounded-sm border border-border-system bg-card p-3 md:grid-cols-[minmax(0,1fr)_160px_160px_auto] md:items-start"
+                  >
+                    <label className="grid gap-2 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      SKU
+                      <select
+                        value={row.inventoryItemId}
+                        onChange={(event) =>
+                          setStockCountRows((currentRows) =>
+                            currentRows.map((currentRow) =>
+                              currentRow.id === row.id
+                                ? {
+                                    ...currentRow,
+                                    inventoryItemId: extractUuid(event.target.value),
+                                  }
+                                : currentRow,
+                            ),
+                          )
+                        }
+                        required
+                        disabled={!stockControlLocationId}
+                        className={formControlClass}
+                      >
+                        <option value="">
+                          {stockControlLocationId
+                            ? "Item in selected store"
+                            : "Select a target store first"}
+                        </option>
+                        {stockControlInventoryItems.map((item) => (
+                          <option
+                            key={extractUuid(item.id)}
+                            value={extractUuid(item.id)}
+                          >
+                            {item.name ?? "Unnamed item"} (
+                            {item.on_hand_uom ?? item.base_uom ?? "unit"})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Physical count
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0"
+                        value={row.countedQuantity}
+                        onChange={(event) =>
+                          setStockCountRows((currentRows) =>
+                            currentRows.map((currentRow) =>
+                              currentRow.id === row.id
+                                ? {
+                                    ...currentRow,
+                                    countedQuantity: event.target.value,
+                                  }
+                                : currentRow,
+                            ),
+                          )
+                        }
+                        required
+                        className={formControlClass}
+                      />
+                    </label>
+                    <div className="grid gap-2 rounded-sm border border-border-system bg-background p-3 text-xs">
+                      <p className="font-mono font-bold uppercase tracking-widest text-text-ghost">
+                        Expected / variance
+                      </p>
+                      <p className="font-semibold text-foreground">
+                        {systemQuantity.toLocaleString(undefined, {
+                          maximumFractionDigits: 3,
+                        })}{" "}
+                        {uom}
+                      </p>
+                      <p
+                        className={`font-semibold ${
+                          varianceImpact > 0
+                            ? "text-status-critical-text"
+                            : varianceImpact < 0
+                              ? "text-accent"
+                              : "text-text-muted"
+                        }`}
+                      >
+                        {hasCount
+                          ? `${varianceQuantity.toLocaleString(undefined, {
+                              maximumFractionDigits: 3,
+                            })} ${uom} / ${formatSignedCurrency(varianceImpact)}`
+                          : "Enter count"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={stockCountRows.length === 1}
+                      onClick={() =>
+                        setStockCountRows((currentRows) =>
+                          currentRows.filter((currentRow) => currentRow.id !== row.id),
+                        )
+                      }
+                      className={secondaryButtonClass}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-3 rounded-sm border border-border-system bg-card p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Estimated variance before Finance approval
+                </p>
+                <p
+                  className={`mt-1 font-mono text-lg font-semibold ${
+                    estimatedStockCountVariance > 0
+                      ? "text-status-critical-text"
+                      : estimatedStockCountVariance < 0
+                        ? "text-accent"
+                        : "text-foreground"
+                  }`}
                 >
-                  <select
-                    value={row.inventoryItemId}
-                    onChange={(event) =>
-                      setStockCountRows((currentRows) =>
-                        currentRows.map((currentRow) =>
-                          currentRow.id === row.id
-                            ? {
-                                ...currentRow,
-                                inventoryItemId: extractUuid(event.target.value),
-                              }
-                            : currentRow,
-                        ),
-                      )
-                    }
-                    required
-                    disabled={!stockControlLocationId}
-                    className={formControlClass}
-                  >
-                    <option value="">
-                      {stockControlLocationId
-                        ? "Item in selected store"
-                        : "Select a target store first"}
-                    </option>
-                    {stockControlInventoryItems.map((item) => (
-                      <option key={extractUuid(item.id)} value={extractUuid(item.id)}>
-                        {item.name ?? "Unnamed item"} ({item.on_hand_uom ?? item.base_uom ?? "unit"})
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="Physical count"
-                    value={row.countedQuantity}
-                    onChange={(event) =>
-                      setStockCountRows((currentRows) =>
-                        currentRows.map((currentRow) =>
-                          currentRow.id === row.id
-                            ? {
-                                ...currentRow,
-                                countedQuantity: event.target.value,
-                              }
-                            : currentRow,
-                        ),
-                      )
-                    }
-                    required
-                    className={formControlClass}
-                  />
-                  <button
-                    type="button"
-                    disabled={stockCountRows.length === 1}
-                    onClick={() =>
-                      setStockCountRows((currentRows) =>
-                        currentRows.filter((currentRow) => currentRow.id !== row.id),
-                      )
-                    }
-                    className={secondaryButtonClass}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                  {formatSignedCurrency(estimatedStockCountVariance)}
+                </p>
+              </div>
+              <p className="text-xs font-semibold leading-5 text-text-muted">
+                This preview becomes official only after Finance approves the
+                count and confirms all receipts, issues, and production movement
+                are posted.
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -17972,6 +18168,57 @@ function WorkspaceDashboard({
           ) : null}
           </form>
 
+          <div className="mt-4 rounded-sm border border-status-info-border bg-status-info-bg p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-info-text">
+                  POS mapping workflow
+                </p>
+                <h4 className="mt-1 font-semibold text-foreground">
+                  How POS sales become reliable AvT
+                </h4>
+              </div>
+              <span className="w-fit rounded-full border border-status-info-border bg-card px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-info-text">
+                Finance owned
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                {
+                  title: "Import POS file",
+                  detail: "Upload or paste the POS export with business date, item code, quantity, and sales value.",
+                },
+                {
+                  title: "Map exceptions",
+                  detail: "Rows marked Needs mapping must be connected to a final menu item once; future imports reuse the saved POS code mapping.",
+                },
+                {
+                  title: "Post matched sales",
+                  detail: "Only matched rows are imported. Posting sales depletes recipe components and creates theoretical food cost.",
+                },
+                {
+                  title: "Close Finance control",
+                  detail: "Finance confirms POS import and unmapped POS review in the daily checklist before AvT is trusted.",
+                },
+              ].map((step, index) => (
+                <div
+                  key={step.title}
+                  className="rounded-sm border border-status-info-border bg-card p-3"
+                >
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                    Step {index + 1}
+                  </span>
+                  <p className="mt-1 font-semibold text-foreground">
+                    {step.title}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-text-muted">
+                    {step.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <form
             onSubmit={handleSalesImportSubmit}
             className="mt-4 grid gap-4 rounded-sm border border-border-system bg-background p-4"
@@ -18585,4 +18832,3 @@ function NoticeBanner({ message }: { message: string }) {
     </p>
   );
 }
-
