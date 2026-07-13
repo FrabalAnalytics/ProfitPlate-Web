@@ -438,7 +438,11 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  initialFocusRole = "",
+}: {
+  initialFocusRole?: AppRole | "";
+}) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -3088,6 +3092,7 @@ export default function DashboardPage() {
 
       {organization ? (
         <WorkspaceDashboard
+          initialFocusRole={initialFocusRole}
           organization={organization}
           profile={profile}
           stats={stats}
@@ -3184,6 +3189,7 @@ export default function DashboardPage() {
 }
 
 function WorkspaceDashboard({
+  initialFocusRole,
   organization,
   profile,
   stats,
@@ -3253,6 +3259,7 @@ function WorkspaceDashboard({
   onRejectRequisitionReceipt,
   onRejectRequest,
 }: {
+  initialFocusRole?: AppRole | "";
   organization: Organization;
   profile: Profile | null;
   stats: WorkspaceStats;
@@ -3402,7 +3409,8 @@ function WorkspaceDashboard({
   const [inventoryLocationFilter, setInventoryLocationFilter] = useState("");
   const [inventoryDepartmentFilter, setInventoryDepartmentFilter] = useState("");
   const [inventoryHighValueOnly, setInventoryHighValueOnly] = useState(false);
-  const [selectedFocusRole, setSelectedFocusRole] = useState<AppRole | "">("");
+  const [selectedFocusRole, setSelectedFocusRole] =
+    useState<AppRole | "">(initialFocusRole ?? "");
   const [selectedDashboardSection, setSelectedDashboardSection] = useState("");
   const [selectedDashboardTargetId, setSelectedDashboardTargetId] = useState("");
   const [mobileDashboardMenuOpen, setMobileDashboardMenuOpen] = useState(false);
