@@ -166,6 +166,8 @@ type ProductionPlanInputRow = {
   targetOutputQty: string;
 };
 
+type ProductionPlanRequisitionMode = "required" | "shortage";
+
 type ProductionRunLineInputRow = {
   id: string;
   recipeId: string;
@@ -3473,6 +3475,18 @@ function WorkspaceDashboard({
   const [productionPlanRows, setProductionPlanRows] = useState<
     ProductionPlanInputRow[]
   >([{ id: "production-plan-line-1", recipeId: "", targetOutputQty: "" }]);
+  const [
+    productionPlanRequisitionFromLocationId,
+    setProductionPlanRequisitionFromLocationId,
+  ] = useState("");
+  const [
+    productionPlanRequisitionToLocationId,
+    setProductionPlanRequisitionToLocationId,
+  ] = useState("");
+  const [productionPlanRequisitionMode, setProductionPlanRequisitionMode] =
+    useState<ProductionPlanRequisitionMode>("required");
+  const [productionPlanRequisitionNotice, setProductionPlanRequisitionNotice] =
+    useState("");
   const currentRole = normalizeRole(profile?.role);
   const canManageWorkspace = workspaceRoles.has(currentRole);
   const focusRoleOptions = canManageWorkspace
@@ -4162,6 +4176,44 @@ function WorkspaceDashboard({
       total + requirement.shortageQty * requirement.unitCost,
     0,
   );
+  const productionPlanRequisitionDraftLines = productionPlanRequirements
+    .map((requirement) => {
+      const requestedQty =
+        productionPlanRequisitionMode === "shortage"
+          ? requirement.shortageQty
+          : requirement.requiredQty;
+      const sourceItem = resolveInventoryItemForLocation(
+        requirement.inventoryItemId,
+        productionPlanRequisitionFromLocationId,
+        { ingredientName: requirement.ingredientName },
+      );
+      const sourceItemLocationId = extractUuid(sourceItem?.location_id);
+      const selectedSourceLocationId = extractUuid(
+        productionPlanRequisitionFromLocationId,
+      );
+      const sourceMatches =
+        !selectedSourceLocationId ||
+        sourceItemLocationId === selectedSourceLocationId;
+
+      return {
+        requirement,
+        sourceItem,
+        requestedQty,
+        sourceMatches,
+      };
+    })
+    .filter(
+      (line) =>
+        line.requestedQty > 0 &&
+        line.sourceItem &&
+        line.sourceMatches,
+    );
+  const productionPlanUnmatchedRequisitionCount =
+    productionPlanRequirements.length - productionPlanRequisitionDraftLines.length;
+  const canConvertProductionPlanToRequisition =
+    productionPlanRequisitionDraftLines.length > 0 &&
+    Boolean(productionPlanRequisitionFromLocationId) &&
+    Boolean(productionPlanRequisitionToLocationId);
   const selectedProductionRecipe = productionRunRecipeOptions.find(
     (recipe) => getRecipeId(recipe) === selectedProductionRecipeId,
   );
@@ -8889,6 +8941,52 @@ function WorkspaceDashboard({
         note: "",
       },
     ]);
+  }
+
+  function handleConvertProductionPlanToRequisition() {
+    if (!productionPlanRequisitionFromLocationId) {
+      setProductionPlanRequisitionNotice(
+        "Choose the issuing store or source location for this requisition.",
+      );
+      return;
+    }
+
+    if (!productionPlanRequisitionToLocationId) {
+      setProductionPlanRequisitionNotice(
+        "Choose the receiving kitchen or department location.",
+      );
+      return;
+    }
+
+    if (productionPlanRequisitionDraftLines.length === 0) {
+      setProductionPlanRequisitionNotice(
+        productionPlanRequisitionMode === "shortage"
+          ? "No shortage lines are available to convert into a requisition."
+          : "No production plan lines are available to convert into a requisition.",
+      );
+      return;
+    }
+
+    setEditingRequisitionRequestId("");
+    setRequisitionRequesterName(profile?.full_name ?? roleLabels[currentRole]);
+    setRequisitionFromLocationId(productionPlanRequisitionFromLocationId);
+    setRequisitionToLocationId(productionPlanRequisitionToLocationId);
+    setRequisitionApproverRole("inventory_manager");
+    setRequisitionApproverName((currentApproverName) =>
+      currentApproverName.trim() ? currentApproverName : "Inventory / Store",
+    );
+    setRequisitionRows(
+      productionPlanRequisitionDraftLines.map((line, index) => ({
+        id: `production-plan-requisition-${Date.now()}-${index}`,
+        inventoryItemId: extractUuid(line.sourceItem?.id),
+        quantity: Number(line.requestedQty.toFixed(6)).toString(),
+        note: `Production plan: ${line.requirement.sourceRecipes.join(", ")}`,
+      })),
+    );
+    setProductionPlanRequisitionNotice(
+      "Production plan copied into an editable kitchen requisition. Review items, quantities, and locations before submitting.",
+    );
+    openDashboardSection("requisitions", undefined, "requisitions");
   }
 
   function handleEditRequisitionRequest(request: ApprovalRequest) {
@@ -15936,6 +16034,96 @@ function WorkspaceDashboard({
               Clear plan
             </button>
           </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 rounded-sm border border-border-system bg-background p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                Kitchen requisition handoff
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-foreground">
+                Convert plan to editable requisition
+              </h3>
+            </div>
+            <span
+              className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                canConvertProductionPlanToRequisition
+                  ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                  : "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+              }`}
+            >
+              {productionPlanRequisitionDraftLines.length.toLocaleString()} line
+              {productionPlanRequisitionDraftLines.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,0.55fr)_auto]">
+            <select
+              value={productionPlanRequisitionFromLocationId}
+              onChange={(event) =>
+                setProductionPlanRequisitionFromLocationId(event.target.value)
+              }
+              className={formControlClass}
+              aria-label="Production requisition issuing location"
+            >
+              <option value="">Issuing store / source location</option>
+              {stockHoldingLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name} / {location.inventory_domain}
+                </option>
+              ))}
+            </select>
+            <select
+              value={productionPlanRequisitionToLocationId}
+              onChange={(event) =>
+                setProductionPlanRequisitionToLocationId(event.target.value)
+              }
+              className={formControlClass}
+              aria-label="Production requisition receiving location"
+            >
+              <option value="">Receiving kitchen / department</option>
+              {departmentStockLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={productionPlanRequisitionMode}
+              onChange={(event) =>
+                setProductionPlanRequisitionMode(
+                  event.target.value as ProductionPlanRequisitionMode,
+                )
+              }
+              className={formControlClass}
+              aria-label="Production requisition quantity basis"
+            >
+              <option value="required">Request full required qty</option>
+              <option value="shortage">Request shortage only</option>
+            </select>
+            <button
+              type="button"
+              disabled={!canConvertProductionPlanToRequisition}
+              onClick={handleConvertProductionPlanToRequisition}
+              className={primaryButtonClass}
+            >
+              Create requisition
+            </button>
+          </div>
+
+          {productionPlanUnmatchedRequisitionCount > 0 ? (
+            <p className="rounded-sm border border-status-attention-border bg-status-attention-bg px-3 py-2 text-xs font-semibold text-status-attention-text">
+              {productionPlanUnmatchedRequisitionCount.toLocaleString()} plan item
+              {productionPlanUnmatchedRequisitionCount === 1 ? "" : "s"} need
+              a matching SKU at the selected issuing location.
+            </p>
+          ) : null}
+          {productionPlanRequisitionNotice ? (
+            <p className="rounded-sm border border-status-info-border bg-status-info-bg px-3 py-2 text-xs font-semibold text-status-info-text">
+              {productionPlanRequisitionNotice}
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-5 grid gap-3 lg:hidden">
