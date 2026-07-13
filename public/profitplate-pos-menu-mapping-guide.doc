@@ -1,0 +1,254 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="ProgId" content="Word.Document">
+<title>ProfitPlate POS And Menu Mapping Guide</title>
+<style>
+body { font-family: Arial, sans-serif; color: #111827; line-height: 1.45; }
+h1 { color: #0f5132; font-size: 28px; }
+h2 { color: #0f5132; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-top: 28px; }
+h3 { color: #1f2937; margin-top: 20px; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+th, td { border: 1px solid #d1d5db; padding: 7px; vertical-align: top; }
+th { background: #ecfdf5; color: #064e3b; text-align: left; }
+ul, ol { margin-top: 8px; }
+.meta { color: #4b5563; }
+.callout { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 12px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<h1>ProfitPlate POS And Menu Mapping Guide</h1>
+<p class="meta"><strong>Last updated:</strong> July 13, 2026</p>
+
+<h2>Purpose</h2>
+<p>This guide explains how a restaurant should connect its POS sales file to ProfitPlate menu items so that revenue, recipe depletion, food cost, gross margin, and Actual-vs-Theoretical (AvT) variance can be trusted.</p>
+<div class="callout"><strong>Core rule:</strong> POS tells ProfitPlate what was sold. Menu mapping tells ProfitPlate what that sale means operationally.</div>
+<p>If the POS item is not mapped to a ProfitPlate final menu item, ProfitPlate may see revenue, but it cannot reliably calculate ingredient usage or menu margin.</p>
+
+<h2>Core Terms</h2>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>POS item</td><td>The item name or code exported from the POS system. Example: Jollof Rice Large, POS code 1023.</td></tr>
+<tr><td>POS item key</td><td>The stable matching identity built from POS item name/code. This is what future imports use to remember the mapping.</td></tr>
+<tr><td>ProfitPlate final menu item</td><td>The sellable menu recipe inside ProfitPlate. Example: Jollof Rice Large.</td></tr>
+<tr><td>Recipe components</td><td>Raw ingredients, sub-recipes, or manufactured items attached to a final menu item.</td></tr>
+<tr><td>Mapping</td><td>A saved connection between one POS item key and one ProfitPlate final menu item.</td></tr>
+<tr><td>Unmapped row</td><td>A POS sale row that has no saved mapping and cannot yet drive theoretical depletion.</td></tr>
+<tr><td>Business date</td><td>The sales/trading date from the POS report. This is preferred over upload date.</td></tr>
+<tr><td>Depletion location</td><td>The stock location where sold items should consume stock, such as Kitchen, Bar, Pastry, or Front Counter.</td></tr>
+</table>
+
+<h2>Why Mapping Matters</h2>
+<table>
+<tr><th>Outcome</th><th>What goes wrong without mapping</th></tr>
+<tr><td>Revenue accuracy</td><td>Sales may import but remain incomplete or provisional.</td></tr>
+<tr><td>Food cost accuracy</td><td>The system cannot calculate the ingredient cost of the sale.</td></tr>
+<tr><td>Stock accuracy</td><td>Kitchen, bar, pastry, or front-counter stock will not reduce correctly.</td></tr>
+<tr><td>AvT reliability</td><td>Theoretical consumption cannot be compared to actual physical stock.</td></tr>
+<tr><td>Management confidence</td><td>Margin and loss reports become questionable.</td></tr>
+</table>
+
+<h2>Recommended Setup Sequence</h2>
+<h3>1. Confirm The Restaurant Model</h3>
+<table>
+<tr><th>Restaurant model</th><th>Recommended sales workflow</th></tr>
+<tr><td>Single dine-in restaurant</td><td>POS import maps to final menu items; depletion usually comes from Kitchen and Bar.</td></tr>
+<tr><td>QSR or fast-food counter</td><td>POS import maps to final menu items or manufactured finished goods; depletion may come from Front Counter if finished goods are stocked there.</td></tr>
+<tr><td>Bakery or pastry-led outlet</td><td>POS items map to pastry menu items or manufactured pastry stock; depletion can be from Pastry or Front Counter.</td></tr>
+<tr><td>Bar-heavy restaurant</td><td>POS drink items map to bar recipes or bar inventory SKUs; depletion should route to Bar stock.</td></tr>
+<tr><td>Central kitchen with outlet sales</td><td>Production creates finished goods; outlet POS depletes the outlet or front-counter stock.</td></tr>
+<tr><td>Multi-unit restaurant group</td><td>Each branch imports its own POS file or synced feed; mapping should be reviewed per branch when POS codes differ.</td></tr>
+</table>
+
+<h3>2. Create The Final Menu Item In ProfitPlate</h3>
+<p>Before mapping any POS item, the sellable item must exist in ProfitPlate.</p>
+<ul>
+<li>Menu item name.</li>
+<li>Recipe type: final menu item or final dish.</li>
+<li>Selling price where applicable.</li>
+<li>Standard output quantity.</li>
+<li>Output UOM.</li>
+<li>Active status.</li>
+<li>Correct recipe components.</li>
+</ul>
+<p>Finance or cost control should confirm that the item has a usable recipe before it is mapped. Mapping a POS item to a menu item without recipe components creates revenue with weak or zero theoretical food cost.</p>
+
+<h3>3. Attach Recipe Components</h3>
+<ul>
+<li>Raw ingredients, such as tomatoes, rice, flour, beef, oil.</li>
+<li>Sub-recipes, such as tomato sauce, pepper mix, dough, cream filling.</li>
+<li>Manufactured finished goods, such as packaged pastry, cooked rice batch, bottled juice.</li>
+</ul>
+<p>Use sub-recipes when the kitchen prepares an intermediate item before sale. Use manufactured finished goods when the business physically produces and stores sellable units before the POS sale.</p>
+
+<h3>4. Confirm Sales Capture Mode</h3>
+<table>
+<tr><th>Mode</th><th>Use when</th></tr>
+<tr><td>POS import</td><td>The POS file/feed is the normal sales source. This is recommended for disciplined operations.</td></tr>
+<tr><td>Manual sales</td><td>The restaurant has no POS export or is in emergency fallback.</td></tr>
+<tr><td>Test mode</td><td>Demo, validation, or onboarding training only.</td></tr>
+</table>
+<p>Do not allow POS import and manual sales to post for the same business period unless an admin intentionally controls the exception. Double posting causes double depletion and false food-cost loss.</p>
+
+<h2>POS Import Workflow</h2>
+<h3>Step 1: Export POS Sales</h3>
+<p>Finance or the POS supervisor exports sales for the correct period. The best POS file includes business date, transaction timestamp, receipt/check/invoice ID, POS item name, POS item code, quantity sold, net sales amount, discounts, voids, refunds, outlet, terminal, or revenue center where available.</p>
+
+<h3>Step 2: Import Into ProfitPlate</h3>
+<table>
+<tr><th>Import state</th><th>Meaning</th></tr>
+<tr><td>Matched</td><td>POS item key already maps to a ProfitPlate final menu item.</td></tr>
+<tr><td>Needs mapping</td><td>POS item key is new or has no saved menu connection.</td></tr>
+<tr><td>Provisional</td><td>Date or transaction evidence is incomplete, so Finance must review.</td></tr>
+<tr><td>Error</td><td>Quantity, date, menu, or duplicate protection failed.</td></tr>
+</table>
+
+<h3>Step 3: Resolve Unmapped POS Rows</h3>
+<ol>
+<li>Read the POS item name and code.</li>
+<li>Choose the correct ProfitPlate final menu item.</li>
+<li>Confirm the recipe exists and is active.</li>
+<li>Save the mapping.</li>
+<li>Re-import or post the row after mapping is saved.</li>
+</ol>
+<p>Once saved, the mapping is reused for future imports with the same POS item key.</p>
+
+<h3>Step 4: Post Matched Sales</h3>
+<ol>
+<li>Record the revenue.</li>
+<li>Link the sale to the POS import batch and row identity.</li>
+<li>Deplete the mapped menu item based on its recipe.</li>
+<li>Reduce the correct stock location.</li>
+<li>Protect against duplicate posting using transaction identity or row fingerprint.</li>
+</ol>
+
+<h3>Step 5: Finance Confirms Daily POS Controls</h3>
+<ul>
+<li>POS import completed or no-sales declared.</li>
+<li>Unmapped POS items reviewed.</li>
+<li>Sales register checked.</li>
+<li>AvT exception reviewed where applicable.</li>
+</ul>
+
+<h2>Mapping Rules By Restaurant Model</h2>
+<h3>Dine-In Restaurant</h3>
+<table>
+<tr><th>POS item</th><th>ProfitPlate item</th><th>Depletion location</th></tr>
+<tr><td>Seafood Pasta</td><td>Seafood Pasta final menu item</td><td>Kitchen</td></tr>
+<tr><td>Chapman</td><td>Chapman drink recipe</td><td>Bar</td></tr>
+</table>
+<p>Keep POS names and ProfitPlate names similar where possible. Do not map a combo meal to one recipe unless the combo recipe truly contains all components.</p>
+
+<h3>QSR Or Fast-Food Counter</h3>
+<table>
+<tr><th>POS item</th><th>ProfitPlate item</th><th>Depletion location</th></tr>
+<tr><td>Meat Pie</td><td>Meat Pie finished good</td><td>Front Counter</td></tr>
+<tr><td>Chicken Burger</td><td>Chicken Burger final menu item or finished good</td><td>Front Counter or Kitchen</td></tr>
+</table>
+<p>If items are produced ahead and counted at the counter, use manufactured finished goods. If items are assembled on demand, use final menu item recipe depletion from Kitchen.</p>
+
+<h3>Bakery Or Pastry Model</h3>
+<table>
+<tr><th>POS item</th><th>ProfitPlate item</th><th>Depletion location</th></tr>
+<tr><td>Croissant</td><td>Croissant finished good</td><td>Front Counter</td></tr>
+<tr><td>Chocolate Cake Slice</td><td>Chocolate Cake Slice final menu item</td><td>Pastry or Front Counter</td></tr>
+</table>
+<p>Separate Pastry as a user department and stock location. Use production output when pastry creates counted sellable units.</p>
+
+<h3>Bar Model</h3>
+<table>
+<tr><th>POS item</th><th>ProfitPlate item</th><th>Depletion location</th></tr>
+<tr><td>Mojito</td><td>Mojito recipe</td><td>Bar</td></tr>
+<tr><td>Coke Bottle</td><td>Coke inventory SKU or final menu item</td><td>Bar</td></tr>
+</table>
+<p>Do not map every drink to a generic Beverage Sales item. Use recipes for cocktails and direct SKU-style depletion for simple packaged items where supported.</p>
+
+<h3>Central Kitchen Or Commissary</h3>
+<table>
+<tr><th>POS item</th><th>ProfitPlate item</th><th>Depletion location</th></tr>
+<tr><td>Packaged Jollof Bowl</td><td>Jollof Bowl finished good</td><td>Branch Front Counter</td></tr>
+<tr><td>Puff Puff Pack</td><td>Puff Puff finished good</td><td>Branch Front Counter</td></tr>
+</table>
+<p>Keep production and sales as separate events. Do not let branch sales deplete central kitchen stock unless that is truly where stock is held.</p>
+
+<h2>Combo, Modifier, And Add-On Rules</h2>
+<h3>Combo Meals</h3>
+<table>
+<tr><th>POS structure</th><th>Recommended mapping</th></tr>
+<tr><td>POS exports combo as one line only</td><td>Create a ProfitPlate combo final menu item with all components.</td></tr>
+<tr><td>POS exports combo parent and child items</td><td>Map the child items if they carry quantity/revenue detail; avoid double depletion.</td></tr>
+<tr><td>POS exports zero-priced sides inside combo</td><td>Decide whether the zero-priced side should deplete stock. Usually yes.</td></tr>
+</table>
+
+<h3>Modifiers</h3>
+<table>
+<tr><th>Modifier</th><th>Mapping rule</th></tr>
+<tr><td>Extra cheese</td><td>Map or include as a recipe modifier because it changes food cost.</td></tr>
+<tr><td>No onions</td><td>Usually no separate mapping unless negative component logic is supported.</td></tr>
+<tr><td>Spicy</td><td>No mapping if it is only preparation instruction.</td></tr>
+<tr><td>Add protein</td><td>Map because it changes stock and margin.</td></tr>
+</table>
+
+<h3>Discounts, Voids, And Refunds</h3>
+<ul>
+<li>Discounts reduce revenue and margin.</li>
+<li>Voids should not deplete stock if the item was not produced.</li>
+<li>Refunds need review because the food may already have been consumed.</li>
+<li>Wastage after a void should be recorded as waste, not hidden in POS mapping.</li>
+</ul>
+
+<h2>Daily Operating Workflow</h2>
+<table>
+<tr><th>Timing</th><th>Action</th></tr>
+<tr><td>Before service</td><td>Confirm active menu items, new POS items, stock locations, and sales capture mode.</td></tr>
+<tr><td>During service</td><td>POS records sales. Kitchen, Bar, Pastry, Store, and Front Counter record production, waste, transfers, receipts, and acceptances.</td></tr>
+<tr><td>After service</td><td>Finance imports POS, maps exceptions, posts depletion, and reviews AvT with stock count and variance controls.</td></tr>
+</table>
+
+<h2>Responsibility Matrix</h2>
+<table>
+<tr><th>Task</th><th>Owner</th><th>Reviewer</th></tr>
+<tr><td>Create final menu item</td><td>Finance or Cost Control</td><td>Operations Manager</td></tr>
+<tr><td>Attach recipe components</td><td>Kitchen lead and Finance</td><td>Owner or Operations Manager</td></tr>
+<tr><td>Export POS report</td><td>POS Supervisor or Finance</td><td>Finance Manager</td></tr>
+<tr><td>Import POS file</td><td>Finance Manager</td><td>Owner or Operations Manager</td></tr>
+<tr><td>Save POS mapping</td><td>Finance Manager</td><td>Cost Control or Operations Manager</td></tr>
+<tr><td>Resolve unmapped rows</td><td>Finance Manager</td><td>Kitchen, Bar, or Pastry lead if item identity is unclear</td></tr>
+<tr><td>Confirm no-sales day</td><td>Finance Manager</td><td>Owner or Operations Manager</td></tr>
+<tr><td>Review AvT exceptions</td><td>Finance Manager</td><td>Owner or Operations Manager</td></tr>
+</table>
+
+<h2>Go-Live Checklist</h2>
+<ul>
+<li>All active POS menu items are exported from the POS.</li>
+<li>All active ProfitPlate final menu items exist.</li>
+<li>Recipes are attached to every sellable menu item.</li>
+<li>Sales capture mode is set correctly.</li>
+<li>Default depletion locations are understood.</li>
+<li>Finance can import a sample POS file.</li>
+<li>Unmapped rows can be resolved.</li>
+<li>Duplicate import protection is tested.</li>
+<li>Finance daily checklist includes POS import and unmapped POS review.</li>
+<li>Management understands that unmapped sales make AvT provisional.</li>
+</ul>
+
+<h2>Common Exceptions And Fixes</h2>
+<table>
+<tr><th>Exception</th><th>Likely cause</th><th>Fix</th></tr>
+<tr><td>POS row says Needs mapping</td><td>New POS code or spelling difference</td><td>Map the POS item key to the correct final menu item.</td></tr>
+<tr><td>Sale posted but no food cost</td><td>Final menu item has no recipe components</td><td>Add recipe components, then correct or repost the sale if needed.</td></tr>
+<tr><td>Wrong stock location depleted</td><td>Depletion route is wrong</td><td>Correct location routing and post adjustment if already affected.</td></tr>
+<tr><td>Combo double-depleted</td><td>Parent and child lines both mapped</td><td>Map only the depletion-bearing rows.</td></tr>
+<tr><td>Revenue date looks wrong</td><td>POS export used upload date instead of business date</td><td>Use business date field or mark period provisional until Finance confirms.</td></tr>
+<tr><td>Duplicate sales blocked</td><td>Same transaction/check/fingerprint already posted</td><td>Confirm whether this is a re-import or true separate sale.</td></tr>
+<tr><td>Margin looks too good</td><td>Missing recipe, missing modifier, or unmapped item</td><td>Review unmapped rows and menu recipes.</td></tr>
+<tr><td>Margin looks too bad</td><td>Wrong recipe quantity, wrong yield, duplicate import, or wrong UOM</td><td>Review recipe, yield, UOM, and POS duplicate evidence.</td></tr>
+</table>
+
+<h2>Practical Rule For Management</h2>
+<p>Management should not treat AvT as final until POS import is completed or no-sales is declared, unmapped POS items are resolved or listed as exceptions, menu items have valid recipes, stock receipts/transfers/production/waste/physical counts are confirmed, and Finance has reviewed POS and stock variance controls.</p>
+<p>When these steps are complete, ProfitPlate can explain not only what was sold, but what should have been consumed, what physically remains, and where the variance or loss came from.</p>
+</body>
+</html>
