@@ -7555,17 +7555,17 @@ function WorkspaceDashboard({
       .reduce(
         (countsById, row) => {
           const existingCount = countsById.get(row.stock_count_id);
-          const lossImpact = Math.max(row.hard_currency_impact, 0);
+          const varianceImpact = Number(row.hard_currency_impact ?? 0);
 
           if (existingCount) {
             existingCount.itemCount += 1;
-            existingCount.lossImpact += lossImpact;
+            existingCount.varianceImpact += varianceImpact;
           } else {
             countsById.set(row.stock_count_id, {
               id: row.stock_count_id,
               createdAt: row.created_at,
               itemCount: 1,
-              lossImpact,
+              varianceImpact,
             });
           }
 
@@ -7577,7 +7577,7 @@ function WorkspaceDashboard({
             id: string;
             createdAt: string;
             itemCount: number;
-            lossImpact: number;
+            varianceImpact: number;
           }
         >(),
       )
@@ -7620,11 +7620,11 @@ function WorkspaceDashboard({
       detail: `${count.itemCount.toLocaleString()} item${
         count.itemCount === 1 ? "" : "s"
       } counted`,
-      value: `${organization.local_currency} ${count.lossImpact.toLocaleString(
-        undefined,
-        { maximumFractionDigits: 2 },
-      )} variance`,
-      tone: count.lossImpact > 0 ? ("warning" as const) : ("neutral" as const),
+      value: `${formatSignedCurrency(count.varianceImpact)} variance`,
+      tone:
+        Math.abs(count.varianceImpact) > 0.01
+          ? ("warning" as const)
+          : ("neutral" as const),
     })),
     ...wasteHistory.map((row) => ({
       id: `waste-${row.waste_event_id}`,
