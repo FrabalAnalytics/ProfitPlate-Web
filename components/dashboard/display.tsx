@@ -3,16 +3,22 @@ import type { ReactNode } from "react";
 export type SemanticTone = "healthy" | "attention" | "critical" | "info";
 export type FinancialTrendKey =
   | "revenue"
+  | "grossProfit"
   | "waste"
   | "priceImpact"
-  | "stockVariance";
+  | "stockVariance"
+  | "marginLoss"
+  | "marginRecovery";
 export type FinancialTrendPoint = {
   dateKey: string;
   label: string;
   revenue: number;
+  grossProfit: number;
   waste: number;
   priceImpact: number;
   stockVariance: number;
+  marginLoss: number;
+  marginRecovery: number;
 };
 
 export function TrendBadge({
@@ -123,6 +129,12 @@ export function FinancialTrendChart({
       toneClass: "border-accent-muted-border bg-accent-muted-bg text-accent",
     },
     {
+      key: "grossProfit",
+      label: "Gross profit",
+      stroke: "var(--accent-primary)",
+      toneClass: "border-accent-muted-border bg-accent-muted-bg text-accent",
+    },
+    {
       key: "waste",
       label: "Waste",
       stroke: "var(--critical-text)",
@@ -143,6 +155,19 @@ export function FinancialTrendChart({
       toneClass:
         "border-status-info-border bg-status-info-bg text-status-info-text",
     },
+    {
+      key: "marginLoss",
+      label: "Margin loss",
+      stroke: "var(--critical-text)",
+      toneClass:
+        "border-status-critical-border bg-status-critical-bg text-status-critical-text",
+    },
+    {
+      key: "marginRecovery",
+      label: "Recovery",
+      stroke: "var(--accent-primary)",
+      toneClass: "border-accent-muted-border bg-accent-muted-bg text-accent",
+    },
   ];
   const width = 720;
   const height = 240;
@@ -159,9 +184,12 @@ export function FinancialTrendChart({
             dateKey: "",
             label: "No data",
             revenue: 0,
+            grossProfit: 0,
             waste: 0,
             priceImpact: 0,
             stockVariance: 0,
+            marginLoss: 0,
+            marginRecovery: 0,
           },
         ];
   const xForIndex = (index: number) =>
@@ -197,7 +225,7 @@ export function FinancialTrendChart({
             Trend intelligence
           </p>
           <h3 className="mt-1 text-lg font-semibold text-foreground">
-            Revenue, Waste, Price Impact
+            Revenue, Margin, Loss, Recovery
           </h3>
         </div>
         <span className="rounded-full border border-border-system bg-card px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">

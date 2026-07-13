@@ -3867,6 +3867,39 @@ function WorkspaceDashboard({
       })
       .map((location) => extractUuid(location.id)),
   );
+  const barLocationIds = new Set(
+    activeLocations
+      .filter((location) => {
+        const normalizedName = location.name.trim().toLowerCase();
+
+        return (
+          location.location_type === "bar" ||
+          /(^|[^a-z])bar([^a-z]|$)/.test(normalizedName)
+        );
+      })
+      .map((location) => extractUuid(location.id)),
+  );
+  const stockControlLocations = uniqueLocationsById([
+    ...stockHoldingLocations,
+    ...departmentStockLocations,
+    ...salesOutletLocations,
+  ]);
+  const scopedStockControlLocations = stockControlLocations.filter((location) => {
+    const locationId = extractUuid(location.id);
+
+    if (isKitchenFocus || isChefFocus) {
+      return kitchenLocationIds.has(locationId);
+    }
+
+    if (isBarFocus) {
+      return barLocationIds.has(locationId);
+    }
+
+    return true;
+  });
+  const scopedStockControlLocationIds = new Set(
+    scopedStockControlLocations.map((location) => extractUuid(location.id)),
+  );
   const allActiveInventoryItems = inventoryItems.filter((item) => item.is_active);
   const requisitionSelectableInventoryItems = allActiveInventoryItems.filter(
     (item) => {
@@ -3908,7 +3941,13 @@ function WorkspaceDashboard({
       return itemLocationId === extractUuid(stockControlLocationId);
     }
 
-    return stockHoldingLocationIds.has(itemLocationId);
+    if (isKitchenFocus || isChefFocus || isBarFocus) {
+      return scopedStockControlLocationIds.has(itemLocationId);
+    }
+
+    return stockControlLocations.some(
+      (location) => extractUuid(location.id) === itemLocationId,
+    );
   });
   const selectedStockControlLocation = activeLocations.find(
     (location) => extractUuid(location.id) === extractUuid(stockControlLocationId),
@@ -5745,6 +5784,17 @@ function WorkspaceDashboard({
       const dayStockVarianceRows = stockVarianceHistory.filter(
         (row) => getDateKey(row.created_at) === dateKey,
       );
+      const revenue = daySales.reduce(
+        (total, sale) => total + sale.total_revenue,
+        0,
+      );
+      const foodCost = daySales.reduce(
+        (total, sale) => total + sale.foodCost,
+        0,
+      );
+      const grossProfit = revenue - foodCost;
+      const targetGrossProfit = revenue * (targetMenuMarginPct / 100);
+      const marginGap = grossProfit - targetGrossProfit;
 
       return {
         dateKey,
@@ -5752,7 +5802,8 @@ function WorkspaceDashboard({
           month: "short",
           day: "numeric",
         }),
-        revenue: daySales.reduce((total, sale) => total + sale.total_revenue, 0),
+        revenue,
+        grossProfit,
         waste: dayWasteRows.reduce(
           (total, row) => total + Math.max(row.waste_cost, 0),
           0,
@@ -5765,6 +5816,8 @@ function WorkspaceDashboard({
           (total, row) => total + Math.max(row.hard_currency_impact, 0),
           0,
         ),
+        marginLoss: Math.max(-marginGap, 0),
+        marginRecovery: Math.max(marginGap, 0),
       };
     });
   const operatingScopeLabel =
@@ -8228,14 +8281,39 @@ function WorkspaceDashboard({
             dateKey: "",
             label: "Today",
             revenue: latestDayRevenue,
+            grossProfit: latestDayGrossProfit,
             waste: 0,
             priceImpact: 0,
             stockVariance: 0,
+            marginLoss: Math.max(
+              latestDayRevenue * (targetMenuMarginPct / 100) -
+                latestDayGrossProfit,
+              0,
+            ),
+            marginRecovery: Math.max(
+              latestDayGrossProfit -
+                latestDayRevenue * (targetMenuMarginPct / 100),
+              0,
+            ),
           },
         ];
   const ownerMaxRevenue = Math.max(
     1,
     ...ownerRevenuePoints.map((point) => point.revenue),
+  );
+  const ownerMaxMarginMovement = Math.max(
+    1,
+    ...ownerRevenuePoints.map((point) =>
+      Math.max(point.marginLoss, point.marginRecovery),
+    ),
+  );
+  const ownerMarginLossTotal = ownerRevenuePoints.reduce(
+    (total, point) => total + point.marginLoss,
+    0,
+  );
+  const ownerMarginRecoveryTotal = ownerRevenuePoints.reduce(
+    (total, point) => total + point.marginRecovery,
+    0,
   );
   const ownerMenuRows =
     menuPerformance.length > 0
@@ -8388,6 +8466,17 @@ function WorkspaceDashboard({
     "operations_manager",
     "inventory_manager",
     "storekeeper",
+  );
+  const showStockCountSection = isRole(
+    "owner",
+    "operations_manager",
+    "inventory_manager",
+    "storekeeper",
+    "kitchen_manager",
+    "chef",
+    "bar_manager",
+    "bartender",
+    "quality_assurance",
   );
   const showRequisitionRequestSection = isRole(
     "owner",
@@ -8591,7 +8680,7 @@ function WorkspaceDashboard({
           label: "Stock Counts",
           badge: `${latestDayStockCountCount.toLocaleString()} counts`,
           tone: latestDayStockLoss > 0 ? "warning" : "healthy",
-          visible: showInventoryMovementSection,
+          visible: showStockCountSection,
         },
         {
           href: "#stock-adjustments",
@@ -8763,7 +8852,7 @@ function WorkspaceDashboard({
   const showPurchaseOrderWorkspace =
     showProcurementSection && isSectionActive("purchase-orders");
   const showStockCountWorkspace =
-    showInventoryMovementSection && isSectionActive("stock-counts");
+    showStockCountSection && isSectionActive("stock-counts");
   const showStockAdjustmentWorkspace =
     showInventoryMovementSection && isSectionActive("stock-adjustments");
   const isNavGroupOpen = (groupLabel: string) =>
@@ -10368,6 +10457,85 @@ function WorkspaceDashboard({
                     </span>
                   </div>
                 ))}
+              </div>
+              <div className="mt-4 rounded-sm border border-border-system bg-background p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Margin loss / recovery
+                    </p>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Daily gross profit compared with the{" "}
+                      {targetMenuMarginPct}% target margin.
+                    </p>
+                  </div>
+                  <div className="text-right font-mono text-[10px] font-bold uppercase tracking-widest">
+                    <p className="text-status-critical-text">
+                      Loss {formatCurrency(ownerMarginLossTotal, 0)}
+                    </p>
+                    <p className="mt-1 text-accent">
+                      Recovery {formatCurrency(ownerMarginRecoveryTotal, 0)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2">
+                  {ownerRevenuePoints.map((point) => {
+                    const lossWidth =
+                      (point.marginLoss / ownerMaxMarginMovement) * 100;
+                    const recoveryWidth =
+                      (point.marginRecovery / ownerMaxMarginMovement) * 100;
+
+                    return (
+                      <div
+                        key={`margin-${point.dateKey || point.label}`}
+                        className="grid gap-2 sm:grid-cols-[72px_1fr_90px]"
+                      >
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-text-ghost">
+                          {point.label}
+                        </span>
+                        <div className="grid min-h-8 gap-1">
+                          <div className="h-3 rounded-sm bg-status-critical-bg">
+                            <div
+                              className="h-full rounded-sm bg-status-critical-text"
+                              style={{
+                                width: `${
+                                  point.marginLoss > 0 ? Math.max(2, lossWidth) : 0
+                                }%`,
+                              }}
+                            />
+                          </div>
+                          <div className="h-3 rounded-sm bg-accent-muted-bg">
+                            <div
+                              className="h-full rounded-sm bg-accent"
+                              style={{
+                                width: `${
+                                  point.marginRecovery > 0
+                                    ? Math.max(2, recoveryWidth)
+                                    : 0
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <span
+                          className={`font-mono text-[10px] font-bold uppercase tracking-wider sm:text-right ${
+                            point.marginLoss > point.marginRecovery
+                              ? "text-status-critical-text"
+                              : point.marginRecovery > 0
+                                ? "text-accent"
+                                : "text-text-ghost"
+                          }`}
+                        >
+                          {point.marginLoss > point.marginRecovery
+                            ? formatCurrency(point.marginLoss, 0)
+                            : point.marginRecovery > 0
+                              ? formatCurrency(point.marginRecovery, 0)
+                              : "On target"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -13300,6 +13468,7 @@ function WorkspaceDashboard({
         className={`${
           (showSetupSection && isSectionActive("setup")) ||
           (showInventorySection && isSectionActive("inventory")) ||
+          (showInventorySection && isSectionActive("stock-movement")) ||
           (showInventorySection && isSectionActive("yield-tests")) ||
           showRequisitionWorkspace ||
           showPurchaseOrderWorkspace ||
@@ -15794,7 +15963,7 @@ function WorkspaceDashboard({
             className={`${showStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 rounded-sm border border-border-system bg-background p-4`}
           >
             <label className="grid gap-2 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-              Target store / warehouse
+              Target storage location
               <select
                 name="stock_control_location_id"
                 value={stockControlLocationId}
@@ -15809,8 +15978,8 @@ function WorkspaceDashboard({
                 }}
                 className={formControlClass}
               >
-                <option value="">Select target store</option>
-                {stockHoldingLocations.map((location) => (
+                <option value="">Select count location</option>
+                {scopedStockControlLocations.map((location) => (
                   <option key={location.id} value={extractUuid(location.id)}>
                     {formatStockLocationOption(location)}
                   </option>
