@@ -230,7 +230,7 @@ const stockLocationTypeLabels: Record<Location["location_type"], string> = {
 };
 
 function formatStockLocationOption(location: Location) {
-  return `${location.name} — ${
+  return `${location.name} - ${
     stockLocationTypeLabels[location.location_type] ??
     location.location_type.replaceAll("_", " ")
   }`;
@@ -2827,10 +2827,13 @@ export default function DashboardPage() {
 
     form.reset();
     await reloadOperatingWorkspace(organization.id);
+    const savedYieldTest = data as YieldTestEntry | null;
     setMessage(
-      (data as YieldTestEntry | null)?.master_yield_updated
-        ? "Yield test saved. The SKU master yield was updated from the latest three-test average."
-        : "Yield test saved. Three tests are required before the SKU master yield updates.",
+      savedYieldTest?.is_below_master
+        ? "Yield test saved and flagged because it came in below the current master yield."
+        : savedYieldTest?.master_yield_updated
+          ? "Yield test saved. The SKU master yield was updated from the latest three-test average."
+          : "Yield test saved. Three tests are required before the SKU master yield updates.",
     );
     setYieldTestSaving(false);
     return true;
@@ -3727,6 +3730,10 @@ function WorkspaceDashboard({
   const isStoreControlFocus = isInventoryFocus || isStorekeeperFocus;
   const isOperationsFocus = ["operations_manager", "manager"].includes(focusRole);
   const isFinanceFocus = ["finance_manager", "auditor"].includes(focusRole);
+  const isChefFocus = focusRole === "chef";
+  const isQualityFocus = focusRole === "quality_assurance";
+  const isBarFocus = ["bar_manager", "bartender"].includes(focusRole);
+  const isAuditFocus = ["auditor", "viewer"].includes(focusRole);
   const isAdminFocus = focusRole === "admin";
   const kitchenLocationIds = new Set(
     activeLocations
@@ -5872,6 +5879,51 @@ function WorkspaceDashboard({
     exception: "Exception",
     pending: "Open",
   };
+  const canOwnEveryRegister = [
+    "owner",
+    "admin",
+    "manager",
+    "operations_manager",
+  ].includes(currentRole);
+  const registerActionDepartmentsByRole: Record<AppRole, string[]> = {
+    owner: ["Operations", "Finance", "Procurement", "Inventory", "Kitchen", "Bar"],
+    admin: ["Operations", "Finance", "Procurement", "Inventory", "Kitchen", "Bar"],
+    manager: ["Operations", "Finance", "Procurement", "Inventory", "Kitchen", "Bar"],
+    operations_manager: [
+      "Operations",
+      "Finance",
+      "Procurement",
+      "Inventory",
+      "Kitchen",
+      "Bar",
+    ],
+    procurement_manager: ["Procurement"],
+    finance_manager: ["Finance"],
+    inventory_manager: ["Inventory", "Operations"],
+    storekeeper: ["Inventory"],
+    kitchen_manager: ["Kitchen", "Operations"],
+    chef: ["Kitchen"],
+    quality_assurance: ["Operations", "Inventory", "Kitchen"],
+    bar_manager: ["Bar"],
+    bartender: ["Bar"],
+    auditor: [],
+    viewer: [],
+  };
+  const canActOnRegister = (register: {
+    department: string;
+    ownerRole: AppRole;
+  }) =>
+    canRecordOperations &&
+    (canOwnEveryRegister ||
+      register.ownerRole === currentRole ||
+      registerActionDepartmentsByRole[currentRole].includes(register.department));
+  const getRegisterActionLabel = (register: {
+    activityCount: number;
+    key: string;
+  }) =>
+    register.activityCount > 0 || register.key.includes("readiness")
+      ? "Confirm clear"
+      : "Declare zero";
   const baseComplianceRegisters = [
     {
       key: "opening_readiness",
@@ -6198,11 +6250,23 @@ function WorkspaceDashboard({
   });
   const visibleComplianceRegisters = complianceRegisters.filter(
     (register) => {
+      if (isAuditFocus) {
+        return true;
+      }
+
+      if (isOperationsFocus || isAdminFocus || focusRole === "owner") {
+        return true;
+      }
+
       if (isInventoryFocus) {
         return ["Inventory", "Operations"].includes(register.department);
       }
 
-      if (isKitchenFocus || focusRole === "chef") {
+      if (isStorekeeperFocus) {
+        return register.department === "Inventory";
+      }
+
+      if (isKitchenFocus || isChefFocus) {
         return ["Kitchen", "Operations"].includes(register.department);
       }
 
@@ -6210,7 +6274,21 @@ function WorkspaceDashboard({
         return register.department === "Procurement";
       }
 
-      return true;
+      if (isFinanceFocus) {
+        return ["Finance", "Operations"].includes(register.department);
+      }
+
+      if (isBarFocus) {
+        return register.department === "Bar";
+      }
+
+      if (isQualityFocus) {
+        return ["Operations", "Inventory", "Kitchen"].includes(
+          register.department,
+        );
+      }
+
+      return false;
     },
   );
   const compliancePassedCount = visibleComplianceRegisters.filter(
@@ -6786,9 +6864,26 @@ function WorkspaceDashboard({
       : isProcurementFocus
         ? procurementOperatingDayMetrics
         : operatingDayMetrics;
-  const dayCloseChecks = visibleComplianceRegisters.filter(
-    (register) => register.key !== "closing_readiness",
-  );
+  const dayCloseChecks = visibleComplianceRegisters
+    .filter((register) => register.key !== "closing_readiness")
+    .sort((leftRegister, rightRegister) => {
+      const leftCanAct = canActOnRegister(leftRegister);
+      const rightCanAct = canActOnRegister(rightRegister);
+
+      if (leftCanAct !== rightCanAct) {
+        return leftCanAct ? -1 : 1;
+      }
+
+      if (leftRegister.passed !== rightRegister.passed) {
+        return leftRegister.passed ? 1 : -1;
+      }
+
+      if (leftRegister.status !== rightRegister.status) {
+        return leftRegister.status === "exception" ? -1 : 1;
+      }
+
+      return leftRegister.department.localeCompare(rightRegister.department);
+    });
   const dayCloseCompletedCount = dayCloseChecks.filter(
     (register) => register.passed,
   ).length;
@@ -7073,7 +7168,7 @@ function WorkspaceDashboard({
       : compliancePendingCount > 0
         ? {
             eyebrow: "Next kitchen action",
-            title: "Close today’s kitchen checklist",
+            title: "Close today's kitchen checklist",
             detail:
               "Confirm activity, declare zero activity, or raise an exception before day close.",
             cta: "Open checklist",
@@ -7206,6 +7301,39 @@ function WorkspaceDashboard({
             sectionId: "overview",
             tone: "healthy" as const,
           };
+  const ownedDayCloseActions = dayCloseChecks
+    .filter((check) => canActOnRegister(check) && !check.passed)
+    .slice(0, 3)
+    .map((check) => ({
+      id: check.key,
+      label: check.label,
+      department: check.department,
+      ownerRole: check.ownerRole,
+      status: check.status,
+      detail: check.detail,
+      actionLabel:
+        check.status === "exception" ? "Fix issue" : getRegisterActionLabel(check),
+      sectionId: "day",
+      targetElementId: "day-close-checklist",
+    }));
+  const visibleDayDisciplineActions =
+    ownedDayCloseActions.length > 0
+      ? ownedDayCloseActions
+      : [
+          {
+            id: "clear",
+            label: "No owned checklist blockers",
+            department: roleLabels[focusRole],
+            ownerRole: focusRole,
+            status: "clear" as const,
+            detail: isAuditFocus
+              ? "Your current view is review-only. Check exceptions and close evidence before approval."
+              : "Your required daily registers are clear for the selected operating date.",
+            actionLabel: isAuditFocus ? "Review close" : "Review day",
+            sectionId: "day",
+            targetElementId: "day-close-checklist",
+          },
+        ];
   const roleDashboardLabel = isKitchenFocus
     ? "Kitchen Dashboard"
     : isInventoryFocus
@@ -9263,41 +9391,106 @@ function WorkspaceDashboard({
         </details>
       </div>
       {!ownerOverviewActive ? (
-        <div
-          className={`mb-5 grid gap-4 rounded-sm border px-5 py-4 shadow-2xl shadow-black/20 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
-            roleNextAction.tone === "healthy"
-              ? "border-accent-muted-border bg-accent-muted-bg"
-              : "border-status-attention-border bg-status-attention-bg"
-          }`}
-        >
-          <div className="min-w-0">
-            <p
-              className={`font-mono text-[10px] font-bold uppercase tracking-widest ${
-                roleNextAction.tone === "healthy"
-                  ? "text-accent"
-                  : "text-status-attention-text"
-              }`}
-            >
-              {roleNextAction.eyebrow}
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-foreground">
-              {roleNextAction.title}
-            </h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-text-muted">
-              {roleNextAction.detail}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openDashboardSection(roleNextAction.sectionId)}
-            className={
+        <div className="mb-5 grid gap-3">
+          <div
+            className={`grid gap-4 rounded-sm border px-5 py-4 shadow-2xl shadow-black/20 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
               roleNextAction.tone === "healthy"
-                ? compactPrimaryActionButtonClass
-                : "h-10 rounded-sm border border-status-attention-border bg-card px-4 text-xs font-bold uppercase tracking-wider text-status-attention-text shadow-sm transition hover:border-status-attention-text"
-            }
+                ? "border-accent-muted-border bg-accent-muted-bg"
+                : "border-status-attention-border bg-status-attention-bg"
+            }`}
           >
-            {roleNextAction.cta}
-          </button>
+            <div className="min-w-0">
+              <p
+                className={`font-mono text-[10px] font-bold uppercase tracking-widest ${
+                  roleNextAction.tone === "healthy"
+                    ? "text-accent"
+                    : "text-status-attention-text"
+                }`}
+              >
+                {roleNextAction.eyebrow}
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-foreground">
+                {roleNextAction.title}
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-text-muted">
+                {roleNextAction.detail}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => openDashboardSection(roleNextAction.sectionId)}
+              className={
+                roleNextAction.tone === "healthy"
+                  ? compactPrimaryActionButtonClass
+                  : "h-10 rounded-sm border border-status-attention-border bg-card px-4 text-xs font-bold uppercase tracking-wider text-status-attention-text shadow-sm transition hover:border-status-attention-text"
+              }
+            >
+              {roleNextAction.cta}
+            </button>
+          </div>
+
+          <div className="rounded-sm border border-border-system bg-background p-3 shadow-2xl shadow-black/10">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Today&apos;s required actions
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {roleLabels[focusRole]} / {currentOperatingDate}
+                </p>
+              </div>
+              <span
+                className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                  ownedDayCloseActions.length > 0
+                    ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                    : "border-accent-muted-border bg-accent-muted-bg text-accent"
+                }`}
+              >
+                {ownedDayCloseActions.length > 0
+                  ? `${ownedDayCloseActions.length} open`
+                  : "Clear"}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 lg:grid-cols-3">
+              {visibleDayDisciplineActions.map((action) => (
+                <article
+                  key={action.id}
+                  className={`grid gap-3 rounded-sm border p-3 ${
+                    action.status === "exception"
+                      ? "border-status-critical-border bg-status-critical-bg"
+                      : action.status === "clear"
+                        ? "border-accent-muted-border bg-accent-muted-bg"
+                        : "border-status-attention-border bg-status-attention-bg"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground">
+                      {action.label}
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      {action.department} / {roleLabels[action.ownerRole]}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-text-muted">
+                      {action.detail}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openDashboardSection(
+                        action.sectionId,
+                        undefined,
+                        action.targetElementId,
+                      )
+                    }
+                    className="h-11 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                  >
+                    {action.actionLabel}
+                  </button>
+                </article>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
       {ownerOverviewActive ? (
@@ -11846,7 +12039,11 @@ function WorkspaceDashboard({
           </div>
 
           <div className="grid gap-3 p-3 lg:hidden">
-            {dayCloseChecks.map((check) => (
+            {dayCloseChecks.map((check) => {
+              const checkCanAct = canActOnRegister(check);
+              const actionLabel = getRegisterActionLabel(check);
+
+              return (
               <article
                 key={`mobile-${check.label}`}
                 className={`rounded-sm border p-3 shadow-sm ${
@@ -11868,8 +12065,8 @@ function WorkspaceDashboard({
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {check.passed && check.status !== "exception" ? (
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-accent-muted-border bg-accent-muted-bg text-sm font-black text-accent">
-                        ✓
+                      <span className="inline-flex h-7 min-w-8 items-center justify-center rounded-full border border-accent-muted-border bg-accent-muted-bg px-2 text-[10px] font-black text-accent">
+                        OK
                       </span>
                     ) : null}
                     <span
@@ -11888,8 +12085,13 @@ function WorkspaceDashboard({
                       Owner
                     </p>
                     <p className="font-semibold text-foreground">
-                      {check.department}
+                      {check.department} / {roleLabels[check.ownerRole]}
                     </p>
+                    {checkCanAct ? (
+                      <span className="mt-2 inline-flex rounded-full border border-accent-muted-border bg-accent-muted-bg px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+                        Your task
+                      </span>
+                    ) : null}
                   </div>
                   <div>
                     <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -11938,11 +12140,11 @@ function WorkspaceDashboard({
                   >
                     Open ledger
                   </button>
-                  {canRecordOperations ? (
+                  {checkCanAct ? (
                     <div className="grid grid-cols-2 gap-2">
                       {check.passed && check.status !== "exception" ? (
-                        <span className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 text-xs font-bold uppercase tracking-wider text-accent">
-                          <span className="text-sm leading-none">✓</span>
+                        <span className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 text-xs font-bold uppercase tracking-wider text-accent">
+                          <span className="text-sm leading-none">OK</span>
                           Checked
                         </span>
                       ) : (
@@ -11967,12 +12169,9 @@ function WorkspaceDashboard({
                                     : "No activity for this register today.",
                             })
                           }
-                          className="h-10 rounded-sm bg-accent px-3 text-xs font-bold uppercase tracking-wider text-background transition hover:bg-accent-hover"
+                          className="h-11 rounded-sm bg-accent px-3 text-xs font-bold uppercase tracking-wider text-background transition hover:bg-accent-hover"
                         >
-                          {check.activityCount > 0 ||
-                          check.key.includes("readiness")
-                            ? "Confirm"
-                            : "Zero"}
+                          {actionLabel}
                         </button>
                       )}
                       {check.passed && check.status !== "exception" ? null : (
@@ -11987,16 +12186,23 @@ function WorkspaceDashboard({
                               notes: "Exception flagged from daily checklist.",
                             })
                           }
-                          className="h-10 rounded-sm border border-status-critical-border bg-status-critical-bg px-3 text-xs font-bold uppercase tracking-wider text-status-critical-text transition hover:border-status-critical-text"
+                          className="h-11 rounded-sm border border-status-critical-border bg-status-critical-bg px-3 text-xs font-bold uppercase tracking-wider text-status-critical-text transition hover:border-status-critical-text"
                         >
-                          Exception
+                          Flag issue
                         </button>
                       )}
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="rounded-sm border border-border-system bg-background/80 px-3 py-2 text-xs font-semibold text-text-muted">
+                      {isAuditFocus
+                        ? "Review only"
+                        : `Owned by ${roleLabels[check.ownerRole]}`}
+                    </p>
+                  )}
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
 
           <div className="hidden overflow-hidden lg:block">
@@ -12013,7 +12219,11 @@ function WorkspaceDashboard({
                 </tr>
               </thead>
               <tbody>
-                {dayCloseChecks.map((check) => (
+                {dayCloseChecks.map((check) => {
+                  const checkCanAct = canActOnRegister(check);
+                  const actionLabel = getRegisterActionLabel(check);
+
+                  return (
                   <tr
                     key={check.label}
                     className={`border-b border-border-system align-top transition hover:bg-card/70 ${
@@ -12031,7 +12241,15 @@ function WorkspaceDashboard({
                       </p>
                     </td>
                     <td className="hidden px-4 py-4 text-text-muted lg:table-cell">
-                      {check.department}
+                      <span>{check.department}</span>
+                      <span className="mt-1 block font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                        {roleLabels[check.ownerRole]}
+                      </span>
+                      {checkCanAct ? (
+                        <span className="mt-2 inline-flex rounded-full border border-accent-muted-border bg-accent-muted-bg px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+                          Your task
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4 leading-6 text-text-muted">
                       <p>{check.detail}</p>
@@ -12053,7 +12271,7 @@ function WorkspaceDashboard({
                       <div className="flex flex-wrap items-center gap-2">
                         {check.passed && check.status !== "exception" ? (
                           <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-accent-muted-border bg-accent-muted-bg text-sm font-black text-accent">
-                            ✓
+                            OK
                           </span>
                         ) : null}
                         <span
@@ -12077,7 +12295,7 @@ function WorkspaceDashboard({
                     <td className="hidden px-4 py-4 text-text-muted 2xl:table-cell">
                       {check.submittedAt
                         ? new Date(check.submittedAt).toLocaleString()
-                        : "—"}
+                        : "-"}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap justify-end gap-2">
@@ -12093,11 +12311,11 @@ function WorkspaceDashboard({
                         >
                           Open
                         </button>
-                        {canRecordOperations ? (
+                        {checkCanAct ? (
                           <>
                             {check.passed && check.status !== "exception" ? (
                               <span className="inline-flex h-9 items-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 text-xs font-bold uppercase tracking-wider text-accent">
-                                <span className="text-sm leading-none">✓</span>
+                                <span className="text-sm leading-none">OK</span>
                                 Checked
                               </span>
                             ) : (
@@ -12124,10 +12342,7 @@ function WorkspaceDashboard({
                                 }
                                 className={compactPrimaryActionButtonClass}
                               >
-                                {check.activityCount > 0 ||
-                                check.key.includes("readiness")
-                                  ? "Confirm"
-                                  : "Zero"}
+                                {actionLabel}
                               </button>
                             )}
                             {check.passed && check.status !== "exception" ? null : (
@@ -12144,15 +12359,20 @@ function WorkspaceDashboard({
                                 }
                                 className="h-9 rounded-sm border border-status-critical-border bg-status-critical-bg px-3 text-xs font-bold uppercase tracking-wider text-status-critical-text transition hover:border-status-critical-text"
                               >
-                                Exception
+                                Flag issue
                               </button>
                             )}
                           </>
-                        ) : null}
+                        ) : (
+                          <span className="inline-flex h-9 items-center rounded-sm border border-border-system bg-background px-3 text-xs font-semibold text-text-muted">
+                            {isAuditFocus ? "Review only" : "Owner only"}
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -13132,11 +13352,24 @@ function WorkspaceDashboard({
                       const item = activeInventoryItemsById.get(
                         extractUuid(entry.inventory_item_id),
                       );
+                      const masterYieldAtTest =
+                        entry.master_yield_pct_at_test ?? item?.yield_pct ?? null;
+                      const yieldDelta =
+                        entry.yield_delta_pct ??
+                        (masterYieldAtTest === null
+                          ? null
+                          : entry.measured_yield_pct - masterYieldAtTest);
+                      const deltaPercentagePoints =
+                        yieldDelta === null ? null : yieldDelta * 100;
 
                       return (
                         <div
                           key={entry.id}
-                          className="grid gap-2 rounded-sm border border-border-system bg-card p-3 sm:grid-cols-[1fr_auto]"
+                          className={`grid gap-2 rounded-sm border p-3 sm:grid-cols-[1fr_auto] ${
+                            entry.is_below_master
+                              ? "border-status-critical-border bg-status-critical-bg"
+                              : "border-border-system bg-card"
+                          }`}
                         >
                           <div>
                             <p className="text-xs font-bold text-foreground">
@@ -13147,11 +13380,23 @@ function WorkspaceDashboard({
                               waste {entry.trim_waste_weight.toLocaleString()}{" "}
                               {item?.base_uom ?? "unit"}
                             </p>
+                            {entry.is_below_master &&
+                            deltaPercentagePoints !== null ? (
+                              <p className="mt-1 text-xs font-semibold text-status-critical-text">
+                                Below master by{" "}
+                                {Math.abs(deltaPercentagePoints).toFixed(2)} pp
+                              </p>
+                            ) : null}
                           </div>
                           <div className="text-left sm:text-right">
                             <p className="font-mono text-sm font-bold text-accent">
                               {Math.round(entry.measured_yield_pct * 100)}%
                             </p>
+                            {masterYieldAtTest !== null ? (
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost">
+                                Master {Math.round(masterYieldAtTest * 100)}%
+                              </p>
+                            ) : null}
                             <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost">
                               {entry.master_yield_updated
                                 ? "Master updated"

@@ -223,6 +223,9 @@ export type YieldTestEntry = {
   trim_waste_weight: number;
   measured_yield_pct: number;
   three_test_average_yield_pct: number | null;
+  master_yield_pct_at_test: number | null;
+  yield_delta_pct: number | null;
+  is_below_master: boolean;
   master_yield_updated: boolean;
   notes: string | null;
   submitted_by: string | null;
@@ -234,7 +237,10 @@ export type YieldTestNotification = {
   id: string;
   organization_id: string;
   inventory_item_id: string;
-  notification_type: "overdue_yield_test" | "yield_master_updated";
+  notification_type:
+    | "overdue_yield_test"
+    | "yield_master_updated"
+    | "yield_below_master";
   title: string;
   detail: string;
   recipients: string[];
@@ -676,7 +682,7 @@ export async function loadYieldTestEntries(organizationId: string) {
   const { data, error } = await supabase
     .from("yield_test_entries")
     .select(
-      "id, organization_id, inventory_item_id, test_date, starting_weight, usable_weight, trim_waste_weight, measured_yield_pct, three_test_average_yield_pct, master_yield_updated, notes, submitted_by, submitted_at, created_at",
+      "id, organization_id, inventory_item_id, test_date, starting_weight, usable_weight, trim_waste_weight, measured_yield_pct, three_test_average_yield_pct, master_yield_pct_at_test, yield_delta_pct, is_below_master, master_yield_updated, notes, submitted_by, submitted_at, created_at",
     )
     .eq("organization_id", organizationId)
     .order("test_date", { ascending: false })
@@ -697,6 +703,14 @@ export async function loadYieldTestEntries(organizationId: string) {
       (entry as YieldTestEntry).three_test_average_yield_pct === null
         ? null
         : Number((entry as YieldTestEntry).three_test_average_yield_pct) || 0,
+    master_yield_pct_at_test:
+      (entry as YieldTestEntry).master_yield_pct_at_test === null
+        ? null
+        : Number((entry as YieldTestEntry).master_yield_pct_at_test) || 0,
+    yield_delta_pct:
+      (entry as YieldTestEntry).yield_delta_pct === null
+        ? null
+        : Number((entry as YieldTestEntry).yield_delta_pct) || 0,
   }));
 }
 
