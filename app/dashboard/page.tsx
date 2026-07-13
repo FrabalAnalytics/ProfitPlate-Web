@@ -8481,6 +8481,14 @@ function WorkspaceDashboard({
           visible: showInventorySection,
         },
         {
+          href: "#inventory",
+          targetElementId: "sku-movement",
+          label: "Stock Movement",
+          badge: `${stockMovementLedger.length.toLocaleString()} moves`,
+          tone: stockMovementLedger.length > 0 ? "healthy" : "setup",
+          visible: showInventorySection,
+        },
+        {
           href: "#yield-tests",
           label: "Yield Tests",
           badge:
@@ -9632,7 +9640,8 @@ function WorkspaceDashboard({
               {isNavGroupOpen(group.label) ? (
                 <div className="mt-1 grid gap-1 border-l border-border-system pl-3">
                   {group.items.map((item) => {
-                    const targetElementId = item.href.replace("#", "");
+                    const targetElementId =
+                      item.targetElementId ?? item.href.replace("#", "");
                     const sectionId = item.href.replace("#", "");
                     const isActive =
                       !ownerOverviewActive &&
@@ -13843,7 +13852,10 @@ function WorkspaceDashboard({
             </div>
           </div>
 
-          <div className="mt-5 rounded-sm border border-border-system bg-background">
+          <div
+            id="sku-movement"
+            className="mt-5 scroll-mt-24 rounded-sm border border-border-system bg-background"
+          >
             <div className="flex flex-col gap-3 border-b border-border-system px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
