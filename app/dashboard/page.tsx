@@ -5297,14 +5297,16 @@ function WorkspaceDashboard({
   const simulatedPrice = simulatedPricingItem
     ? simulatedPricingItem.sellingPrice * (1 + normalizedSimulationPct / 100)
     : 0;
+  const simulatedPriceDelta = simulatedPricingItem
+    ? simulatedPrice - simulatedPricingItem.sellingPrice
+    : 0;
   const simulatedMarginPct =
     simulatedPricingItem && simulatedPrice > 0
       ? ((simulatedPrice - simulatedPricingItem.unitFoodCost) / simulatedPrice) *
         100
       : null;
-  const simulatedMonthlyGain = simulatedPricingItem
-    ? (simulatedPrice - simulatedPricingItem.sellingPrice) *
-      Math.max(simulatedPricingItem.soldQuantity, 30)
+  const simulatedSelectedPeriodImpact = simulatedPricingItem
+    ? simulatedPriceDelta * simulatedPricingItem.soldQuantity
     : 0;
   const selectedPriceMovement = ingredientPriceMovements.find(
     (event) => event.id === selectedPriceMovementId,
@@ -12240,8 +12242,8 @@ function WorkspaceDashboard({
                   )}`}
                 />
                 <MetricPill
-                  label="Suggested price"
-                  value={`${organization.local_currency} ${simulatedPricingItem.recommendedPrice.toLocaleString(
+                  label="New selling price"
+                  value={`${organization.local_currency} ${simulatedPrice.toLocaleString(
                     undefined,
                     { maximumFractionDigits: 2 },
                   )}`}
@@ -12263,18 +12265,42 @@ function WorkspaceDashboard({
                   }
                 />
                 <MetricPill
-                  label="Expected monthly gain"
-                  value={`${organization.local_currency} ${simulatedMonthlyGain.toLocaleString(
-                    undefined,
-                    { maximumFractionDigits: 2 },
-                  )}`}
+                  label="Selected-period impact"
+                  value={
+                    simulatedPricingItem.soldQuantity > 0
+                      ? `${organization.local_currency} ${simulatedSelectedPeriodImpact.toLocaleString(
+                          undefined,
+                          { maximumFractionDigits: 2 },
+                        )}`
+                      : "N/A"
+                  }
                   valueClassName={
-                    simulatedMonthlyGain > 0
+                    simulatedSelectedPeriodImpact > 0
                       ? "font-semibold text-accent"
+                      : simulatedSelectedPeriodImpact < 0
+                        ? "font-semibold text-status-critical-text"
                       : "font-semibold text-text-muted"
                   }
                 />
               </div>
+              <p className="mt-3 text-sm leading-6 text-text-muted">
+                Impact uses actual selected-period sales only:{" "}
+                <span className="font-semibold text-foreground">
+                  {simulatedPricingItem.soldQuantity.toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  unit{simulatedPricingItem.soldQuantity === 1 ? "" : "s"} sold
+                </span>{" "}
+                x{" "}
+                <span className="font-semibold text-foreground">
+                  {formatSignedCurrency(simulatedPriceDelta)}
+                </span>{" "}
+                price movement. Target price remains{" "}
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(simulatedPricingItem.recommendedPrice)}
+                </span>{" "}
+                for the {targetMenuMarginPct}% margin benchmark.
+              </p>
             </div>
             <label className="grid gap-2 text-sm font-semibold text-text-muted">
               What-if menu price movement
