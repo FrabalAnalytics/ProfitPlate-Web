@@ -113,6 +113,9 @@ ul, ol { margin-top: 8px; }
 </table>
 <p>Pastry and kitchen are user departments. If pastry operates separately, use a pastry department location and assign the relevant users to kitchen or department-facing roles based on how the work is controlled.</p>
 
+<h3>Finance Role Page Reference</h3>
+<p>The Finance role is served through the main dashboard page, not a separate active route. The extracted reference file for the Finance role page logic is kept at <code>docs/finance-role-page.tsx</code>. Use it as documentation for how the Finance dashboard focus connects back to <code>app/dashboard/page.tsx</code>.</p>
+
 <h2>Phase 4: Raw Data Workbook Preparation</h2>
 <table>
 <tr><th>Tab</th><th>Required fields</th></tr>

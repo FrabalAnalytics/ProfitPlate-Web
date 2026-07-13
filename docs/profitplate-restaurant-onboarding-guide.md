@@ -118,6 +118,10 @@ Each user should be assigned according to actual responsibility, not job title a
 
 Pastry and kitchen are user departments. If pastry operates separately, use a pastry department location and assign the relevant users to kitchen or department-facing roles based on how the work is controlled.
 
+### Finance Role Page Reference
+
+The Finance role is served through the main dashboard page, not a separate active route. The extracted reference file for the Finance role page logic is kept at `docs/finance-role-page.tsx`. Use it as documentation for how the Finance dashboard focus connects back to `app/dashboard/page.tsx`.
+
 ## Phase 4: Raw Data Workbook Preparation
 
 Before import, collect the workbook in a clean, structured format.
