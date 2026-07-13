@@ -62,6 +62,7 @@ import {
   type Location,
   type OperationRegisterEntry,
   type OperatingDay,
+  type DayCloseBlocker,
   type PosSalesItemMapping,
   type Profile,
   type PurchaseOrder,
@@ -7688,7 +7689,37 @@ function WorkspaceDashboard({
   const currentOperatingDay = operatingDays.find(
     (day) => day.operating_date === currentOperatingDate,
   );
-  const dayCloseBlockers = currentOperatingDay?.blockers ?? [];
+  const dayCloseCheckByKey = new Map(
+    dayCloseChecks.map((check) => [check.key, check]),
+  );
+  const liveRegisterBlockers: DayCloseBlocker[] = dayCloseChecks
+    .filter((check) => !check.passed)
+    .map((check) => ({
+      type:
+        check.status === "exception"
+          ? "register_exception"
+          : "missing_register",
+      key: check.key,
+      label: check.label,
+      department: check.department,
+      message:
+        check.status === "exception"
+          ? check.detail
+          : `${check.label} has not been declared.`,
+    }));
+  const persistedNonRegisterBlockers = (currentOperatingDay?.blockers ?? [])
+    .filter((blocker) => !dayCloseCheckByKey.has(blocker.key))
+    .filter(
+      (blocker, index, blockers) =>
+        blockers.findIndex(
+          (candidate) =>
+            candidate.type === blocker.type && candidate.key === blocker.key,
+        ) === index,
+    );
+  const dayCloseBlockers = [
+    ...liveRegisterBlockers,
+    ...persistedNonRegisterBlockers,
+  ];
   const productionRunSummaries = Array.from(
     productionHistory
       .reduce(
