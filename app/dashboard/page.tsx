@@ -4151,6 +4151,42 @@ function WorkspaceDashboard({
         0,
       );
       const closingQty = openingQty + inflowQty - outflowQty;
+      const movementTypeSummary = Array.from(
+        periodItemMovements
+          .reduce(
+            (typeMap, movement) => {
+              const eventType = movement.event_type || "movement";
+              const existingType = typeMap.get(eventType);
+
+              if (existingType) {
+                existingType.count += 1;
+                existingType.quantity += movement.movement_qty;
+              } else {
+                typeMap.set(eventType, {
+                  eventType,
+                  count: 1,
+                  quantity: movement.movement_qty,
+                });
+              }
+
+              return typeMap;
+            },
+            new Map<
+              string,
+              { eventType: string; count: number; quantity: number }
+            >(),
+          )
+          .values(),
+      ).sort((leftType, rightType) => {
+        const quantityDelta =
+          Math.abs(rightType.quantity) - Math.abs(leftType.quantity);
+
+        if (Math.abs(quantityDelta) > 0.0001) {
+          return quantityDelta;
+        }
+
+        return rightType.count - leftType.count;
+      });
 
       return {
         item,
@@ -4160,6 +4196,7 @@ function WorkspaceDashboard({
         outflowQty,
         closingQty,
         movementCount: periodItemMovements.length,
+        movementTypeSummary,
         movementValue: periodItemMovements.reduce(
           (total, movement) => total + movement.movement_value,
           0,
@@ -4187,6 +4224,27 @@ function WorkspaceDashboard({
     eventType.replaceAll("_", " ").replace(/\b\w/g, (letter) =>
       letter.toUpperCase(),
     );
+  const getMovementToneClass = (eventType: string) => {
+    const normalizedType = eventType.toLowerCase();
+
+    if (
+      normalizedType.includes("waste") ||
+      normalizedType.includes("sales_depletion") ||
+      normalizedType.includes("stock_count_adjustment")
+    ) {
+      return "border-status-critical-border bg-status-critical-bg text-status-critical-text";
+    }
+
+    if (
+      normalizedType.includes("production") ||
+      normalizedType.includes("receipt") ||
+      normalizedType.includes("receive")
+    ) {
+      return "border-accent-muted-border bg-accent-muted-bg text-accent";
+    }
+
+    return "border-status-info-border bg-status-info-bg text-status-info-text";
+  };
   const allInventoryItemsById = new Map(
     inventoryItems.map((item) => [extractUuid(item.id), item]),
   );
@@ -14759,7 +14817,9 @@ function WorkspaceDashboard({
                 <p className="mt-1 max-w-3xl text-sm leading-6 text-text-muted">
                   Opening, inflow, outflow, and closing are calculated from the
                   append-only movement ledger for the selected period and SKU
-                  filters.
+                  filters. The ledger includes receipts, requisitions/transfers,
+                  production inputs and outputs, waste, sales depletion, and
+                  Finance-approved stock adjustments.
                 </p>
               </div>
               <span className="w-fit rounded-full border border-border-system bg-card px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -14770,7 +14830,7 @@ function WorkspaceDashboard({
             {stockMovementSummaryRows.length > 0 ? (
               <>
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-sm">
+                  <table className="w-full min-w-[1365px] table-fixed border-collapse text-left text-sm">
                     <colgroup>
                       <col className="w-[245px]" />
                       <col className="w-[180px]" />
@@ -14778,6 +14838,7 @@ function WorkspaceDashboard({
                       <col className="w-[110px]" />
                       <col className="w-[110px]" />
                       <col className="w-[110px]" />
+                      <col className="w-[230px]" />
                       <col className="w-[150px]" />
                       <col className="w-[120px]" />
                     </colgroup>
@@ -14789,6 +14850,7 @@ function WorkspaceDashboard({
                         <th className="px-4 py-3 text-right">Inflow</th>
                         <th className="px-4 py-3 text-right">Outflow</th>
                         <th className="px-4 py-3 text-right">Closing</th>
+                        <th className="px-4 py-3">Movement mix</th>
                         <th className="px-4 py-3 text-right">Value</th>
                         <th className="px-4 py-3 text-right">Audit</th>
                       </tr>
@@ -14845,6 +14907,36 @@ function WorkspaceDashboard({
                               {row.closingQty.toLocaleString(undefined, {
                                 maximumFractionDigits: 3,
                               })}
+                            </td>
+                            <td className="px-4 py-3 align-top">
+                              <div className="flex flex-wrap gap-1.5">
+                                {row.movementTypeSummary.length > 0 ? (
+                                  row.movementTypeSummary
+                                    .slice(0, 3)
+                                    .map((movementType) => (
+                                      <span
+                                        key={`${row.itemId}-${movementType.eventType}`}
+                                        className={`rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${getMovementToneClass(
+                                          movementType.eventType,
+                                        )}`}
+                                      >
+                                        {formatMovementType(
+                                          movementType.eventType,
+                                        )}{" "}
+                                        {movementType.count}
+                                      </span>
+                                    ))
+                                ) : (
+                                  <span className="text-xs text-text-ghost">
+                                    No movement
+                                  </span>
+                                )}
+                                {row.movementTypeSummary.length > 3 ? (
+                                  <span className="rounded-full border border-border-system bg-card px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
+                                    +{row.movementTypeSummary.length - 3}
+                                  </span>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
                               {formatSignedCurrency(row.movementValue)}
@@ -14942,6 +15034,32 @@ function WorkspaceDashboard({
                               })}
                             </span>
                           </span>
+                          <span className="col-span-2 rounded-sm border border-border-system bg-background p-2">
+                            <span className="block font-mono uppercase tracking-widest text-text-ghost">
+                              Movement mix
+                            </span>
+                            <span className="mt-2 flex flex-wrap gap-1.5">
+                              {row.movementTypeSummary.length > 0 ? (
+                                row.movementTypeSummary
+                                  .slice(0, 4)
+                                  .map((movementType) => (
+                                    <span
+                                      key={`${row.itemId}-mobile-${movementType.eventType}`}
+                                      className={`rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${getMovementToneClass(
+                                        movementType.eventType,
+                                      )}`}
+                                    >
+                                      {formatMovementType(movementType.eventType)}{" "}
+                                      {movementType.count}
+                                    </span>
+                                  ))
+                              ) : (
+                                <span className="text-text-ghost">
+                                  No movement
+                                </span>
+                              )}
+                            </span>
+                          </span>
                         </span>
                       </button>
                     );
@@ -14986,18 +15104,27 @@ function WorkspaceDashboard({
 
                 {selectedMovementAuditRows.length > 0 ? (
                   <div className="mt-4 grid gap-2">
-                    {selectedMovementAuditRows.slice(0, 12).map((movement) => (
+                    {selectedMovementAuditRows.map((movement) => (
                       <div
                         key={movement.movement_id}
                         className="grid gap-3 rounded-sm border border-border-system bg-background p-3 text-sm md:grid-cols-[minmax(0,1fr)_120px_140px_150px]"
                       >
                         <div className="min-w-0">
-                          <p className="font-semibold text-foreground">
-                            {formatMovementType(movement.event_type)}
+                          <p className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${getMovementToneClass(
+                                movement.event_type,
+                              )}`}
+                            >
+                              {formatMovementType(movement.event_type)}
+                            </span>
                           </p>
                           <p className="mt-1 text-xs text-text-muted">
                             {movement.location_name} /{" "}
                             {movement.source_table ?? "ledger"}
+                            {movement.source_id
+                              ? ` / ${movement.source_id.slice(0, 8)}`
+                              : ""}
                           </p>
                         </div>
                         <span
