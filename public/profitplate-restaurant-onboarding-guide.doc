@@ -1,0 +1,311 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="ProgId" content="Word.Document">
+<title>ProfitPlate Restaurant Onboarding Guide</title>
+<style>
+body { font-family: Arial, sans-serif; color: #111827; line-height: 1.45; }
+h1 { color: #0f5132; font-size: 28px; }
+h2 { color: #0f5132; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-top: 28px; }
+h3 { color: #1f2937; margin-top: 20px; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+th, td { border: 1px solid #d1d5db; padding: 7px; vertical-align: top; }
+th { background: #ecfdf5; color: #064e3b; text-align: left; }
+ul, ol { margin-top: 8px; }
+.meta { color: #4b5563; }
+</style>
+</head>
+<body>
+<h1>ProfitPlate Restaurant Onboarding Guide</h1>
+<p class="meta"><strong>Last updated:</strong> July 12, 2026</p>
+
+<h2>Purpose</h2>
+<p>This guide is the operating onboarding document for a restaurant workspace in ProfitPlate. It is written for owners, managers, kitchen leads, storekeepers, finance/cost control, and front-house supervisors who need to move from informal daily habits into reliable operating discipline.</p>
+<p>ProfitPlate is not only a database for stock and recipes. It is an accountability system. The goal of onboarding is to make the restaurant run on clear roles, clean master data, controlled stock movement, auditable daily routines, and management attention on exceptions.</p>
+
+<h2>Onboarding Outcome</h2>
+<table>
+<tr><th>Area</th><th>Outcome</th></tr>
+<tr><td>Workspace setup</td><td>The restaurant has one active workspace, correct currency, implementation mode, and default operating locations.</td></tr>
+<tr><td>Users and roles</td><td>Each user has the correct role and department ownership. Pastry, kitchen, bar, store, finance, procurement, and front-house users understand what they can declare.</td></tr>
+<tr><td>Master data</td><td>Locations, suppliers, SKUs, recipe units, yields, costs, menu items, and POS mappings are imported or created.</td></tr>
+<tr><td>Inventory discipline</td><td>Receiving, requisitions, kitchen-to-front-house transfers, waste, stock counts, and adjustments have an audit trail.</td></tr>
+<tr><td>Kitchen discipline</td><td>Production planning can become an editable requisition. Kitchen can issue to front house and receiving users must accept or reject.</td></tr>
+<tr><td>Daily controls</td><td>Each operating day has daily register completion, exception capture, and management review.</td></tr>
+<tr><td>Cost control</td><td>Purchase price changes, yield updates, waste, and recipe cost cascades are visible to management.</td></tr>
+<tr><td>Go-live readiness</td><td>The restaurant can complete a sample day from purchase receipt to production, transfer, sales depletion, waste, and day close.</td></tr>
+</table>
+
+<h2>Implementation Mode</h2>
+<table>
+<tr><th>Mode</th><th>Use when</th><th>Notes</th></tr>
+<tr><td>Solo</td><td>One restaurant, one owner/operator team, simple branch structure.</td><td>Best for a single standalone restaurant.</td></tr>
+<tr><td>Multi Unit</td><td>Multiple branches or outlets under one operator.</td><td>Use when locations need branch-level operational separation.</td></tr>
+<tr><td>Enterprise Grid</td><td>Larger group, central oversight, more complex reporting.</td><td>Use only when governance complexity requires it.</td></tr>
+</table>
+<p>For a single restaurant such as Tangibles Restaurant, Solo is usually the right starting point. A solo workspace can still have departments, kitchen, pastry, bar, store, front counter, and management roles.</p>
+
+<h2>Phase 1: Workspace And Owner Setup</h2>
+<h3>Owner Account</h3>
+<p>Create or invite the owner user in Supabase Auth before assigning ownership inside the workspace. The owner email should exist in Auth so the profile can be linked cleanly to the workspace and role.</p>
+<ol>
+<li>Create or invite the owner email in Supabase Auth.</li>
+<li>Confirm the user profile exists.</li>
+<li>Assign the profile to the restaurant workspace.</li>
+<li>Set role to owner.</li>
+<li>Confirm the owner can log in and see the correct restaurant.</li>
+</ol>
+<p>If the user has already been invited, wait for acceptance unless immediate manual setup is required. Use direct create only when intentionally provisioning the account.</p>
+
+<h3>Workspace Settings</h3>
+<table>
+<tr><th>Setting</th><th>Recommended value</th></tr>
+<tr><td>Restaurant name</td><td>Legal or operating name used by management.</td></tr>
+<tr><td>Currency</td><td>Local reporting currency, for example NGN.</td></tr>
+<tr><td>Implementation mode</td><td>Solo for one restaurant.</td></tr>
+<tr><td>Default sales outlet</td><td>Front counter or primary POS outlet.</td></tr>
+<tr><td>Operating departments</td><td>Kitchen, pastry, store/inventory, front house, bar if applicable, finance, procurement, management.</td></tr>
+</table>
+
+<h2>Phase 2: Location Model</h2>
+<p>Locations determine where stock lives, where it is issued from, and where it is consumed.</p>
+<table>
+<tr><th>Location</th><th>Type</th><th>Purpose</th></tr>
+<tr><td>Main Store</td><td>Main store or stock holding</td><td>Receives purchases and issues raw materials.</td></tr>
+<tr><td>Kitchen</td><td>Department stock</td><td>Holds issued ingredients, prep output, and production stock.</td></tr>
+<tr><td>Pastry</td><td>Department stock</td><td>Holds pastry-specific ingredients and production stock.</td></tr>
+<tr><td>Front Counter / Front House</td><td>Sales outlet</td><td>Receives finished goods or sellable items for counter depletion.</td></tr>
+<tr><td>Bar</td><td>Department stock or sales outlet</td><td>Use if bar operates separate stock control.</td></tr>
+</table>
+<p>For QSR or counter-service operations, front counter should exist as a sales outlet. Finished products that are sold from counter should be available at the sales outlet or transferred there through a requisition/acceptance workflow.</p>
+
+<h3>Kitchen To Front-House Transfer Discipline</h3>
+<ol>
+<li>Kitchen creates or converts a production plan into a requisition.</li>
+<li>Kitchen edits the list, removing items not required and adding missing SKUs.</li>
+<li>The issuing location is selected, for example Kitchen or Main Store.</li>
+<li>The receiving location is selected, for example Front Counter.</li>
+<li>The issuing user dispatches the approved quantities.</li>
+<li>A different receiving user accepts or rejects the receipt.</li>
+<li>Stock movement posts only after acceptance.</li>
+</ol>
+<p>This gives management a clean audit trail: who requested, who issued, who received, what quantity moved, and when.</p>
+
+<h2>Phase 3: User Roles And Department Ownership</h2>
+<table>
+<tr><th>Role</th><th>Typical owner</th><th>Main responsibility</th></tr>
+<tr><td>Owner</td><td>Business owner</td><td>Final control, workspace ownership, exception review.</td></tr>
+<tr><td>Admin</td><td>Trusted administrator</td><td>Workspace setup and user support.</td></tr>
+<tr><td>Operations Manager</td><td>GM or restaurant manager</td><td>Daily operating discipline, day close, exceptions.</td></tr>
+<tr><td>Finance Manager</td><td>Cost controller or finance lead</td><td>Costs, margins, POS, variances, purchase price impact.</td></tr>
+<tr><td>Procurement Manager</td><td>Buyer or procurement lead</td><td>Supplier and purchase planning controls.</td></tr>
+<tr><td>Inventory Manager</td><td>Store control lead</td><td>Stock counts, store accuracy, receiving supervision.</td></tr>
+<tr><td>Storekeeper</td><td>Store user</td><td>Receipts, issues, store movement accuracy.</td></tr>
+<tr><td>Kitchen Manager</td><td>Kitchen lead</td><td>Production planning, kitchen requisitions, yield tests, kitchen waste.</td></tr>
+<tr><td>Chef</td><td>Kitchen user</td><td>Production entries, recipe execution, waste capture.</td></tr>
+<tr><td>Quality Assurance</td><td>QA or hygiene lead</td><td>Yield exceptions, supplier quality, process exceptions.</td></tr>
+<tr><td>Bar Manager</td><td>Bar lead</td><td>Bar stock, bar requisitions, bar waste.</td></tr>
+<tr><td>Bartender</td><td>Bar user</td><td>Bar activity and stock requests.</td></tr>
+<tr><td>Auditor</td><td>Internal reviewer</td><td>Read and review audit trail.</td></tr>
+<tr><td>Viewer</td><td>Passive user</td><td>Read-only access.</td></tr>
+</table>
+<p>Pastry and kitchen are user departments. If pastry operates separately, use a pastry department location and assign the relevant users to kitchen or department-facing roles based on how the work is controlled.</p>
+
+<h2>Phase 4: Raw Data Workbook Preparation</h2>
+<table>
+<tr><th>Tab</th><th>Required fields</th></tr>
+<tr><td>Locations</td><td>Location name, type, department, active status.</td></tr>
+<tr><td>Suppliers</td><td>Supplier name, contact details, payment terms if available.</td></tr>
+<tr><td>Raw SKUs</td><td>SKU name, category, base UOM, recipe UOM, purchase UOM, conversion, current cost, opening quantity, location.</td></tr>
+<tr><td>High-value SKUs</td><td>SKU name, yield percentage, test frequency, perishability, protein/perishable flag.</td></tr>
+<tr><td>Recipes</td><td>Recipe name, recipe type, batch output, yield, selling item flag.</td></tr>
+<tr><td>Recipe Components</td><td>Parent recipe, component SKU or sub-recipe, quantity, UOM.</td></tr>
+<tr><td>Menu Items</td><td>Menu item name, recipe link, selling price, sales outlet.</td></tr>
+<tr><td>POS Mappings</td><td>POS item code/name, menu item or recipe link.</td></tr>
+<tr><td>Opening Stock</td><td>SKU, location, quantity, unit cost, count date.</td></tr>
+<tr><td>Users</td><td>Name, email, role, department.</td></tr>
+</table>
+<ul>
+<li>Do not import duplicate SKUs with slightly different spelling.</li>
+<li>Use one base unit per SKU.</li>
+<li>Record yield as a decimal percentage, for example 0.85 for 85 percent.</li>
+<li>Separate raw ingredients, sub-recipes, manufactured finished goods, and final menu items.</li>
+<li>Map every POS item that should deplete stock.</li>
+</ul>
+
+<h2>Phase 5: Inventory And Purchasing Workflow</h2>
+<ol>
+<li>Procurement or management creates the purchase order.</li>
+<li>Store or inventory confirms received quantities.</li>
+<li>The PO creator should not confirm receipt.</li>
+<li>Partial delivery requires a short supply reason.</li>
+<li>Received quantity updates on-hand stock.</li>
+<li>Landed cost updates weighted average cost.</li>
+<li>Cost changes trigger recipe cost cascade reporting.</li>
+</ol>
+<p>Stock movement and transformation events should not be edited or deleted after posting. If a mistake is made, create a correcting adjustment or reversal workflow instead of mutating history.</p>
+
+<h2>Phase 6: Requisitions, Issues, And Acceptance</h2>
+<table>
+<tr><th>Step</th><th>Responsible user</th><th>Control</th></tr>
+<tr><td>Request</td><td>Department user or kitchen manager</td><td>States item, source, destination, quantity, and reason.</td></tr>
+<tr><td>Issue</td><td>Store, kitchen, or authorized issuer</td><td>Confirms actual issued quantity.</td></tr>
+<tr><td>Acceptance</td><td>Receiving department user</td><td>Accepts or rejects the receipt.</td></tr>
+<tr><td>Posting</td><td>System</td><td>Posts stock movement after acceptance.</td></tr>
+</table>
+<p>Kitchen-to-front-house transfers should follow this model. It prevents informal handoff, missing stock, and blame shifting at the end of the day.</p>
+
+<h2>Phase 7: Production Planning And Kitchen Requisition</h2>
+<ul>
+<li>Convert a production plan into a requisition.</li>
+<li>Choose whether to request full required quantity or shortage only.</li>
+<li>Add SKUs that are missing from the generated list.</li>
+<li>Remove SKUs that are not required today.</li>
+<li>Select issuing and receiving locations.</li>
+<li>Submit for the normal issue and acceptance workflow.</li>
+</ul>
+
+<h2>Phase 8: Yield Tests And Cost Impact</h2>
+<ol>
+<li>Record starting weight.</li>
+<li>Record usable weight.</li>
+<li>System calculates measured yield.</li>
+<li>If measured yield is below the current master yield, the test is flagged.</li>
+<li>The master yield updates using the rolling average of the latest tests.</li>
+<li>Recipe costs cascade through sub-recipes and final menu items.</li>
+<li>Management receives visibility on impacted recipes, SKUs, and declared impact.</li>
+</ol>
+<p>Yield loss already built into master yield should not also be recorded as prep waste. True waste should be classified as spoilage, damaged, expired, overproduction, or another real operating loss.</p>
+
+<h2>Phase 9: Waste, Variance, And Exceptions</h2>
+<table>
+<tr><th>Waste type</th><th>Meaning</th></tr>
+<tr><td>Spoilage</td><td>Item became unusable before production or sale.</td></tr>
+<tr><td>Damaged</td><td>Item was physically damaged.</td></tr>
+<tr><td>Expired</td><td>Item passed safe or approved use period.</td></tr>
+<tr><td>Overproduction</td><td>Prepared more than could be sold or used.</td></tr>
+<tr><td>Process exception</td><td>Operational mistake requiring management review.</td></tr>
+</table>
+<p>Every waste event should capture item, quantity, unit cost, location, reason, stage, notes where needed, and user.</p>
+
+<h2>Phase 10: Daily Checklist And Operating Discipline</h2>
+<table>
+<tr><th>Department</th><th>Typical owner</th><th>Example register</th></tr>
+<tr><td>Inventory</td><td>Storekeeper or inventory manager</td><td>Receiving, stock issue, stock count exceptions.</td></tr>
+<tr><td>Kitchen</td><td>Kitchen manager or chef</td><td>Production, yield tests, kitchen waste, kitchen requisitions.</td></tr>
+<tr><td>Pastry</td><td>Kitchen/pastry lead</td><td>Pastry production and pastry waste.</td></tr>
+<tr><td>Front House</td><td>Operations manager or front-house lead</td><td>Sales outlet readiness, transfer acceptance, POS issues.</td></tr>
+<tr><td>Finance</td><td>Finance manager</td><td>Sales import, POS mapping, margin exceptions.</td></tr>
+<tr><td>Procurement</td><td>Procurement manager</td><td>Supplier price movement and PO exceptions.</td></tr>
+<tr><td>Management</td><td>Owner or operations manager</td><td>Day close and exception review.</td></tr>
+</table>
+<p>Users should only declare registers they own, unless they are owner, admin, manager, or operations manager.</p>
+
+<h3>Daily Close Minimum Standard</h3>
+<ul>
+<li>Purchase receipts are confirmed or flagged.</li>
+<li>Open requisitions are issued, accepted, rejected, or escalated.</li>
+<li>Kitchen production is recorded.</li>
+<li>Kitchen-to-front-house transfers are acknowledged.</li>
+<li>Waste is recorded.</li>
+<li>POS sales are imported or sales capture is marked as pending with reason.</li>
+<li>Stock count exceptions are reviewed.</li>
+<li>Yield exceptions are acknowledged.</li>
+<li>Management attention list is reviewed.</li>
+</ul>
+
+<h2>Phase 11: Front-House And POS Discipline</h2>
+<ul>
+<li>Every sellable item should map to a recipe, finished SKU, or depletion rule.</li>
+<li>Front counter stock should receive transfers through accepted requisitions.</li>
+<li>POS imports should use the correct business date.</li>
+<li>Voids, promos, discounts, and unmapped sales should be reviewed by finance or management.</li>
+<li>Sales depletion should affect the correct sales outlet.</li>
+</ul>
+
+<h2>Phase 12: Management Review Rhythm</h2>
+<h3>Daily</h3>
+<ul>
+<li>Review open exceptions.</li>
+<li>Confirm daily registers.</li>
+<li>Check unaccepted transfers.</li>
+<li>Check waste entries.</li>
+<li>Check production versus plan.</li>
+<li>Check POS import status.</li>
+</ul>
+<h3>Weekly</h3>
+<ul>
+<li>Review food cost movement.</li>
+<li>Review top waste items.</li>
+<li>Review yield-test exceptions.</li>
+<li>Review supplier price increases.</li>
+<li>Review stock count variance.</li>
+<li>Review slow-moving or high-risk inventory.</li>
+</ul>
+<h3>Monthly</h3>
+<ul>
+<li>Review menu margin.</li>
+<li>Review recipe cost updates.</li>
+<li>Review role access.</li>
+<li>Review audit trail completeness.</li>
+<li>Review operating discipline by department.</li>
+</ul>
+
+<h2>Go-Live Readiness Checklist</h2>
+<table>
+<tr><th>Check</th><th>Ready when</th></tr>
+<tr><td>Owner login</td><td>Owner can log in and manage the correct workspace.</td></tr>
+<tr><td>Roles</td><td>Each user has the correct role and department.</td></tr>
+<tr><td>Locations</td><td>Main store, kitchen, pastry if needed, front house, and sales outlet exist.</td></tr>
+<tr><td>SKUs</td><td>Raw SKUs and opening stock are clean.</td></tr>
+<tr><td>Recipes</td><td>Core recipes and sub-recipes calculate costs.</td></tr>
+<tr><td>POS</td><td>Major selling items are mapped.</td></tr>
+<tr><td>Purchasing</td><td>A test PO can be received independently.</td></tr>
+<tr><td>Requisition</td><td>Store-to-kitchen and kitchen-to-front-house transfers can be requested, issued, and accepted.</td></tr>
+<tr><td>Production</td><td>A production plan can become an editable requisition.</td></tr>
+<tr><td>Waste</td><td>Waste can be recorded and reported.</td></tr>
+<tr><td>Yield</td><td>High-value SKU yield test can be submitted and flagged if below master.</td></tr>
+<tr><td>Day close</td><td>Management can review the daily checklist and exceptions.</td></tr>
+</table>
+
+<h2>First Week Operating Plan</h2>
+<h3>Day 1</h3>
+<ul>
+<li>Confirm users and roles.</li>
+<li>Confirm locations.</li>
+<li>Import opening stock.</li>
+<li>Test one purchase receipt.</li>
+<li>Test one requisition from store to kitchen.</li>
+</ul>
+<h3>Day 2</h3>
+<ul>
+<li>Test production planning.</li>
+<li>Convert production plan to requisition.</li>
+<li>Transfer one finished item from kitchen to front house.</li>
+<li>Receiver accepts the transfer.</li>
+</ul>
+<h3>Day 3</h3>
+<ul>
+<li>Import or enter POS sales.</li>
+<li>Confirm depletion behavior.</li>
+<li>Record one waste event.</li>
+<li>Submit one yield test for a high-value SKU.</li>
+</ul>
+<h3>Day 4</h3>
+<ul>
+<li>Run daily close.</li>
+<li>Review exceptions.</li>
+<li>Correct master data gaps.</li>
+</ul>
+<h3>Day 5</h3>
+<ul>
+<li>Management reviews food cost, transfer discipline, waste, and open actions.</li>
+<li>Decide whether the restaurant can operate live without parallel manual sheets.</li>
+</ul>
+
+<h2>Success Principle</h2>
+<p>ProfitPlate should not make the team feel policed. It should make the right operating habit the easiest habit. The system works when users can quickly do the real work, management sees exceptions early, and the audit trail explains what happened without argument.</p>
+</body>
+</html>
