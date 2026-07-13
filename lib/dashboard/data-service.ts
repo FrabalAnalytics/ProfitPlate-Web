@@ -86,6 +86,7 @@ export type SystemSettings = {
   organization_id: string;
   system_status: "implementation_mode" | "live_operations";
   sales_capture_mode: SalesCaptureMode;
+  target_menu_margin_pct: number;
   created_at: string;
   updated_at: string;
 };
@@ -595,20 +596,38 @@ export async function loadApprovalRequests(organizationId: string) {
     target_organization_id: organizationId,
   });
 
-  const { data, error } = await supabase
+  const selectClause =
+    "id, organization_id, request_type, status, payload, requested_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, created_at";
+  const { data: pendingData, error: pendingError } = await supabase
     .from("approval_requests")
-    .select(
-      "id, organization_id, request_type, status, payload, requested_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, created_at",
-    )
+    .select(selectClause)
     .eq("organization_id", organizationId)
+    .in("status", ["pending", "accepted"])
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(100);
 
-  if (error) {
+  if (pendingError) {
     return [];
   }
 
-  const requests = (data ?? []) as ApprovalRequest[];
+  const { data: recentData } = await supabase
+    .from("approval_requests")
+    .select(selectClause)
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const requests = Array.from(
+    [...(pendingData ?? []), ...(recentData ?? [])]
+      .reduce((requestsById, request) => {
+        requestsById.set(request.id, request as ApprovalRequest);
+        return requestsById;
+      }, new Map<string, ApprovalRequest>())
+      .values(),
+  ).sort(
+    (leftRequest, rightRequest) =>
+      new Date(rightRequest.created_at).getTime() -
+      new Date(leftRequest.created_at).getTime(),
+  );
   const requestIds = requests
     .filter((request) => request.request_type === "inventory_requisition")
     .map((request) => request.id);
@@ -694,7 +713,7 @@ export async function loadSystemSettings(organizationId: string) {
   const { data, error } = await supabase
     .from("system_settings")
     .select(
-      "organization_id, system_status, sales_capture_mode, created_at, updated_at",
+      "organization_id, system_status, sales_capture_mode, target_menu_margin_pct, created_at, updated_at",
     )
     .eq("organization_id", organizationId)
     .maybeSingle();
@@ -704,6 +723,7 @@ export async function loadSystemSettings(organizationId: string) {
       organization_id: organizationId,
       system_status: "implementation_mode",
       sales_capture_mode: "pos_import",
+      target_menu_margin_pct: 65,
       created_at: "",
       updated_at: "",
     } satisfies SystemSettings;
@@ -714,6 +734,7 @@ export async function loadSystemSettings(organizationId: string) {
       organization_id: organizationId,
       system_status: "implementation_mode",
       sales_capture_mode: "pos_import",
+      target_menu_margin_pct: 65,
       created_at: "",
       updated_at: "",
     }

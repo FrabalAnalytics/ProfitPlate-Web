@@ -357,15 +357,19 @@ function downloadCsvReport(
     return;
   }
 
+  const exportRows =
+    rows.length > 0
+      ? rows
+      : [{ message: "No rows available for the selected filters." }];
   const headers = Array.from(
-    rows.reduce((headerSet, row) => {
+    exportRows.reduce((headerSet, row) => {
       Object.keys(row).forEach((key) => headerSet.add(key));
       return headerSet;
     }, new Set<string>()),
   );
   const csvRows = [
     headers.map(escapeCsvValue).join(","),
-    ...rows.map((row) =>
+    ...exportRows.map((row) =>
       headers.map((header) => escapeCsvValue(row[header])).join(","),
     ),
   ];
@@ -1359,7 +1363,7 @@ export default function DashboardPage() {
     );
 
     if (!targetLocationId) {
-      setMessage("Select the main store or warehouse for this adjustment.");
+      setMessage("Select the storage location for this adjustment.");
       return;
     }
 
@@ -1368,7 +1372,7 @@ export default function DashboardPage() {
       extractUuid(selectedItem.location_id) !== targetLocationId ||
       !Number.isFinite(quantity)
     ) {
-      setMessage("Choose an item in the selected store and enter a valid stock quantity.");
+      setMessage("Choose an item in the selected storage location and enter a valid stock quantity.");
       return;
     }
 
@@ -1490,7 +1494,7 @@ export default function DashboardPage() {
         receivingLocation.location_type,
       )
     ) {
-      setMessage("Select a main store or warehouse as the receiving location.");
+      setMessage("Select a main storage location or warehouse as the receiving location.");
       return false;
     }
 
@@ -1879,7 +1883,7 @@ export default function DashboardPage() {
     }
 
     if (!targetLocationId) {
-      setMessage("Select the main store or warehouse being counted.");
+      setMessage("Select the storage location being counted.");
       return false;
     }
 
@@ -1927,7 +1931,7 @@ export default function DashboardPage() {
         return extractUuid(item?.location_id) !== targetLocationId;
       })
     ) {
-      setMessage("Every stock count line must belong to the selected store.");
+      setMessage("Every stock count line must belong to the selected storage location.");
       return false;
     }
 
@@ -3176,6 +3180,7 @@ export default function DashboardPage() {
           approvalRequests={approvalRequests}
           operationRegisterEntries={operationRegisterEntries}
           operatingDays={operatingDays}
+          systemSettings={systemSettings}
           salesCaptureMode={salesCaptureMode}
           posSalesItemMappings={posSalesItemMappings}
           yieldTestEntries={yieldTestEntries}
@@ -3273,6 +3278,7 @@ function WorkspaceDashboard({
   approvalRequests,
   operationRegisterEntries,
   operatingDays,
+  systemSettings,
   salesCaptureMode,
   posSalesItemMappings,
   yieldTestEntries,
@@ -3343,6 +3349,7 @@ function WorkspaceDashboard({
   approvalRequests: ApprovalRequest[];
   operationRegisterEntries: OperationRegisterEntry[];
   operatingDays: OperatingDay[];
+  systemSettings: SystemSettings | null;
   salesCaptureMode: SalesCaptureMode;
   posSalesItemMappings: PosSalesItemMapping[];
   yieldTestEntries: YieldTestEntry[];
@@ -4133,8 +4140,7 @@ function WorkspaceDashboard({
       (row) =>
         row.movementCount > 0 ||
         Math.abs(Number(row.item.on_hand_qty ?? 0)) > 0.0001,
-    )
-    .slice(0, 14);
+    );
   const selectedMovementItem =
     selectedMovementInventoryItemId &&
     activeInventoryItemsById.get(extractUuid(selectedMovementInventoryItemId));
@@ -5046,7 +5052,10 @@ function WorkspaceDashboard({
       };
     })
     .sort((leftItem, rightItem) => rightItem.grossProfit - leftItem.grossProfit);
-  const targetMenuMarginPct = 65;
+  const targetMenuMarginPct = Math.min(
+    Math.max(Number(systemSettings?.target_menu_margin_pct ?? 65), 0),
+    100,
+  );
   const targetMenuFoodCostPct = 100 - targetMenuMarginPct;
   const menuPricingGuardrails = activeFinalMenuItems
     .map((recipe) => {
@@ -6136,6 +6145,45 @@ function WorkspaceDashboard({
     financial_impact: row.hard_currency_impact,
     uom: row.uom ?? "",
   }));
+  const stockMovementReportSource = reportRangeActive
+    ? allStockMovementLedger
+    : stockMovementLedger;
+  const stockMovementReportRows = stockMovementReportSource
+    .filter((movement) =>
+      activeInventoryItemsById.has(extractUuid(movement.inventory_item_id)),
+    )
+    .map((movement) => ({
+      recorded_at: movement.created_at,
+      item: movement.item_name,
+      sku: movement.sku ?? "",
+      location: movement.location_name,
+      event_type: formatMovementType(movement.event_type),
+      movement_qty: movement.movement_qty,
+      unit_cost: movement.unit_cost,
+      movement_value: movement.movement_value,
+      source_table: movement.source_table ?? "",
+      source_id: movement.source_id ?? "",
+    }));
+  const stockMovementSummaryReportRows = stockMovementSummaryRows.map((row) => {
+    const location = activeLocations.find(
+      (candidate) =>
+        extractUuid(candidate.id) === extractUuid(row.item.location_id),
+    );
+
+    return {
+      period: reportDateLabel,
+      item: row.item.name ?? "Unnamed item",
+      sku: row.item.sku ?? "",
+      location: location?.name ?? "Unassigned",
+      opening_qty: row.openingQty,
+      inflow_qty: row.inflowQty,
+      outflow_qty: row.outflowQty,
+      closing_qty: row.closingQty,
+      movement_count: row.movementCount,
+      movement_value: row.movementValue,
+      uom: row.item.on_hand_uom ?? row.item.base_uom ?? "",
+    };
+  });
   const wasteReportRows = wasteReportSource.map((row) => ({
     recorded_at: row.created_at,
     item: row.ingredient_name,
@@ -6155,6 +6203,45 @@ function WorkspaceDashboard({
     food_cost: sale.foodCost,
     gross_profit: sale.gross_profit,
     gross_margin_pct: sale.gross_margin_pct ?? "",
+  }));
+  const approvalReportRows = approvalRequests.map((request) => {
+    const payload = request.payload ?? {};
+    const lines = Array.isArray(payload.lines) ? payload.lines : [];
+
+    return {
+      created_at: request.created_at,
+      request_type: request.request_type,
+      status: request.status,
+      requested_by: request.requested_by ?? "",
+      approved_by: request.approved_by ?? "",
+      approved_at: request.approved_at ?? "",
+      rejected_at: request.rejected_at ?? "",
+      target_location_id: String(payload.target_location_id ?? ""),
+      adjustment_type: String(payload.adjustment_type ?? ""),
+      line_count: lines.length,
+      estimated_impact: lines.reduce(
+        (total, line) =>
+          total +
+          Number(
+            line && typeof line === "object"
+              ? (line as Record<string, unknown>).estimated_margin_impact
+              : 0,
+          ),
+        0,
+      ),
+      payload: JSON.stringify(payload),
+    };
+  });
+  const marginTrendReportRows = financialTrendPoints.map((point) => ({
+    period: point.dateKey,
+    revenue: point.revenue,
+    gross_profit: point.grossProfit,
+    target_margin_pct: targetMenuMarginPct,
+    margin_loss: point.marginLoss,
+    margin_recovery: point.marginRecovery,
+    waste: point.waste,
+    price_impact: point.priceImpact,
+    stock_variance: point.stockVariance,
   }));
   const openPurchaseOrderCount = purchaseOrders.filter(
     (order) => order.status !== "completed",
@@ -7586,7 +7673,7 @@ function WorkspaceDashboard({
               : "Next inventory action",
             title: "Review open purchase orders",
             detail:
-              "Confirm receipts only after goods are physically checked into the selected store.",
+              "Confirm receipts only after goods are physically checked into the selected storage location.",
             cta: "Open purchase orders",
             sectionId: "purchase-orders",
             tone: "attention" as const,
@@ -9144,6 +9231,12 @@ function WorkspaceDashboard({
       dateScoped: false,
     },
     {
+      label: "Margin trend",
+      filename: `margin-trend-${reportDateLabel}.csv`,
+      rows: marginTrendReportRows,
+      dateScoped: true,
+    },
+    {
       label: "Inventory by location",
       filename: `inventory-by-location-${reportDateLabel}.csv`,
       rows: inventoryReportRows,
@@ -9159,6 +9252,18 @@ function WorkspaceDashboard({
       label: "Stock variance",
       filename: `stock-variance-${reportDateLabel}.csv`,
       rows: stockVarianceReportRows,
+      dateScoped: true,
+    },
+    {
+      label: "Stock movement summary",
+      filename: `stock-movement-summary-${reportDateLabel}.csv`,
+      rows: stockMovementSummaryReportRows,
+      dateScoped: false,
+    },
+    {
+      label: "Stock movement ledger",
+      filename: `stock-movement-ledger-${reportDateLabel}.csv`,
+      rows: stockMovementReportRows,
       dateScoped: true,
     },
     {
@@ -9191,6 +9296,12 @@ function WorkspaceDashboard({
       rows: goodsReceiptReportRows,
       dateScoped: true,
     },
+    {
+      label: "Approval queue",
+      filename: `approval-queue-${reportDateLabel}.csv`,
+      rows: approvalReportRows,
+      dateScoped: true,
+    },
   ];
   const visibleExportReportOptions = isInventoryFocus
     ? exportReportOptions.filter((option) =>
@@ -9199,7 +9310,10 @@ function WorkspaceDashboard({
           "Inventory by location",
           "Production variance",
           "Stock variance",
+          "Stock movement summary",
+          "Stock movement ledger",
           "Stock adjustments",
+          "Approval queue",
           "Waste",
           "Purchase orders",
           "Goods received notes",
@@ -14108,9 +14222,19 @@ function WorkspaceDashboard({
             {stockMovementSummaryRows.length > 0 ? (
               <>
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+                  <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-sm">
+                    <colgroup>
+                      <col className="w-[245px]" />
+                      <col className="w-[180px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[120px]" />
+                    </colgroup>
                     <thead className="border-b border-border-system bg-card">
-                      <tr className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      <tr className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                         <th className="px-4 py-3">SKU</th>
                         <th className="px-4 py-3">Location</th>
                         <th className="px-4 py-3 text-right">Opening</th>
@@ -14143,49 +14267,49 @@ function WorkspaceDashboard({
                                 : "bg-background"
                             }`}
                           >
-                            <td className="px-4 py-3">
-                              <p className="font-semibold text-foreground">
+                            <td className="px-4 py-3 align-top">
+                              <p className="truncate font-semibold text-foreground">
                                 {row.item.name}
                               </p>
-                              <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                              <p className="mt-1 truncate font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                                 {row.item.sku || "No SKU"} / {uom}
                               </p>
                             </td>
-                            <td className="px-4 py-3 text-text-muted">
+                            <td className="px-4 py-3 align-top text-text-muted">
                               {location?.name ?? "Unassigned"}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono font-semibold text-foreground">
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-foreground">
                               {row.openingQty.toLocaleString(undefined, {
                                 maximumFractionDigits: 3,
                               })}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono font-semibold text-accent">
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-accent">
                               {row.inflowQty.toLocaleString(undefined, {
                                 maximumFractionDigits: 3,
                               })}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono font-semibold text-status-critical-text">
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-status-critical-text">
                               {row.outflowQty.toLocaleString(undefined, {
                                 maximumFractionDigits: 3,
                               })}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono font-semibold text-foreground">
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-foreground">
                               {row.closingQty.toLocaleString(undefined, {
                                 maximumFractionDigits: 3,
                               })}
                             </td>
-                            <td className="px-4 py-3 text-right font-mono font-semibold text-text-muted">
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
                               {formatSignedCurrency(row.movementValue)}
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top">
                               <button
                                 type="button"
                                 onClick={() =>
                                   setSelectedMovementInventoryItemId(row.itemId)
                                 }
-                                className={compactActionButtonClass}
+                                className="h-9 rounded-sm border border-border-system bg-card px-3 text-[11px] font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
                               >
-                                Audit trail
+                                Audit
                               </button>
                             </td>
                           </tr>
@@ -15300,7 +15424,7 @@ function WorkspaceDashboard({
                           }`
                         : `${purchaseReceivingIngredients.length.toLocaleString()} SKU${
                             purchaseReceivingIngredients.length === 1 ? "" : "s"
-                          } in selected store`}
+                          } in selected location`}
                     </p>
                   </div>
                   <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -16039,7 +16163,7 @@ function WorkspaceDashboard({
             >
               <option value="">
                 {stockControlLocationId
-                  ? "Item in selected store"
+                  ? "Item in selected location"
                   : "Select a target store first"}
               </option>
               {stockControlInventoryItems.map((item) => (
@@ -16247,7 +16371,7 @@ function WorkspaceDashboard({
                       >
                         <option value="">
                           {stockControlLocationId
-                            ? "Item in selected store"
+                            ? "Item in selected location"
                             : "Select a target store first"}
                         </option>
                         {stockControlInventoryItems.map((item) => (
