@@ -34,8 +34,56 @@ export type SalesImportPreviewRow = {
   error: string | null;
 };
 
+export type PosItemMasterPreviewRow = {
+  id: string;
+  rowNumber: number;
+  posItemLabel: string;
+  posItemCode: string;
+  posItemKey: string;
+  recipeId: string;
+  matchedRecipeName: string;
+  matchSource: "name" | "mapping" | null;
+  status: "mapped" | "needs_mapping" | "invalid";
+  error: string | null;
+};
+
 const uuidPattern =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+const menuHeaderKeys = new Set([
+  "menuitem",
+  "item",
+  "itemname",
+  "recipe",
+  "recipename",
+  "product",
+  "productname",
+  "description",
+  "itemdescription",
+  "menuname",
+  "dish",
+  "dishname",
+  "name",
+  "posname",
+  "positem",
+  "positemname",
+  "positemlabel",
+  "itemlabel",
+]);
+
+const codeHeaderKeys = new Set([
+  "code",
+  "itemcode",
+  "productcode",
+  "sku",
+  "plu",
+  "barcode",
+  "posid",
+  "positemid",
+  "itemid",
+  "poscode",
+  "positemcode",
+]);
 
 function getRecipeId(recipe: PosImportRecipe) {
   return String(recipe.id).match(uuidPattern)?.[0] ?? recipe.id;
@@ -193,6 +241,104 @@ function parseDelimitedRows(input: string) {
   return rows;
 }
 
+export function buildPosItemMasterPreview(
+  input: string,
+  activeFinalMenuItems: PosImportRecipe[],
+  posSalesItemMappings: PosImportMapping[],
+): PosItemMasterPreviewRow[] {
+  const parsedRows = parseDelimitedRows(input);
+
+  if (parsedRows.length === 0) {
+    return [];
+  }
+
+  const firstRowKeys = parsedRows[0].map(normalizeImportKey);
+  const menuColumnIndex = firstRowKeys.findIndex((key) =>
+    menuHeaderKeys.has(key),
+  );
+  const codeColumnIndex = firstRowKeys.findIndex((key) =>
+    codeHeaderKeys.has(key),
+  );
+  const hasHeader = menuColumnIndex >= 0 || codeColumnIndex >= 0;
+  const dataRows = hasHeader ? parsedRows.slice(1) : parsedRows;
+  const fallbackLabelIndex =
+    menuColumnIndex >= 0 ? menuColumnIndex : codeColumnIndex === 0 ? 1 : 0;
+  const fallbackCodeIndex =
+    codeColumnIndex >= 0 ? codeColumnIndex : fallbackLabelIndex === 0 ? 1 : -1;
+
+  const mappingsByPosKey = new Map(
+    posSalesItemMappings.map((mapping) => [
+      normalizeImportKey(mapping.pos_item_key),
+      mapping,
+    ]),
+  );
+  const recipesByName = new Map(
+    activeFinalMenuItems.map((recipe) => [
+      normalizeImportKey(recipe.name),
+      recipe,
+    ]),
+  );
+  const recipesById = new Map(
+    activeFinalMenuItems.map((recipe) => [getRecipeId(recipe), recipe]),
+  );
+  const seenKeys = new Set<string>();
+
+  return dataRows
+    .map((row, index) => {
+      const rawLabel = String(row[fallbackLabelIndex] ?? "").trim();
+      const rawCode =
+        fallbackCodeIndex >= 0 ? String(row[fallbackCodeIndex] ?? "").trim() : "";
+      const posItemKey = buildPosItemKey(rawLabel, rawCode);
+      const posItemLabel = rawLabel || rawCode;
+      const existingMapping = mappingsByPosKey.get(posItemKey);
+      const nameMatchedRecipe = recipesByName.get(normalizeImportKey(rawLabel));
+      const mappedRecipe =
+        (existingMapping?.recipe_id
+          ? recipesById.get(getRecipeId({ id: existingMapping.recipe_id, name: "" }))
+          : undefined) ?? nameMatchedRecipe;
+      const recipeId =
+        getRecipeId(mappedRecipe ?? { id: existingMapping?.recipe_id ?? "", name: "" });
+      const matchedRecipeName =
+        mappedRecipe?.name ?? (existingMapping ? "Saved mapping" : "");
+      const matchSource = existingMapping
+        ? ("mapping" as const)
+        : nameMatchedRecipe
+          ? ("name" as const)
+          : null;
+      const error = !posItemKey ? "Missing POS item name or code" : null;
+      const status = error
+        ? ("invalid" as const)
+        : recipeId
+          ? ("mapped" as const)
+          : ("needs_mapping" as const);
+
+      return {
+        id: `pos-master-${index + 1}-${posItemKey || "blank"}`,
+        rowNumber: hasHeader ? index + 2 : index + 1,
+        posItemLabel,
+        posItemCode: rawCode,
+        posItemKey,
+        recipeId,
+        matchedRecipeName,
+        matchSource,
+        status,
+        error,
+      };
+    })
+    .filter((row) => {
+      if (!row.posItemKey) {
+        return true;
+      }
+
+      if (seenKeys.has(row.posItemKey)) {
+        return false;
+      }
+
+      seenKeys.add(row.posItemKey);
+      return true;
+    });
+}
+
 export function buildSalesImportPreview(
   input: string,
   activeFinalMenuItems: PosImportRecipe[],
@@ -204,32 +350,6 @@ export function buildSalesImportPreview(
     return [];
   }
 
-  const menuHeaderKeys = new Set([
-    "menuitem",
-    "item",
-    "itemname",
-    "recipe",
-    "recipename",
-    "product",
-    "productname",
-    "description",
-    "itemdescription",
-    "menuname",
-    "dish",
-    "dishname",
-    "name",
-  ]);
-  const codeHeaderKeys = new Set([
-    "code",
-    "itemcode",
-    "productcode",
-    "sku",
-    "plu",
-    "barcode",
-    "posid",
-    "positemid",
-    "itemid",
-  ]);
   const quantityHeaderKeys = new Set([
     "quantity",
     "qty",

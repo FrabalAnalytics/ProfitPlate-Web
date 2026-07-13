@@ -80,8 +80,10 @@ import {
   WorkspaceOnboarding,
 } from "@/components/dashboard/workspace-screens";
 import {
+  buildPosItemMasterPreview,
   buildPosItemKey,
   buildSalesImportPreview,
+  type PosItemMasterPreviewRow,
   type SalesImportPreviewRow,
 } from "@/lib/dashboard/pos-import";
 import {
@@ -3475,6 +3477,7 @@ function WorkspaceDashboard({
   const [selectedSaleRecipeId, setSelectedSaleRecipeId] = useState("");
   const [selectedSaleLocationId, setSelectedSaleLocationId] = useState("");
   const [saleQuantity, setSaleQuantity] = useState("");
+  const [posMappingText, setPosMappingText] = useState("");
   const [salesImportText, setSalesImportText] = useState("");
   const [showSalesTable, setShowSalesTable] = useState(true);
   const [showDepletionTable, setShowDepletionTable] = useState(false);
@@ -3743,6 +3746,22 @@ function WorkspaceDashboard({
       ),
     [salesImportText, activeFinalMenuItems, posSalesItemMappings],
   );
+  const posMappingPreview = useMemo(
+    () =>
+      buildPosItemMasterPreview(
+        posMappingText,
+        activeFinalMenuItems,
+        posSalesItemMappings,
+      ),
+    [posMappingText, activeFinalMenuItems, posSalesItemMappings],
+  );
+  const posMappingRowsNeedingWork = posMappingPreview.filter(
+    (row) => row.status === "needs_mapping" || row.status === "invalid",
+  );
+  const mappedPosMappingRows = posMappingPreview.filter(
+    (row) => row.status === "mapped",
+  );
+  const savedPosMappingCount = posSalesItemMappings.length;
   const validSalesImportRows = salesImportPreview.filter((row) => !row.error);
   const invalidSalesImportRows = salesImportPreview.length - validSalesImportRows.length;
   const verifiedSalesImportDates = Array.from(
@@ -6190,6 +6209,19 @@ function WorkspaceDashboard({
     price_gap: Math.max(item.priceGap, 0),
     status: item.status,
   }));
+  const posMappingReportRows = posSalesItemMappings.map((mapping) => {
+    const mappedRecipe = activeRecipesById.get(extractUuid(mapping.recipe_id));
+
+    return {
+      pos_item_label: mapping.pos_item_label,
+      pos_item_code: mapping.pos_item_code ?? "",
+      pos_item_key: mapping.pos_item_key,
+      mapped_menu_item: mappedRecipe?.name ?? "Missing menu item",
+      mapping_status: mappedRecipe ? "active" : "needs review",
+      created_at: mapping.created_at,
+      updated_at: mapping.updated_at,
+    };
+  });
   const productionReportSource = reportRangeActive
     ? allProductionHistory
     : productionHistory;
@@ -8942,6 +8974,23 @@ function WorkspaceDashboard({
             !isRole("procurement_manager"),
         },
         {
+          href: "#pos-mapping",
+          label: "POS Mapping",
+          badge:
+            posMappingRowsNeedingWork.length > 0
+              ? `${posMappingRowsNeedingWork.length.toLocaleString()} gaps`
+              : savedPosMappingCount > 0
+                ? `${savedPosMappingCount.toLocaleString()} mapped`
+                : "Setup",
+          tone:
+            posMappingRowsNeedingWork.length > 0
+              ? "warning"
+              : savedPosMappingCount > 0
+                ? "healthy"
+                : "setup",
+          visible: showFinancialSection && !isRole("procurement_manager"),
+        },
+        {
           href: "#sales-pos",
           label: "Sales & POS",
           badge:
@@ -9376,6 +9425,12 @@ function WorkspaceDashboard({
       dateScoped: false,
     },
     {
+      label: "POS menu mappings",
+      filename: `pos-menu-mappings-${reportDateLabel}.csv`,
+      rows: posMappingReportRows,
+      dateScoped: false,
+    },
+    {
       label: "Inventory by location",
       filename: `inventory-by-location-${reportDateLabel}.csv`,
       rows: inventoryReportRows,
@@ -9783,6 +9838,19 @@ function WorkspaceDashboard({
     event.target.value = "";
   }
 
+  async function handlePosMappingFileChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setPosMappingText(await file.text());
+    event.target.value = "";
+  }
+
   async function handleSalesImportSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -9800,6 +9868,18 @@ function WorkspaceDashboard({
     await onUpsertPosSalesItemMapping({
       posItemKey: row.posItemKey,
       posItemLabel: row.menuItem,
+      posItemCode: row.posItemCode,
+      recipeId,
+    });
+  }
+
+  async function handlePosMasterMappingChange(
+    row: PosItemMasterPreviewRow,
+    recipeId: string,
+  ) {
+    await onUpsertPosSalesItemMapping({
+      posItemKey: row.posItemKey,
+      posItemLabel: row.posItemLabel,
       posItemCode: row.posItemCode,
       recipeId,
     });
@@ -18663,6 +18743,365 @@ function WorkspaceDashboard({
           ) : null}
         </form>
 
+      </section>
+
+      <section
+        id="pos-mapping"
+        className={`${showFinancialSection && isSectionActive("pos-mapping") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+              POS / Menu Mapping
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-foreground">
+              Link POS item names to ProfitPlate final menu items
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">
+              Upload the POS item master once during onboarding, map each POS
+              code or sales name to a final menu item, and future POS CSV imports
+              will match automatically. Any new POS name later appears as a
+              mapping gap before posting sales.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
+            <MetricPill
+              label="Saved mappings"
+              value={savedPosMappingCount.toLocaleString()}
+            />
+            <MetricPill
+              label="Rows loaded"
+              value={posMappingPreview.length.toLocaleString()}
+            />
+            <MetricPill
+              label="Mapped"
+              value={mappedPosMappingRows.length.toLocaleString()}
+            />
+            <MetricPill
+              label="Gaps"
+              value={posMappingRowsNeedingWork.length.toLocaleString()}
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="rounded-sm border border-status-info-border bg-status-info-bg p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-info-text">
+                  Onboarding input
+                </p>
+                <h4 className="mt-1 font-semibold text-foreground">
+                  POS item master list
+                </h4>
+              </div>
+              <label className={secondaryButtonClass}>
+                Upload CSV
+                <input
+                  type="file"
+                  accept=".csv,.txt,text/csv,text/plain"
+                  onChange={handlePosMappingFileChange}
+                  disabled={saleSaving}
+                  className="sr-only"
+                />
+              </label>
+            </div>
+            <textarea
+              value={posMappingText}
+              onChange={(event) => setPosMappingText(event.target.value)}
+              rows={9}
+              disabled={saleSaving}
+              placeholder={
+                "POS Code,POS Item Name\nTRIB3-SEA,Trib3 Seafood Pasta\nMARG-001,Margarita\nASUN-PEN,Asun Rosie Penne"
+              }
+              className="mt-4 min-h-52 w-full rounded-sm border border-status-info-border bg-card px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-text-ghost focus:border-accent focus:ring-2 focus:ring-accent/20"
+            />
+            <div className="mt-3 grid gap-2 text-xs leading-5 text-text-muted sm:grid-cols-3">
+              <p>
+                <span className="font-bold text-foreground">Code first.</span>{" "}
+                PLU/SKU/POS code becomes the stable key when present.
+              </p>
+              <p>
+                <span className="font-bold text-foreground">Name fallback.</span>{" "}
+                If no code exists, the POS item name is used.
+              </p>
+              <p>
+                <span className="font-bold text-foreground">One-time save.</span>{" "}
+                Saved mappings are reused by every later POS import.
+              </p>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setPosMappingText("")}
+                disabled={!posMappingText || saleSaving}
+                className={secondaryButtonClass}
+              >
+                Clear list
+              </button>
+              <button
+                type="button"
+                onClick={() => openDashboardSection("sales-pos")}
+                className={secondaryButtonClass}
+              >
+                Go to sales import
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-sm border border-border-system bg-background">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-system px-4 py-4">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Mapping queue
+                </p>
+                <h4 className="mt-1 font-semibold text-foreground">
+                  Resolve POS names before import
+                </h4>
+              </div>
+              <span
+                className={`${inlineSignalClass} ${
+                  posMappingRowsNeedingWork.length > 0
+                    ? inlineSignalToneStyles.attention
+                    : savedPosMappingCount > 0
+                      ? inlineSignalToneStyles.healthy
+                      : inlineSignalToneStyles.info
+                }`}
+              >
+                {posMappingRowsNeedingWork.length > 0
+                  ? `${posMappingRowsNeedingWork.length.toLocaleString()} need mapping`
+                  : savedPosMappingCount > 0
+                    ? "Ready"
+                    : "Awaiting list"}
+              </span>
+            </div>
+
+            {posMappingPreview.length > 0 ? (
+              <div>
+                <div className="grid max-h-[520px] gap-3 overflow-auto p-3 lg:hidden">
+                  {posMappingPreview.map((row) => (
+                    <article
+                      key={`mobile-pos-map-${row.id}`}
+                      className="rounded-sm border border-border-system bg-card p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            Row {row.rowNumber}
+                          </p>
+                          <p className="mt-1 font-semibold text-foreground">
+                            {row.posItemLabel || "Blank POS item"}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-text-ghost">
+                            Code: {row.posItemCode || "-"}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                            row.status === "mapped"
+                              ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                              : "border-status-warning-border bg-status-warning-bg text-status-warning-text"
+                          }`}
+                        >
+                          {row.status === "mapped" ? "Mapped" : "Gap"}
+                        </span>
+                      </div>
+                      <label className="mt-3 block">
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                          ProfitPlate menu item
+                        </span>
+                        <select
+                          value={row.recipeId}
+                          onChange={(event) =>
+                            handlePosMasterMappingChange(row, event.target.value)
+                          }
+                          disabled={saleSaving || !row.posItemKey}
+                          className="mt-2 h-10 w-full rounded-sm border border-border-system bg-background px-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label={`Map POS item ${row.posItemLabel || row.rowNumber} to final menu item`}
+                        >
+                          <option value="">Choose menu item</option>
+                          {activeFinalMenuItems.map((recipe) => (
+                            <option
+                              key={getRecipeId(recipe)}
+                              value={getRecipeId(recipe)}
+                            >
+                              {recipe.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="mt-2 text-xs leading-5 text-text-muted">
+                        {row.error ??
+                          (row.matchSource === "mapping"
+                            ? "Saved POS mapping found."
+                            : row.matchSource === "name"
+                              ? "Matched by menu item name."
+                              : "Choose a final menu item to save this mapping.")}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden max-h-[520px] overflow-auto lg:block">
+                  <table className="min-w-full divide-y divide-border-system text-sm">
+                    <thead className="bg-card">
+                      <tr>
+                        {[
+                          "Row",
+                          "POS item",
+                          "POS code",
+                          "POS key",
+                          "Maps to",
+                          "Status",
+                        ].map((header) => (
+                          <th
+                            key={header}
+                            className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-widest text-text-ghost"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-system">
+                      {posMappingPreview.map((row) => (
+                        <tr key={row.id} className="align-top">
+                          <td className="px-4 py-3 text-text-muted">
+                            {row.rowNumber}
+                          </td>
+                          <td className="max-w-[260px] px-4 py-3">
+                            <p className="font-semibold text-foreground">
+                              {row.posItemLabel || "Blank POS item"}
+                            </p>
+                            <p className="mt-1 text-xs text-text-muted">
+                              {row.matchSource === "mapping"
+                                ? "Saved mapping"
+                                : row.matchSource === "name"
+                                  ? "Name match"
+                                  : "Manual mapping required"}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-text-muted">
+                            {row.posItemCode || "-"}
+                          </td>
+                          <td className="max-w-[180px] px-4 py-3 font-mono text-xs text-text-muted">
+                            {row.posItemKey || "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={row.recipeId}
+                              onChange={(event) =>
+                                handlePosMasterMappingChange(
+                                  row,
+                                  event.target.value,
+                                )
+                              }
+                              disabled={saleSaving || !row.posItemKey}
+                              className="h-9 min-w-[240px] rounded-sm border border-border-system bg-background px-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              aria-label={`Map POS item ${row.posItemLabel || row.rowNumber} to final menu item`}
+                            >
+                              <option value="">Choose menu item</option>
+                              {activeFinalMenuItems.map((recipe) => (
+                                <option
+                                  key={getRecipeId(recipe)}
+                                  value={getRecipeId(recipe)}
+                                >
+                                  {recipe.name}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
+                                row.status === "mapped"
+                                  ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                                  : "border-status-warning-border bg-status-warning-bg text-status-warning-text"
+                              }`}
+                            >
+                              {row.status === "mapped" ? "Mapped" : "Needs mapping"}
+                            </span>
+                            <p className="mt-1 text-xs text-text-muted">
+                              {row.error ?? (row.matchedRecipeName || "Not saved")}
+                            </p>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <p className="px-4 py-8 text-sm leading-6 text-text-muted">
+                Paste or upload the restaurant POS item master list to begin.
+                Existing saved mappings remain active even when this input is
+                empty.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-sm border border-border-system bg-background">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-system px-4 py-4">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                Saved mapping register
+              </p>
+              <h4 className="mt-1 font-semibold text-foreground">
+                What future POS imports will use
+              </h4>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                downloadCsvReport(
+                  `pos-menu-mappings-${reportDateLabel}.csv`,
+                  posMappingReportRows,
+                )
+              }
+              className={secondaryButtonClass}
+            >
+              Download mappings
+            </button>
+          </div>
+
+          {posSalesItemMappings.length > 0 ? (
+            <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
+              {posSalesItemMappings.slice(0, 12).map((mapping) => {
+                const mappedRecipe = activeRecipesById.get(
+                  extractUuid(mapping.recipe_id),
+                );
+
+                return (
+                  <article
+                    key={mapping.id}
+                    className="rounded-sm border border-border-system bg-card p-3"
+                  >
+                    <p className="font-semibold text-foreground">
+                      {mapping.pos_item_label}
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      {mapping.pos_item_code || mapping.pos_item_key}
+                    </p>
+                    <div className="mt-3 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 py-2 text-sm font-semibold text-accent">
+                      {mappedRecipe?.name ?? "Menu item needs review"}
+                    </div>
+                  </article>
+                );
+              })}
+              {posSalesItemMappings.length > 12 ? (
+                <p className="rounded-sm border border-border-system bg-card p-3 text-sm text-text-muted">
+                  Showing 12 of {posSalesItemMappings.length.toLocaleString()} saved
+                  mappings. Download the full register for the complete list.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="px-4 py-8 text-sm text-text-muted">
+              No POS mappings have been saved yet.
+            </p>
+          )}
+        </div>
       </section>
 
       <section
