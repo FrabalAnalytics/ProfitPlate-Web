@@ -4175,6 +4175,8 @@ function WorkspaceDashboard({
         0,
       );
       const closingQty = openingQty + inflowQty - outflowQty;
+      const unitCost = Number(item.current_cost_per_base_uom ?? 0);
+      const closingStockValue = closingQty * unitCost;
       const movementBuckets = periodItemMovements.reduce(
         (buckets, movement) => {
           const bucket = getMovementBucket(movement);
@@ -4206,10 +4208,8 @@ function WorkspaceDashboard({
         closingQty,
         movementCount: periodItemMovements.length,
         movementBuckets,
-        movementValue: periodItemMovements.reduce(
-          (total, movement) => total + movement.movement_value,
-          0,
-        ),
+        unitCost,
+        closingStockValue,
       };
     })
     .filter(
@@ -6392,7 +6392,8 @@ function WorkspaceDashboard({
       adjustment_qty: row.movementBuckets.adjustment,
       other_movement_qty: row.movementBuckets.other,
       movement_count: row.movementCount,
-      movement_value: row.movementValue,
+      unit_cost: row.unitCost,
+      closing_stock_value: row.closingStockValue,
       uom: row.item.on_hand_uom ?? row.item.base_uom ?? "",
     };
   });
@@ -14873,7 +14874,7 @@ function WorkspaceDashboard({
                         <th className="px-4 py-3 text-right">Sales dep.</th>
                         <th className="px-4 py-3 text-right">Adjust.</th>
                         <th className="px-4 py-3 text-right">Other</th>
-                        <th className="px-4 py-3 text-right">Value</th>
+                        <th className="px-4 py-3 text-right">Closing value</th>
                         <th className="px-4 py-3 text-right">Audit</th>
                       </tr>
                     </thead>
@@ -14961,7 +14962,7 @@ function WorkspaceDashboard({
                               )}
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
-                              {formatSignedCurrency(row.movementValue)}
+                              {formatCurrency(row.closingStockValue)}
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right align-top">
                               <button
@@ -15034,6 +15035,14 @@ function WorkspaceDashboard({
                               {row.closingQty.toLocaleString(undefined, {
                                 maximumFractionDigits: 3,
                               })}
+                            </span>
+                          </span>
+                          <span className="col-span-2 rounded-sm border border-border-system bg-background p-2">
+                            <span className="block font-mono uppercase tracking-widest text-text-ghost">
+                              Closing value
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold text-foreground">
+                              {formatCurrency(row.closingStockValue)}
                             </span>
                           </span>
                           <span className="rounded-sm border border-accent-muted-border bg-accent-muted-bg p-2 text-accent">
