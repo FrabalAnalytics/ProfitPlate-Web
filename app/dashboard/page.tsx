@@ -48,6 +48,7 @@ import {
   loadPurchaseOrders,
   loadRecipeComponents,
   loadRecipes,
+  loadStockMovementLedger,
   loadStockVarianceHistory,
   loadSystemSettings,
   loadSuppliers,
@@ -66,6 +67,7 @@ import {
   type PurchaseOrder,
   type PurchaseOrderLine,
   type SalesCaptureMode,
+  type StockMovementLedgerRow,
   type Supplier,
   type SystemSettings,
   type YieldTestEntry,
@@ -89,6 +91,7 @@ import {
   formatShortDate,
   formatSignedCurrencyAmount,
   getDateKey,
+  getDateFilterStart,
   getDateMs,
   getLocalDateInputValue,
   isWithinDateFilter,
@@ -514,6 +517,9 @@ export default function DashboardPage() {
   const [stockVarianceHistory, setStockVarianceHistory] = useState<
     StockVarianceHistoryRow[]
   >([]);
+  const [stockMovementLedger, setStockMovementLedger] = useState<
+    StockMovementLedgerRow[]
+  >([]);
   const [wasteHistory, setWasteHistory] = useState<WasteHistoryRow[]>([]);
   const [menuSaleHistory, setMenuSaleHistory] = useState<MenuSaleHistoryRow[]>(
     [],
@@ -586,6 +592,7 @@ export default function DashboardPage() {
         setCostEvents([]);
         setProductionHistory([]);
         setStockVarianceHistory([]);
+        setStockMovementLedger([]);
         setWasteHistory([]);
         setMenuSaleHistory([]);
         setAvtSummary([]);
@@ -678,6 +685,7 @@ export default function DashboardPage() {
       Promise.all([
         loadProductionHistory(),
         loadStockVarianceHistory(),
+        loadStockMovementLedger(loadedProfile.organization_id),
         loadWasteHistory(),
         loadMenuSaleHistory(),
         loadAvtSummary(loadedProfile.organization_id),
@@ -687,6 +695,7 @@ export default function DashboardPage() {
           ([
             nextProductionHistory,
             nextStockVarianceHistory,
+            nextStockMovementLedger,
             nextWasteHistory,
             nextMenuSaleHistory,
             nextAvtSummary,
@@ -696,6 +705,7 @@ export default function DashboardPage() {
               .then((nextPurchaseOrderLines) => {
                 setProductionHistory(nextProductionHistory);
                 setStockVarianceHistory(nextStockVarianceHistory);
+                setStockMovementLedger(nextStockMovementLedger);
                 setWasteHistory(nextWasteHistory);
                 setMenuSaleHistory(nextMenuSaleHistory);
                 setAvtSummary(nextAvtSummary);
@@ -802,6 +812,7 @@ export default function DashboardPage() {
     setCostEvents([]);
     setProductionHistory([]);
     setStockVarianceHistory([]);
+    setStockMovementLedger([]);
     setWasteHistory([]);
     setMenuSaleHistory([]);
     setAvtSummary([]);
@@ -829,6 +840,7 @@ export default function DashboardPage() {
       loadedCostEvents,
       loadedProductionHistory,
       loadedStockVarianceHistory,
+      loadedStockMovementLedger,
       loadedWasteHistory,
       loadedMenuSaleHistory,
       loadedAvtSummary,
@@ -849,6 +861,7 @@ export default function DashboardPage() {
       loadCostRecalculationEvents(organizationId),
       loadProductionHistory(),
       loadStockVarianceHistory(),
+      loadStockMovementLedger(organizationId),
       loadWasteHistory(),
       loadMenuSaleHistory(),
       loadAvtSummary(organizationId),
@@ -888,6 +901,7 @@ export default function DashboardPage() {
     setCostEvents(loadedCostEvents);
     setProductionHistory(loadedProductionHistory);
     setStockVarianceHistory(loadedStockVarianceHistory);
+    setStockMovementLedger(loadedStockMovementLedger);
     setWasteHistory(loadedWasteHistory);
     setMenuSaleHistory(loadedMenuSaleHistory);
     setAvtSummary(loadedAvtSummary);
@@ -3155,6 +3169,7 @@ export default function DashboardPage() {
           costEvents={costEvents}
           productionHistory={productionHistory}
           stockVarianceHistory={stockVarianceHistory}
+          stockMovementLedger={stockMovementLedger}
           wasteHistory={wasteHistory}
           menuSaleHistory={menuSaleHistory}
           avtSummary={avtSummary}
@@ -3251,6 +3266,7 @@ function WorkspaceDashboard({
   costEvents: allCostEvents,
   productionHistory: allProductionHistory,
   stockVarianceHistory: allStockVarianceHistory,
+  stockMovementLedger: allStockMovementLedger,
   wasteHistory: allWasteHistory,
   menuSaleHistory: allMenuSaleHistory,
   avtSummary,
@@ -3320,6 +3336,7 @@ function WorkspaceDashboard({
   costEvents: CostRecalculationEvent[];
   productionHistory: ProductionHistoryRow[];
   stockVarianceHistory: StockVarianceHistoryRow[];
+  stockMovementLedger: StockMovementLedgerRow[];
   wasteHistory: WasteHistoryRow[];
   menuSaleHistory: MenuSaleHistoryRow[];
   avtSummary: AvtSummaryRow[];
@@ -3458,6 +3475,8 @@ function WorkspaceDashboard({
   const [inventoryLocationFilter, setInventoryLocationFilter] = useState("");
   const [inventoryDepartmentFilter, setInventoryDepartmentFilter] = useState("");
   const [inventoryHighValueOnly, setInventoryHighValueOnly] = useState(false);
+  const [selectedMovementInventoryItemId, setSelectedMovementInventoryItemId] =
+    useState("");
   const [selectedFocusRole, setSelectedFocusRole] = useState<AppRole | "">("");
   const [selectedDashboardSection, setSelectedDashboardSection] = useState("");
   const [selectedDashboardTargetId, setSelectedDashboardTargetId] = useState("");
@@ -3954,6 +3973,119 @@ function WorkspaceDashboard({
   const activeInventoryItemsById = new Map(
     activeInventoryItems.map((item) => [extractUuid(item.id), item]),
   );
+  const stockMovementPeriodStartMs =
+    dateFilter === "all" ? 0 : getDateFilterStart(dateFilter);
+  const stockMovementLedger = allStockMovementLedger.filter((movement) => {
+    const movementDateMs = getDateMs(movement.created_at);
+
+    return (
+      movement.inventory_item_id &&
+      activeInventoryItemsById.has(extractUuid(movement.inventory_item_id)) &&
+      (dateFilter === "all" || movementDateMs >= stockMovementPeriodStartMs)
+    );
+  });
+  const allStockMovementByItemId = allStockMovementLedger.reduce(
+    (movementMap, movement) => {
+      const itemId = extractUuid(movement.inventory_item_id);
+
+      if (!itemId) {
+        return movementMap;
+      }
+
+      const existingMovements = movementMap.get(itemId) ?? [];
+      existingMovements.push(movement);
+      movementMap.set(itemId, existingMovements);
+
+      return movementMap;
+    },
+    new Map<string, StockMovementLedgerRow[]>(),
+  );
+  const periodStockMovementByItemId = stockMovementLedger.reduce(
+    (movementMap, movement) => {
+      const itemId = extractUuid(movement.inventory_item_id);
+
+      if (!itemId) {
+        return movementMap;
+      }
+
+      const existingMovements = movementMap.get(itemId) ?? [];
+      existingMovements.push(movement);
+      movementMap.set(itemId, existingMovements);
+
+      return movementMap;
+    },
+    new Map<string, StockMovementLedgerRow[]>(),
+  );
+  const stockMovementSummaryRows = filteredInventoryDisplayItems
+    .map((item) => {
+      const itemId = extractUuid(item.id);
+      const allItemMovements = allStockMovementByItemId.get(itemId) ?? [];
+      const periodItemMovements = periodStockMovementByItemId.get(itemId) ?? [];
+      const movementAfterPeriodStart = allItemMovements
+        .filter(
+          (movement) =>
+            dateFilter === "all" ||
+            getDateMs(movement.created_at) >= stockMovementPeriodStartMs,
+        )
+        .reduce((total, movement) => total + movement.movement_qty, 0);
+      const openingQty =
+        dateFilter === "all"
+          ? Number(item.on_hand_qty ?? 0) -
+            allItemMovements.reduce(
+              (total, movement) => total + movement.movement_qty,
+              0,
+            )
+          : Number(item.on_hand_qty ?? 0) - movementAfterPeriodStart;
+      const inflowQty = periodItemMovements.reduce(
+        (total, movement) =>
+          movement.movement_qty > 0 ? total + movement.movement_qty : total,
+        0,
+      );
+      const outflowQty = periodItemMovements.reduce(
+        (total, movement) =>
+          movement.movement_qty < 0
+            ? total + Math.abs(movement.movement_qty)
+            : total,
+        0,
+      );
+      const closingQty = openingQty + inflowQty - outflowQty;
+
+      return {
+        item,
+        itemId,
+        openingQty,
+        inflowQty,
+        outflowQty,
+        closingQty,
+        movementCount: periodItemMovements.length,
+        movementValue: periodItemMovements.reduce(
+          (total, movement) => total + movement.movement_value,
+          0,
+        ),
+      };
+    })
+    .filter(
+      (row) =>
+        row.movementCount > 0 ||
+        Math.abs(Number(row.item.on_hand_qty ?? 0)) > 0.0001,
+    )
+    .slice(0, 14);
+  const selectedMovementItem =
+    selectedMovementInventoryItemId &&
+    activeInventoryItemsById.get(extractUuid(selectedMovementInventoryItemId));
+  const selectedMovementAuditRows = selectedMovementItem
+    ? (periodStockMovementByItemId.get(extractUuid(selectedMovementItem.id)) ?? [])
+        .slice()
+        .sort(
+          (leftMovement, rightMovement) =>
+            getDateMs(rightMovement.created_at) -
+            getDateMs(leftMovement.created_at),
+        )
+    : [];
+  const formatMovementType = (eventType: string) =>
+    eventType.replaceAll("_", " ").replace(/\b\w/g, (letter) =>
+      letter.toUpperCase(),
+    );
   const allInventoryItemsById = new Map(
     inventoryItems.map((item) => [extractUuid(item.id), item]),
   );
@@ -12774,8 +12906,8 @@ function WorkspaceDashboard({
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap items-center gap-2">
                         {check.passed && check.status !== "exception" ? (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-accent-muted-border bg-accent-muted-bg text-sm font-black text-accent">
-                            OK
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-accent-muted-border bg-accent-muted-bg text-accent">
+                            <BadgeCheck size={16} strokeWidth={2.5} />
                           </span>
                         ) : null}
                         <span
@@ -12819,7 +12951,7 @@ function WorkspaceDashboard({
                           <>
                             {check.passed && check.status !== "exception" ? (
                               <span className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-2 text-center text-xs font-bold uppercase tracking-wider text-accent">
-                                <span className="text-sm leading-none">OK</span>
+                                <BadgeCheck size={15} strokeWidth={2.5} />
                                 Checked
                               </span>
                             ) : (
@@ -13709,6 +13841,274 @@ function WorkspaceDashboard({
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="mt-5 rounded-sm border border-border-system bg-background">
+            <div className="flex flex-col gap-3 border-b border-border-system px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Stock movement drill-down
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-foreground">
+                  SKU movement table
+                </h3>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-text-muted">
+                  Opening, inflow, outflow, and closing are calculated from the
+                  append-only movement ledger for the selected period and SKU
+                  filters.
+                </p>
+              </div>
+              <span className="w-fit rounded-full border border-border-system bg-card px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                {dateFilterLabels[dateFilter]}
+              </span>
+            </div>
+
+            {stockMovementSummaryRows.length > 0 ? (
+              <>
+                <div className="hidden overflow-x-auto lg:block">
+                  <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+                    <thead className="border-b border-border-system bg-card">
+                      <tr className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                        <th className="px-4 py-3">SKU</th>
+                        <th className="px-4 py-3">Location</th>
+                        <th className="px-4 py-3 text-right">Opening</th>
+                        <th className="px-4 py-3 text-right">Inflow</th>
+                        <th className="px-4 py-3 text-right">Outflow</th>
+                        <th className="px-4 py-3 text-right">Closing</th>
+                        <th className="px-4 py-3 text-right">Value</th>
+                        <th className="px-4 py-3 text-right">Audit</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-system">
+                      {stockMovementSummaryRows.map((row) => {
+                        const location = activeLocations.find(
+                          (activeLocation) =>
+                            extractUuid(activeLocation.id) ===
+                            extractUuid(row.item.location_id),
+                        );
+                        const uom =
+                          row.item.on_hand_uom ||
+                          row.item.base_uom ||
+                          row.item.recipe_uom ||
+                          "unit";
+
+                        return (
+                          <tr
+                            key={row.itemId}
+                            className={`transition hover:bg-accent-muted-bg/50 ${
+                              selectedMovementInventoryItemId === row.itemId
+                                ? "bg-accent-muted-bg"
+                                : "bg-background"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <p className="font-semibold text-foreground">
+                                {row.item.name}
+                              </p>
+                              <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                                {row.item.sku || "No SKU"} / {uom}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 text-text-muted">
+                              {location?.name ?? "Unassigned"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-foreground">
+                              {row.openingQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-accent">
+                              {row.inflowQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-status-critical-text">
+                              {row.outflowQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-foreground">
+                              {row.closingQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-text-muted">
+                              {formatSignedCurrency(row.movementValue)}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSelectedMovementInventoryItemId(row.itemId)
+                                }
+                                className={compactActionButtonClass}
+                              >
+                                Audit trail
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="grid gap-3 p-3 lg:hidden">
+                  {stockMovementSummaryRows.map((row) => {
+                    const location = activeLocations.find(
+                      (activeLocation) =>
+                        extractUuid(activeLocation.id) ===
+                        extractUuid(row.item.location_id),
+                    );
+                    const uom =
+                      row.item.on_hand_uom ||
+                      row.item.base_uom ||
+                      row.item.recipe_uom ||
+                      "unit";
+
+                    return (
+                      <button
+                        key={row.itemId}
+                        type="button"
+                        onClick={() => setSelectedMovementInventoryItemId(row.itemId)}
+                        className={`rounded-sm border p-4 text-left transition ${
+                          selectedMovementInventoryItemId === row.itemId
+                            ? "border-accent-muted-border bg-accent-muted-bg"
+                            : "border-border-system bg-card"
+                        }`}
+                      >
+                        <span className="block font-semibold text-foreground">
+                          {row.item.name}
+                        </span>
+                        <span className="mt-1 block text-xs font-semibold text-text-muted">
+                          {location?.name ?? "Unassigned"} / {uom}
+                        </span>
+                        <span className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <span className="rounded-sm border border-border-system bg-background p-2">
+                            <span className="block font-mono uppercase tracking-widest text-text-ghost">
+                              Opening
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold text-foreground">
+                              {row.openingQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </span>
+                          </span>
+                          <span className="rounded-sm border border-border-system bg-background p-2">
+                            <span className="block font-mono uppercase tracking-widest text-text-ghost">
+                              Closing
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold text-foreground">
+                              {row.closingQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </span>
+                          </span>
+                          <span className="rounded-sm border border-accent-muted-border bg-accent-muted-bg p-2 text-accent">
+                            <span className="block font-mono uppercase tracking-widest">
+                              Inflow
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold">
+                              {row.inflowQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </span>
+                          </span>
+                          <span className="rounded-sm border border-status-critical-border bg-status-critical-bg p-2 text-status-critical-text">
+                            <span className="block font-mono uppercase tracking-widest">
+                              Outflow
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold">
+                              {row.outflowQty.toLocaleString(undefined, {
+                                maximumFractionDigits: 3,
+                              })}
+                            </span>
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="px-5 py-6 text-sm text-text-muted">
+                No stock movement is visible for the selected period and SKU
+                filters.
+              </p>
+            )}
+
+            {selectedMovementItem ? (
+              <div className="border-t border-border-system bg-card px-4 py-4 sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Individual SKU audit
+                    </p>
+                    <h4 className="mt-1 text-base font-semibold text-foreground">
+                      {selectedMovementItem.name}
+                    </h4>
+                    <p className="mt-1 text-sm text-text-muted">
+                      {selectedMovementAuditRows.length.toLocaleString()} ledger
+                      movement
+                      {selectedMovementAuditRows.length === 1 ? "" : "s"} in{" "}
+                      {dateFilterLabels[dateFilter]}.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMovementInventoryItemId("")}
+                    className={compactActionButtonClass}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {selectedMovementAuditRows.length > 0 ? (
+                  <div className="mt-4 grid gap-2">
+                    {selectedMovementAuditRows.slice(0, 12).map((movement) => (
+                      <div
+                        key={movement.movement_id}
+                        className="grid gap-3 rounded-sm border border-border-system bg-background p-3 text-sm md:grid-cols-[minmax(0,1fr)_120px_140px_150px]"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground">
+                            {formatMovementType(movement.event_type)}
+                          </p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            {movement.location_name} /{" "}
+                            {movement.source_table ?? "ledger"}
+                          </p>
+                        </div>
+                        <span
+                          className={`font-mono font-semibold ${
+                            movement.movement_qty >= 0
+                              ? "text-accent"
+                              : "text-status-critical-text"
+                          }`}
+                        >
+                          {movement.movement_qty > 0 ? "+" : ""}
+                          {movement.movement_qty.toLocaleString(undefined, {
+                            maximumFractionDigits: 3,
+                          })}
+                        </span>
+                        <span className="font-mono font-semibold text-text-muted">
+                          {formatSignedCurrency(movement.movement_value)}
+                        </span>
+                        <span className="text-text-muted md:text-right">
+                          {movement.created_at
+                            ? new Date(movement.created_at).toLocaleString()
+                            : "No date"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
+                    This SKU has no ledger movement in the selected period.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </div>
         </section>
 

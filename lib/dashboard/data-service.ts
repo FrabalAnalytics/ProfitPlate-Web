@@ -132,6 +132,22 @@ export type PurchaseOrderLine = {
   created_at: string;
 };
 
+export type StockMovementLedgerRow = {
+  movement_id: string;
+  inventory_item_id: string;
+  item_name: string;
+  sku: string | null;
+  location_id: string | null;
+  location_name: string;
+  event_type: string;
+  movement_qty: number;
+  unit_cost: number;
+  movement_value: number;
+  source_table: string | null;
+  source_id: string | null;
+  created_at: string;
+};
+
 export type OperationRegisterEntry = {
   id: string;
   organization_id: string;
@@ -430,6 +446,47 @@ export async function loadStockVarianceHistory() {
   return (data ?? [])
     .map(normalizeStockVarianceHistoryRow)
     .filter(isStockVarianceHistoryRow);
+}
+
+export async function loadStockMovementLedger(organizationId: string) {
+  const { data, error } = await supabase.rpc(
+    "get_dashboard_stock_movement_ledger",
+    {
+      target_organization_id: organizationId,
+      start_date_value: null,
+      end_date_value: null,
+      target_inventory_item_id: null,
+    },
+  );
+
+  if (error) {
+    return [];
+  }
+
+  return ((data ?? []) as Array<Partial<StockMovementLedgerRow>>).map((row) => ({
+    movement_id: String(row.movement_id ?? ""),
+    inventory_item_id: String(row.inventory_item_id ?? ""),
+    item_name:
+      typeof row.item_name === "string" && row.item_name.trim()
+        ? row.item_name
+        : "Inventory item",
+    sku: typeof row.sku === "string" ? row.sku : null,
+    location_id: typeof row.location_id === "string" ? row.location_id : null,
+    location_name:
+      typeof row.location_name === "string" && row.location_name.trim()
+        ? row.location_name
+        : "Unassigned",
+    event_type:
+      typeof row.event_type === "string" && row.event_type.trim()
+        ? row.event_type
+        : "movement",
+    movement_qty: Number(row.movement_qty) || 0,
+    unit_cost: Number(row.unit_cost) || 0,
+    movement_value: Number(row.movement_value) || 0,
+    source_table: typeof row.source_table === "string" ? row.source_table : null,
+    source_id: typeof row.source_id === "string" ? row.source_id : null,
+    created_at: typeof row.created_at === "string" ? row.created_at : "",
+  }));
 }
 
 export async function loadWasteHistory() {
