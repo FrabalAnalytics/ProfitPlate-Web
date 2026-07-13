@@ -8736,8 +8736,15 @@ function WorkspaceDashboard({
       defaultOpen: true,
       items: [
         {
+          href: "#overview",
+          label: isOwnerFocus ? "Owner Command" : "Management Overview",
+          badge: `${marginHealthScore}%`,
+          tone: marginHealthScore >= 75 ? "healthy" : "warning",
+          visible: showFinancialDashboardSection,
+        },
+        {
           href: "#profit-movement",
-          label: "Profit Movement",
+          label: "Profit Bridge",
           badge: formatSignedCurrency(profitMovementNet),
           tone:
             profitMovementNet >= 0
@@ -8749,25 +8756,18 @@ function WorkspaceDashboard({
         },
         {
           href: "#finance-brief",
-          label: "Finance Brief",
+          label: "Action Brief",
           badge: visibleManagementActions.length.toLocaleString(),
           tone: visibleManagementActions.some((action) => action.tone === "critical")
             ? "critical"
             : visibleManagementActions.some((action) => action.tone === "attention")
               ? "warning"
               : "healthy",
-          visible: showFinancialDashboardSection,
-        },
-        {
-          href: "#overview",
-          label: "Margin Overview",
-          badge: `${marginHealthScore}%`,
-          tone: marginHealthScore >= 75 ? "healthy" : "warning",
-          visible: showFinancialDashboardSection,
+          visible: showFinancialDashboardSection && !isOwnerFocus,
         },
         {
           href: "#day",
-          label: "Daily Register",
+          label: "Day Close",
           badge:
             compliancePendingCount > 0
               ? `${compliancePendingCount.toLocaleString()} open`
@@ -8908,7 +8908,7 @@ function WorkspaceDashboard({
         },
         {
           href: "#overview",
-          label: "Menu Margins",
+          label: "Margin Scorecard",
           badge:
             totalSalesMarginPct === null
               ? "No sales"
@@ -8921,7 +8921,10 @@ function WorkspaceDashboard({
               : totalSalesMarginPct >= targetMenuMarginPct
                 ? "healthy"
                 : "warning",
-          visible: showFinancialSection && !isRole("procurement_manager"),
+          visible:
+            showFinancialSection &&
+            !isOwnerFocus &&
+            !isRole("procurement_manager"),
         },
         {
           href: "#sales-pos",
