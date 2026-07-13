@@ -16500,9 +16500,9 @@ function WorkspaceDashboard({
                 return (
                 <div
                   key={row.id}
-                  className="grid min-w-0 gap-3 rounded-sm border border-border-system bg-card p-3 lg:grid-cols-12 lg:items-start"
+                  className="grid min-w-0 gap-3 rounded-sm border border-border-system bg-card p-3 2xl:grid-cols-12 2xl:items-start"
                 >
-                  <div className="grid gap-1 lg:col-span-5">
+                  <div className="grid min-w-0 gap-1 2xl:col-span-5">
                     <input
                       type="search"
                       placeholder={
@@ -16583,132 +16583,137 @@ function WorkspaceDashboard({
                           } in selected location`}
                     </p>
                   </div>
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-2">
-                    Stock in hand
-                    <div className="flex min-w-0 items-center gap-2">
+                  <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(145px,1fr)_minmax(110px,0.75fr)_minmax(170px,1fr)_minmax(155px,0.9fr)_96px] 2xl:col-span-7">
+                    <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Stock in hand
+                      <div className="flex min-w-0 items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="On hand"
+                          value={row.stockOnHandQty}
+                          onChange={(event) =>
+                            setPurchaseReceiptRows((currentRows) =>
+                              currentRows.map((currentRow) =>
+                                currentRow.id === row.id
+                                  ? {
+                                      ...currentRow,
+                                      stockOnHandQty: event.target.value,
+                                    }
+                                  : currentRow,
+                              ),
+                            )
+                          }
+                          className={`${formControlClass} font-mono tabular-nums`}
+                        />
+                        <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
+                          {selectedPurchaseUom}
+                        </span>
+                      </div>
+                    </label>
+                    <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Qty
                       <input
                         type="number"
-                        min="0"
+                        min="0.000001"
                         step="any"
-                        placeholder="On hand"
-                        value={row.stockOnHandQty}
+                        placeholder="Qty"
+                        value={row.quantity}
                         onChange={(event) =>
                           setPurchaseReceiptRows((currentRows) =>
                             currentRows.map((currentRow) =>
                               currentRow.id === row.id
-                                ? {
-                                    ...currentRow,
-                                    stockOnHandQty: event.target.value,
-                                  }
-                                : currentRow,
-                            ),
-                          )
-                        }
-                        className={formControlClass}
-                      />
-                      <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
-                        {selectedPurchaseUom}
-                      </span>
-                    </div>
-                  </label>
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-1">
-                    Qty
-                    <input
-                      type="number"
-                      min="0.000001"
-                      step="any"
-                      placeholder="Qty"
-                      value={row.quantity}
-                      onChange={(event) =>
-                        setPurchaseReceiptRows((currentRows) =>
-                          currentRows.map((currentRow) =>
-                            currentRow.id === row.id
-                              ? { ...currentRow, quantity: event.target.value }
-                              : currentRow,
-                          ),
-                        )
-                      }
-                      required
-                      className={formControlClass}
-                    />
-                  </label>
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-2">
-                    Unit cost
-                    <div className="flex min-w-0 items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder={
-                          selectedPurchaseCurrentUnitCost > 0
-                            ? selectedPurchaseCurrentUnitCost.toLocaleString(
-                                undefined,
-                                { maximumFractionDigits: 2 },
-                              )
-                            : "Unit cost"
-                        }
-                        value={row.landedUnitCost}
-                        onChange={(event) =>
-                          setPurchaseReceiptRows((currentRows) =>
-                            currentRows.map((currentRow) =>
-                              currentRow.id === row.id
-                                ? {
-                                    ...currentRow,
-                                    landedUnitCost: event.target.value,
-                                  }
+                                ? { ...currentRow, quantity: event.target.value }
                                 : currentRow,
                             ),
                           )
                         }
                         required
-                        className={formControlClass}
+                        className={`${formControlClass} font-mono tabular-nums`}
                       />
-                      <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
-                        {organization.local_currency}
+                    </label>
+                    <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Unit cost
+                      <div className="flex min-w-0 items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder={
+                            selectedPurchaseCurrentUnitCost > 0
+                              ? selectedPurchaseCurrentUnitCost.toLocaleString(
+                                  undefined,
+                                  { maximumFractionDigits: 2 },
+                                )
+                              : "Unit cost"
+                          }
+                          value={row.landedUnitCost}
+                          onChange={(event) =>
+                            setPurchaseReceiptRows((currentRows) =>
+                              currentRows.map((currentRow) =>
+                                currentRow.id === row.id
+                                  ? {
+                                      ...currentRow,
+                                      landedUnitCost: event.target.value,
+                                    }
+                                  : currentRow,
+                              ),
+                            )
+                          }
+                          required
+                          className={`${formControlClass} font-mono tabular-nums`}
+                        />
+                        <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
+                          {organization.local_currency}
+                        </span>
+                      </div>
+                    </label>
+                    <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      VAT / Tax
+                      <div className="flex min-w-0 items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          placeholder="7.5"
+                          value={row.taxRatePct}
+                          onChange={(event) =>
+                            setPurchaseReceiptRows((currentRows) =>
+                              currentRows.map((currentRow) =>
+                                currentRow.id === row.id
+                                  ? {
+                                      ...currentRow,
+                                      taxRatePct: event.target.value,
+                                    }
+                                  : currentRow,
+                              ),
+                            )
+                          }
+                          className={`${formControlClass} font-mono tabular-nums`}
+                        />
+                        <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
+                          %
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-semibold normal-case tracking-normal text-text-ghost">
+                        Enter 7.5 for 7.5%
                       </span>
-                    </div>
-                  </label>
-                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:col-span-1">
-                    VAT / Tax %
-                    <div className="flex min-w-0 items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        placeholder="0"
-                        value={row.taxRatePct}
-                        onChange={(event) =>
-                          setPurchaseReceiptRows((currentRows) =>
-                            currentRows.map((currentRow) =>
-                              currentRow.id === row.id
-                                ? {
-                                    ...currentRow,
-                                    taxRatePct: event.target.value,
-                                  }
-                                : currentRow,
-                            ),
-                          )
-                        }
-                        className={formControlClass}
-                      />
-                      <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
-                        %
-                      </span>
-                    </div>
-                  </label>
-                  <button
-                    type="button"
-                    disabled={purchaseReceiptRows.length === 1}
-                    onClick={() =>
-                      setPurchaseReceiptRows((currentRows) =>
-                        currentRows.filter((currentRow) => currentRow.id !== row.id),
-                      )
-                    }
-                    className={secondaryButtonClass}
-                  >
-                    Remove
-                  </button>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={purchaseReceiptRows.length === 1}
+                      onClick={() =>
+                        setPurchaseReceiptRows((currentRows) =>
+                          currentRows.filter((currentRow) => currentRow.id !== row.id),
+                        )
+                      }
+                      className={`${secondaryButtonClass} self-end`}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
                 );
               })}
