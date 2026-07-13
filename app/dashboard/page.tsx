@@ -4118,6 +4118,30 @@ function WorkspaceDashboard({
     },
     new Map<string, StockMovementLedgerRow[]>(),
   );
+  const getMovementBucket = (movement: StockMovementLedgerRow) => {
+    const normalizedType = movement.event_type.toLowerCase();
+
+    if (normalizedType.includes("production")) {
+      return "production" as const;
+    }
+
+    if (normalizedType.includes("waste")) {
+      return "waste" as const;
+    }
+
+    if (normalizedType.includes("sales_depletion")) {
+      return "sales" as const;
+    }
+
+    if (
+      normalizedType.includes("stock_count_adjustment") ||
+      normalizedType.includes("adjustment")
+    ) {
+      return "adjustment" as const;
+    }
+
+    return "other" as const;
+  };
   const stockMovementSummaryRows = filteredInventoryDisplayItems
     .map((item) => {
       const itemId = extractUuid(item.id);
@@ -4151,42 +4175,27 @@ function WorkspaceDashboard({
         0,
       );
       const closingQty = openingQty + inflowQty - outflowQty;
-      const movementTypeSummary = Array.from(
-        periodItemMovements
-          .reduce(
-            (typeMap, movement) => {
-              const eventType = movement.event_type || "movement";
-              const existingType = typeMap.get(eventType);
+      const movementBuckets = periodItemMovements.reduce(
+        (buckets, movement) => {
+          const bucket = getMovementBucket(movement);
+          const movementQty = Number(movement.movement_qty ?? 0);
 
-              if (existingType) {
-                existingType.count += 1;
-                existingType.quantity += movement.movement_qty;
-              } else {
-                typeMap.set(eventType, {
-                  eventType,
-                  count: 1,
-                  quantity: movement.movement_qty,
-                });
-              }
+          if (bucket === "waste" || bucket === "sales") {
+            buckets[bucket] += Math.abs(movementQty);
+          } else {
+            buckets[bucket] += movementQty;
+          }
 
-              return typeMap;
-            },
-            new Map<
-              string,
-              { eventType: string; count: number; quantity: number }
-            >(),
-          )
-          .values(),
-      ).sort((leftType, rightType) => {
-        const quantityDelta =
-          Math.abs(rightType.quantity) - Math.abs(leftType.quantity);
-
-        if (Math.abs(quantityDelta) > 0.0001) {
-          return quantityDelta;
-        }
-
-        return rightType.count - leftType.count;
-      });
+          return buckets;
+        },
+        {
+          production: 0,
+          waste: 0,
+          sales: 0,
+          adjustment: 0,
+          other: 0,
+        },
+      );
 
       return {
         item,
@@ -4196,7 +4205,7 @@ function WorkspaceDashboard({
         outflowQty,
         closingQty,
         movementCount: periodItemMovements.length,
-        movementTypeSummary,
+        movementBuckets,
         movementValue: periodItemMovements.reduce(
           (total, movement) => total + movement.movement_value,
           0,
@@ -6377,6 +6386,11 @@ function WorkspaceDashboard({
       inflow_qty: row.inflowQty,
       outflow_qty: row.outflowQty,
       closing_qty: row.closingQty,
+      production_qty: row.movementBuckets.production,
+      waste_qty: row.movementBuckets.waste,
+      sales_depletion_qty: row.movementBuckets.sales,
+      adjustment_qty: row.movementBuckets.adjustment,
+      other_movement_qty: row.movementBuckets.other,
       movement_count: row.movementCount,
       movement_value: row.movementValue,
       uom: row.item.on_hand_uom ?? row.item.base_uom ?? "",
@@ -14830,7 +14844,7 @@ function WorkspaceDashboard({
             {stockMovementSummaryRows.length > 0 ? (
               <>
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full min-w-[1365px] table-fixed border-collapse text-left text-sm">
+                  <table className="w-full min-w-[1720px] table-fixed border-collapse text-left text-sm">
                     <colgroup>
                       <col className="w-[245px]" />
                       <col className="w-[180px]" />
@@ -14838,7 +14852,11 @@ function WorkspaceDashboard({
                       <col className="w-[110px]" />
                       <col className="w-[110px]" />
                       <col className="w-[110px]" />
-                      <col className="w-[230px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[140px]" />
+                      <col className="w-[130px]" />
+                      <col className="w-[120px]" />
                       <col className="w-[150px]" />
                       <col className="w-[120px]" />
                     </colgroup>
@@ -14850,7 +14868,11 @@ function WorkspaceDashboard({
                         <th className="px-4 py-3 text-right">Inflow</th>
                         <th className="px-4 py-3 text-right">Outflow</th>
                         <th className="px-4 py-3 text-right">Closing</th>
-                        <th className="px-4 py-3">Movement mix</th>
+                        <th className="px-4 py-3 text-right">Production</th>
+                        <th className="px-4 py-3 text-right">Waste</th>
+                        <th className="px-4 py-3 text-right">Sales dep.</th>
+                        <th className="px-4 py-3 text-right">Adjust.</th>
+                        <th className="px-4 py-3 text-right">Other</th>
                         <th className="px-4 py-3 text-right">Value</th>
                         <th className="px-4 py-3 text-right">Audit</th>
                       </tr>
@@ -14908,35 +14930,35 @@ function WorkspaceDashboard({
                                 maximumFractionDigits: 3,
                               })}
                             </td>
-                            <td className="px-4 py-3 align-top">
-                              <div className="flex flex-wrap gap-1.5">
-                                {row.movementTypeSummary.length > 0 ? (
-                                  row.movementTypeSummary
-                                    .slice(0, 3)
-                                    .map((movementType) => (
-                                      <span
-                                        key={`${row.itemId}-${movementType.eventType}`}
-                                        className={`rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${getMovementToneClass(
-                                          movementType.eventType,
-                                        )}`}
-                                      >
-                                        {formatMovementType(
-                                          movementType.eventType,
-                                        )}{" "}
-                                        {movementType.count}
-                                      </span>
-                                    ))
-                                ) : (
-                                  <span className="text-xs text-text-ghost">
-                                    No movement
-                                  </span>
-                                )}
-                                {row.movementTypeSummary.length > 3 ? (
-                                  <span className="rounded-full border border-border-system bg-card px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
-                                    +{row.movementTypeSummary.length - 3}
-                                  </span>
-                                ) : null}
-                              </div>
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
+                              {row.movementBuckets.production.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-status-critical-text">
+                              {row.movementBuckets.waste.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-status-critical-text">
+                              {row.movementBuckets.sales.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
+                              {row.movementBuckets.adjustment.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
+                              {row.movementBuckets.other.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
                               {formatSignedCurrency(row.movementValue)}
@@ -15034,29 +15056,58 @@ function WorkspaceDashboard({
                               })}
                             </span>
                           </span>
+                          <span className="rounded-sm border border-border-system bg-background p-2">
+                            <span className="block font-mono uppercase tracking-widest text-text-ghost">
+                              Production
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold text-text-muted">
+                              {row.movementBuckets.production.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </span>
+                          </span>
+                          <span className="rounded-sm border border-status-critical-border bg-status-critical-bg p-2 text-status-critical-text">
+                            <span className="block font-mono uppercase tracking-widest">
+                              Waste
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold">
+                              {row.movementBuckets.waste.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </span>
+                          </span>
+                          <span className="rounded-sm border border-status-critical-border bg-status-critical-bg p-2 text-status-critical-text">
+                            <span className="block font-mono uppercase tracking-widest">
+                              Sales depletion
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold">
+                              {row.movementBuckets.sales.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </span>
+                          </span>
+                          <span className="rounded-sm border border-border-system bg-background p-2">
+                            <span className="block font-mono uppercase tracking-widest text-text-ghost">
+                              Adjustment
+                            </span>
+                            <span className="mt-1 block font-mono font-semibold text-text-muted">
+                              {row.movementBuckets.adjustment.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
+                              )}
+                            </span>
+                          </span>
                           <span className="col-span-2 rounded-sm border border-border-system bg-background p-2">
                             <span className="block font-mono uppercase tracking-widest text-text-ghost">
-                              Movement mix
+                              Other stock flows
                             </span>
-                            <span className="mt-2 flex flex-wrap gap-1.5">
-                              {row.movementTypeSummary.length > 0 ? (
-                                row.movementTypeSummary
-                                  .slice(0, 4)
-                                  .map((movementType) => (
-                                    <span
-                                      key={`${row.itemId}-mobile-${movementType.eventType}`}
-                                      className={`rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${getMovementToneClass(
-                                        movementType.eventType,
-                                      )}`}
-                                    >
-                                      {formatMovementType(movementType.eventType)}{" "}
-                                      {movementType.count}
-                                    </span>
-                                  ))
-                              ) : (
-                                <span className="text-text-ghost">
-                                  No movement
-                                </span>
+                            <span className="mt-1 block font-mono font-semibold text-text-muted">
+                              {row.movementBuckets.other.toLocaleString(
+                                undefined,
+                                { maximumFractionDigits: 3 },
                               )}
                             </span>
                           </span>
