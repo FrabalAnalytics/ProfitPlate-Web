@@ -3735,6 +3735,25 @@ function WorkspaceDashboard({
       location.location_type,
     ) && !isDepartmentStockLocation(location),
   );
+  const uniqueLocationsById = (locationsToDedupe: Location[]) =>
+    Array.from(
+      locationsToDedupe
+        .reduce((locationsById, location) => {
+          locationsById.set(extractUuid(location.id), location);
+          return locationsById;
+        }, new Map<string, Location>())
+        .values(),
+    );
+  const requisitionSourceLocations = uniqueLocationsById([
+    ...stockHoldingLocations,
+    ...departmentStockLocations.filter(
+      (location) => location.location_type !== "sales_outlet",
+    ),
+  ]);
+  const requisitionDestinationLocations = uniqueLocationsById([
+    ...departmentStockLocations,
+    ...salesOutletLocations,
+  ]);
   const stockHoldingLocationIds = new Set(
     stockHoldingLocations.map((location) => extractUuid(location.id)),
   );
@@ -13645,8 +13664,8 @@ function WorkspaceDashboard({
                 }}
                 className={formControlClass}
               >
-                <option value="">Source storage / issuing location</option>
-                {stockHoldingLocations.map((location) => (
+                <option value="">Issuing store / kitchen location</option>
+                {requisitionSourceLocations.map((location) => (
                   <option key={location.id} value={location.id}>
                     {location.name} / {location.inventory_domain}
                   </option>
@@ -13658,8 +13677,8 @@ function WorkspaceDashboard({
                 onChange={(event) => setRequisitionToLocationId(event.target.value)}
                 className={formControlClass}
               >
-                <option value="">Destination / receiving location</option>
-                {departmentStockLocations.map((location) => (
+                <option value="">Receiving department / front house</option>
+                {requisitionDestinationLocations.map((location) => (
                   <option key={location.id} value={location.id}>
                     {location.name}
                   </option>
@@ -16067,8 +16086,8 @@ function WorkspaceDashboard({
               className={formControlClass}
               aria-label="Production requisition issuing location"
             >
-              <option value="">Issuing store / source location</option>
-              {stockHoldingLocations.map((location) => (
+              <option value="">Issuing store / kitchen source</option>
+              {requisitionSourceLocations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name} / {location.inventory_domain}
                 </option>
@@ -16082,8 +16101,8 @@ function WorkspaceDashboard({
               className={formControlClass}
               aria-label="Production requisition receiving location"
             >
-              <option value="">Receiving kitchen / department</option>
-              {departmentStockLocations.map((location) => (
+              <option value="">Receiving kitchen / front house</option>
+              {requisitionDestinationLocations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name}
                 </option>
