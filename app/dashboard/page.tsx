@@ -1,6 +1,16 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BadgeCheck,
+  CircleDollarSign,
+  ClipboardCheck,
+  LineChart,
+  ReceiptText,
+  ShieldCheck,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -436,6 +446,52 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function ControlScoreRing({ score }: { score: number }) {
+  const normalizedScore = Math.min(Math.max(score, 0), 100);
+  const toneClass =
+    normalizedScore >= 80
+      ? "text-accent"
+      : normalizedScore >= 55
+        ? "text-status-attention-text"
+        : "text-status-critical-text";
+
+  return (
+    <div
+      className={`relative grid h-24 w-24 shrink-0 place-items-center rounded-full bg-card shadow-[var(--finance-shadow)] ${toneClass}`}
+      title="The control score summarizes completed operating registers, data readiness, and unresolved control exceptions."
+      aria-label={`Control score ${normalizedScore.toFixed(0)} percent`}
+    >
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `conic-gradient(currentColor ${normalizedScore * 3.6}deg, #e2e8f0 0deg)`,
+        }}
+      />
+      <div className="absolute inset-2 rounded-full bg-card" />
+      <div className={`relative text-center ${toneClass}`}>
+        <p className="font-mono text-2xl font-black leading-none">
+          {normalizedScore.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </p>
+        <p className="font-mono text-[10px] font-bold uppercase tracking-widest">
+          score
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function isQuietMetricValue(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+
+  return (
+    normalizedValue === "n/a" ||
+    normalizedValue === "0" ||
+    normalizedValue === "0%" ||
+    normalizedValue.endsWith(" 0") ||
+    normalizedValue.endsWith(" 0.00")
+  );
 }
 
 export default function DashboardPage() {
@@ -5555,6 +5611,36 @@ function WorkspaceDashboard({
         : dateFilter === "30d"
           ? "the selected 30-day operating window"
           : "all recorded operating activity";
+  const primaryCostCascadeAlert = largestPriceIncreaseMover
+    ? (() => {
+        const itemId = largestPriceIncreaseMover.inventoryItemId;
+        const impactedSubRecipe = activeSubRecipes.find((recipe) =>
+          recipeComponents.some(
+            (component) =>
+              extractUuid(component.recipe_id) === getRecipeId(recipe) &&
+              extractUuid(component.component_inventory_item_id) === itemId,
+          ),
+        );
+        const impactedMenuGuardrail = menuPricingGuardrails.find((guardrail) =>
+          guardrail.components.some(
+            (component) => extractUuid(component.component_inventory_item_id) === itemId,
+          ),
+        );
+        const impactedMenu = impactedMenuGuardrail?.recipe ?? activeFinalMenuItems[0];
+
+        return {
+          skuName:
+            largestPriceIncreaseMover.item?.name ||
+            largestPriceIncreaseMover.item?.sku ||
+            "Purchased SKU",
+          changePct: largestPriceIncreaseMover.changePct,
+          impact: largestPriceIncreaseMover.onHandImpact,
+          subRecipeName: impactedSubRecipe?.name ?? "Sub-recipe costing layer",
+          menuName: impactedMenu?.name ?? "Final menu item",
+          marginPct: impactedMenuGuardrail?.marginPct ?? null,
+        };
+      })()
+    : null;
   const profitMovementRows = [
     {
       label: "Purchased SKU cost increases",
@@ -8191,6 +8277,17 @@ function WorkspaceDashboard({
           visible: showFinancialDashboardSection,
         },
         {
+          href: "#finance-brief",
+          label: "Finance Brief",
+          badge: visibleManagementActions.length.toLocaleString(),
+          tone: visibleManagementActions.some((action) => action.tone === "critical")
+            ? "critical"
+            : visibleManagementActions.some((action) => action.tone === "attention")
+              ? "warning"
+              : "healthy",
+          visible: showFinancialDashboardSection,
+        },
+        {
           href: "#overview",
           label: "Margin Overview",
           badge: `${marginHealthScore}%`,
@@ -9163,7 +9260,11 @@ function WorkspaceDashboard({
 
   return (
     <section className="mx-auto grid max-w-[1320px] gap-4 px-3 py-4 sm:gap-5 sm:px-8 sm:py-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="rounded-sm border border-border-system bg-card p-3 shadow-2xl shadow-black/30 xl:sticky xl:top-20 xl:self-start">
+      <aside className={`rounded-sm border p-3 xl:sticky xl:top-20 xl:self-start ${
+        isFinanceFocus
+          ? "border-slate-200 bg-[var(--finance-rail)] shadow-[var(--finance-shadow)]"
+          : "border-border-system bg-card shadow-2xl shadow-black/30"
+      }`}>
         <div className="mb-3 rounded-sm border border-border-system bg-background p-3 xl:hidden">
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
             Dashboard View
@@ -9216,35 +9317,54 @@ function WorkspaceDashboard({
                   stats.recipes === 1 ? "" : "s"
                 }`}
           </p>
-          <div
-            className="mt-4 border-t border-border-system pt-4"
-            title="The control score summarizes completed operating registers, data readiness, and unresolved control exceptions."
-          >
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-              Control Score
-            </p>
-            <div className="mt-2 flex items-end justify-between gap-3">
-              <p
-                className={`font-mono text-2xl font-semibold ${
-                readinessScore >= 80
-                  ? "text-accent"
-                  : readinessScore >= 55
-                    ? "text-status-attention-text"
-                    : "text-status-critical-text"
-                }`}
-              >
-                {readinessScore.toLocaleString(undefined, {
-                  maximumFractionDigits: 0,
-                })}
-                %
-              </p>
-              <span className="text-[10px] text-text-ghost">Target 85%</span>
-            </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
-              <div
-                className="h-full rounded-full bg-accent"
-                style={{ width: `${Math.min(Math.max(readinessScore, 0), 100)}%` }}
-              />
+          <div className="mt-4 border-t border-border-system pt-4">
+            <div className={isFinanceFocus ? "flex items-center gap-4" : ""}>
+              {isFinanceFocus ? <ControlScoreRing score={readinessScore} /> : null}
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Control Score
+                </p>
+                {isFinanceFocus ? (
+                  <>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      Target 85%
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-text-muted">
+                      {compliancePendingCount > 0
+                        ? `${compliancePendingCount} daily control item${
+                            compliancePendingCount === 1 ? "" : "s"
+                          } still open.`
+                        : "Daily controls are clean for Finance review."}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <p
+                        className={`font-mono text-2xl font-semibold ${
+                        readinessScore >= 80
+                          ? "text-accent"
+                          : readinessScore >= 55
+                            ? "text-status-attention-text"
+                            : "text-status-critical-text"
+                        }`}
+                      >
+                        {readinessScore.toLocaleString(undefined, {
+                          maximumFractionDigits: 0,
+                        })}
+                        %
+                      </p>
+                      <span className="text-[10px] text-text-ghost">Target 85%</span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
+                      <div
+                        className="h-full rounded-full bg-accent"
+                        style={{ width: `${Math.min(Math.max(readinessScore, 0), 100)}%` }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           <div className="mt-4 border-t border-border-system pt-4">
@@ -9546,7 +9666,11 @@ function WorkspaceDashboard({
             </button>
           </div>
 
-          <div className="rounded-sm border border-border-system bg-background p-3 shadow-2xl shadow-black/10">
+          <div className={`rounded-sm border p-3 ${
+            isFinanceFocus
+              ? "border-slate-200 bg-card shadow-[var(--finance-shadow)]"
+              : "border-border-system bg-background shadow-2xl shadow-black/10"
+          }`}>
             <div className="flex flex-wrap items-center justify-between gap-3 px-1">
               <div>
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -9569,43 +9693,95 @@ function WorkspaceDashboard({
               </span>
             </div>
             <div className="mt-3 grid gap-2 lg:grid-cols-3">
-              {visibleDayDisciplineActions.map((action) => (
-                <article
-                  key={action.id}
-                  className={`grid gap-3 rounded-sm border p-3 ${
-                    action.status === "exception"
-                      ? "border-status-critical-border bg-status-critical-bg"
-                      : action.status === "clear"
-                        ? "border-accent-muted-border bg-accent-muted-bg"
-                        : "border-status-attention-border bg-status-attention-bg"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground">
-                      {action.label}
-                    </p>
-                    <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                      {action.department} / {roleLabels[action.ownerRole]}
-                    </p>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-text-muted">
-                      {action.detail}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openDashboardSection(
-                        action.sectionId,
-                        undefined,
-                        action.targetElementId,
-                      )
+              {visibleDayDisciplineActions.map((action) => {
+                const financeActionTone =
+                  action.status === "exception"
+                    ? {
+                        border: "border-l-status-critical-text",
+                        icon: "border-status-critical-border bg-status-critical-bg text-status-critical-text",
+                        button: "border-status-critical-border bg-status-critical-bg text-status-critical-text hover:border-status-critical-text",
+                      }
+                    : action.status === "clear"
+                      ? {
+                          border: "border-l-accent",
+                          icon: "border-accent-muted-border bg-accent-muted-bg text-accent",
+                          button: "border-accent-muted-border bg-accent text-background hover:bg-accent-hover",
+                        }
+                      : {
+                          border: "border-l-status-attention-text",
+                          icon: "border-status-attention-border bg-status-attention-bg text-status-attention-text",
+                          button: "border-status-attention-border bg-card text-status-attention-text hover:border-status-attention-text",
+                        };
+                const ActionIcon =
+                  action.status === "clear"
+                    ? BadgeCheck
+                    : action.status === "exception"
+                      ? AlertTriangle
+                      : ClipboardCheck;
+
+                return (
+                  <article
+                    key={action.id}
+                    className={
+                      isFinanceFocus
+                        ? `grid gap-3 rounded-sm border border-slate-200 border-l-4 bg-card p-4 shadow-[var(--finance-shadow)] ${financeActionTone.border}`
+                        : `grid gap-3 rounded-sm border p-3 ${
+                            action.status === "exception"
+                              ? "border-status-critical-border bg-status-critical-bg"
+                              : action.status === "clear"
+                                ? "border-accent-muted-border bg-accent-muted-bg"
+                                : "border-status-attention-border bg-status-attention-bg"
+                          }`
                     }
-                    className="h-11 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
                   >
-                    {action.actionLabel}
-                  </button>
-                </article>
-              ))}
+                    <div className="flex min-w-0 gap-3">
+                      {isFinanceFocus ? (
+                        <span
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-sm border ${financeActionTone.icon}`}
+                        >
+                          <ActionIcon size={18} strokeWidth={2.3} />
+                        </span>
+                      ) : null}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground">
+                          {action.label}
+                        </p>
+                        <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                          {action.department} / {roleLabels[action.ownerRole]}
+                        </p>
+                        <p
+                          className={`mt-2 text-xs leading-5 text-text-muted ${
+                            isFinanceFocus ? "line-clamp-1" : "line-clamp-2"
+                          }`}
+                          title={action.detail}
+                        >
+                          {action.detail}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openDashboardSection(
+                          action.sectionId,
+                          undefined,
+                          action.targetElementId,
+                        )
+                      }
+                      className={
+                        isFinanceFocus
+                          ? `inline-flex h-10 items-center justify-center gap-2 rounded-sm border px-3 text-xs font-extrabold uppercase tracking-wider shadow-sm transition active:scale-[0.98] ${financeActionTone.button}`
+                          : "h-11 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                      }
+                    >
+                      {isFinanceFocus && action.status === "clear" ? (
+                        <BadgeCheck size={15} strokeWidth={2.4} />
+                      ) : null}
+                      {action.actionLabel}
+                    </button>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -10280,7 +10456,11 @@ function WorkspaceDashboard({
         </div>
       ) : null}
 
-      <div className={`${ownerOverviewActive ? "hidden" : ""} overflow-hidden rounded-sm border border-border-system bg-card shadow-2xl shadow-black/40`}>
+      <div className={`${ownerOverviewActive ? "hidden" : ""} overflow-hidden rounded-sm border ${
+        isFinanceFocus
+          ? "border-slate-200 bg-card shadow-[var(--finance-shadow)]"
+          : "border-border-system bg-card shadow-2xl shadow-black/40"
+      }`}>
         <div className="border-b border-border-system px-6 py-7 text-foreground sm:px-8">
           <div className="min-w-0 max-w-4xl">
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
@@ -10300,7 +10480,11 @@ function WorkspaceDashboard({
               {roleLabels[focusRole]} / {planLabels[organization.subscription_tier]}
             </p>
           </div>
-          <div className="mt-7 overflow-hidden rounded-sm border border-border-system bg-background shadow-[0_10px_30px_rgba(25,65,45,0.04)]">
+          <div className={`mt-7 overflow-hidden rounded-sm border ${
+            isFinanceFocus
+              ? "border-slate-200 bg-[var(--finance-canvas)] shadow-[var(--finance-shadow)]"
+              : "border-border-system bg-background shadow-[0_10px_30px_rgba(25,65,45,0.04)]"
+          }`}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-system bg-card px-5 py-3">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Live control signals
@@ -10308,27 +10492,35 @@ function WorkspaceDashboard({
               <span className="h-2 w-2 rounded-full bg-accent" />
             </div>
             <div className="grid divide-y divide-border-system sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
-            {roleHeroSignals.map((signal) => (
-              <div
-                key={signal.label}
-                className="min-h-[108px] p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                    {signal.label}
-                  </p>
-                  <span
-                    className={`${inlineSignalClass} ${inlineSignalToneStyles[signal.tone]}`}
+            {roleHeroSignals.map((signal) => {
+              const quietValue = isFinanceFocus && isQuietMetricValue(signal.value);
+
+              return (
+                <div
+                  key={signal.label}
+                  className={`min-h-[108px] p-5 ${quietValue ? "opacity-65" : ""}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      {signal.label}
+                    </p>
+                    <span
+                      className={`${inlineSignalClass} ${inlineSignalToneStyles[quietValue ? "info" : signal.tone]}`}
+                    >
+                      {quietValue ? "Idle" : "Live"}
+                    </span>
+                  </div>
+                  <p
+                    className={`mt-3 break-words font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight sm:whitespace-nowrap ${
+                      quietValue ? "text-text-ghost" : "text-foreground"
+                    }`}
                   >
-                    Live
-                  </span>
+                    {signal.value}
+                  </p>
+                  <p className="mt-2 text-sm text-text-muted">{signal.detail}</p>
                 </div>
-                <p className="mt-3 break-words font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight text-foreground sm:whitespace-nowrap">
-                  {signal.value}
-                </p>
-                <p className="mt-2 text-sm text-text-muted">{signal.detail}</p>
-              </div>
-            ))}
+              );
+            })}
             </div>
           </div>
         </div>
@@ -10419,7 +10611,7 @@ function WorkspaceDashboard({
 
       <section
         id="profit-movement"
-        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
+        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-slate-200 bg-card p-4 shadow-[var(--finance-shadow)] sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -10435,12 +10627,76 @@ function WorkspaceDashboard({
           </p>
         </div>
 
+        {primaryCostCascadeAlert ? (
+          <div className="mt-5 rounded-sm border border-status-critical-border bg-card p-4 shadow-[var(--finance-shadow)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-status-critical-border bg-status-critical-bg text-status-critical-text">
+                  <AlertTriangle size={20} strokeWidth={2.4} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
+                    SKU Cost Alert
+                  </p>
+                  <h3 className="truncate text-lg font-extrabold text-foreground">
+                    {primaryCostCascadeAlert.skuName} rose
+                    {primaryCostCascadeAlert.changePct !== null
+                      ? ` by ${primaryCostCascadeAlert.changePct.toLocaleString(
+                          undefined,
+                          { maximumFractionDigits: 1 },
+                        )}%`
+                      : ""}
+                  </h3>
+                </div>
+              </div>
+              <span className="rounded-full border border-status-critical-border bg-status-critical-bg px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
+                {formatCurrency(primaryCostCascadeAlert.impact, 0)} exposure
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
+              <div className="rounded-sm border border-slate-200 bg-[var(--finance-canvas)] p-3">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Level 1 / Trigger
+                </p>
+                <p className="mt-1 truncate text-sm font-bold text-foreground">
+                  {primaryCostCascadeAlert.skuName}
+                </p>
+              </div>
+              <ArrowRight className="hidden text-text-ghost lg:block" size={18} />
+              <div className="rounded-sm border border-status-attention-border bg-status-attention-bg p-3">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
+                  Level 2 / Sub-recipe
+                </p>
+                <p className="mt-1 truncate text-sm font-bold text-foreground">
+                  {primaryCostCascadeAlert.subRecipeName}
+                </p>
+              </div>
+              <ArrowRight className="hidden text-text-ghost lg:block" size={18} />
+              <div className="rounded-sm border border-status-critical-border bg-status-critical-bg p-3">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
+                  Level 3 / Menu margin
+                </p>
+                <p className="mt-1 truncate text-sm font-bold text-foreground">
+                  {primaryCostCascadeAlert.menuName}
+                </p>
+                <p className="mt-1 font-mono text-[11px] font-bold text-status-critical-text">
+                  {primaryCostCascadeAlert.marginPct === null
+                    ? "Margin check needed"
+                    : `${primaryCostCascadeAlert.marginPct.toLocaleString(undefined, {
+                        maximumFractionDigits: 1,
+                      })}% margin`}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-5 grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
           <div
-            className={`rounded-sm border p-5 ${
+            className={`rounded-sm border bg-card p-5 shadow-[var(--finance-shadow)] ${
               profitMovementNet >= 0
-                ? "border-accent-muted-border bg-accent-muted-bg"
-                : "border-status-critical-border bg-status-critical-bg"
+                ? "border-accent-muted-border"
+                : "border-status-critical-border"
             }`}
           >
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -10462,41 +10718,52 @@ function WorkspaceDashboard({
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-sm border border-border-system bg-background">
-            <div className="grid gap-3 border-b border-border-system bg-card px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost md:grid-cols-[minmax(0,1fr)_130px_170px_120px]">
-              <span>Connection</span>
-              <span>Owner</span>
-              <span>Movement</span>
-              <span>Action</span>
-            </div>
+          <div className="grid gap-3">
             {profitMovementRows.map((row) => {
               const movementClass =
                 row.value > 0
                   ? "text-accent"
                   : row.value < 0
                     ? "text-status-critical-text"
-                    : "text-foreground";
+                    : "text-text-ghost";
+              const rowIcon =
+                row.label.includes("Waste")
+                  ? AlertTriangle
+                  : row.label.includes("Menu")
+                    ? CircleDollarSign
+                    : row.label.includes("Purchased")
+                      ? ReceiptText
+                      : LineChart;
+              const RowIcon = rowIcon;
 
               return (
-                <div
+                <article
                   key={row.label}
-                  className="grid gap-3 border-t border-border-system px-5 py-4 text-sm text-text-muted transition hover:bg-card md:grid-cols-[minmax(0,1fr)_130px_170px_120px] md:items-center"
+                  className="grid gap-4 rounded-sm border border-slate-200 bg-card p-4 shadow-[var(--finance-shadow)] transition hover:border-border-system-hover md:grid-cols-[minmax(0,1fr)_130px_160px_auto] md:items-center"
                 >
-                  <div className="min-w-0">
-                    <p className="font-semibold text-foreground">{row.label}</p>
-                    <p className="mt-1 text-xs text-text-ghost">{row.detail}</p>
+                  <div className="flex min-w-0 gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-slate-200 bg-[var(--finance-canvas)] text-text-muted">
+                      <RowIcon size={18} strokeWidth={2.2} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground">{row.label}</p>
+                      <p className="mt-1 line-clamp-1 text-xs text-text-ghost" title={row.detail}>
+                        {row.detail}
+                      </p>
+                    </div>
                   </div>
                   <span className="font-semibold text-text-muted">{row.owner}</span>
                   <span className={`font-mono font-semibold ${movementClass}`}>
-                    {formatSignedCurrency(row.value)}
+                    {row.value === 0 ? "No exposure" : formatSignedCurrency(row.value)}
                   </span>
                   <a
                     href={row.href}
-                    className="inline-flex h-9 w-fit items-center rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                    className="inline-flex h-9 w-fit items-center gap-2 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
                   >
                     Review
+                    <ArrowRight size={14} strokeWidth={2.4} />
                   </a>
-                </div>
+                </article>
               );
             })}
           </div>
@@ -10714,8 +10981,8 @@ function WorkspaceDashboard({
       </section>
 
       <section
-        id="profit-movement"
-        className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
+        id="finance-brief"
+        className={`${showFinancialDashboardSection && isSectionActive("finance-brief") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-slate-200 bg-card p-4 shadow-[var(--finance-shadow)] sm:p-6`}
       >
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
           <div>
@@ -10736,26 +11003,29 @@ function WorkspaceDashboard({
             {strategicIndexes.map((index) => {
               const toneClass =
                 index.tone === "healthy"
-                  ? "border-accent-muted-border bg-accent-muted-bg"
+                  ? "border-accent-muted-border bg-card"
                   : index.tone === "attention"
-                    ? "border-status-attention-border bg-status-attention-bg"
-                    : "border-status-critical-border bg-status-critical-bg";
+                    ? "border-status-attention-border bg-card"
+                    : "border-status-critical-border bg-card";
               const valueClass =
                 index.tone === "healthy"
                   ? "text-accent"
                   : index.tone === "attention"
                     ? "text-status-attention-text"
                     : "text-status-critical-text";
+              const quietValue = isQuietMetricValue(index.value);
 
               return (
                 <article
                   key={index.label}
-                  className={`rounded-sm border p-4 ${toneClass}`}
+                  className={`rounded-sm border border-l-4 p-4 shadow-[var(--finance-shadow)] ${toneClass} ${
+                    quietValue ? "opacity-70" : ""
+                  }`}
                 >
                   <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                     {index.label}
                   </p>
-                  <p className={`mt-2 font-mono text-3xl font-semibold ${valueClass}`}>
+                  <p className={`mt-2 font-mono text-3xl font-semibold ${quietValue ? "text-text-ghost" : valueClass}`}>
                     {index.value}
                   </p>
                   <p className="mt-2 text-sm text-text-muted">{index.detail}</p>
@@ -10764,12 +11034,7 @@ function WorkspaceDashboard({
             })}
           </div>
 
-          <div className="overflow-hidden rounded-sm border border-border-system bg-card">
-            <div className="grid gap-3 border-b border-border-system bg-background px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost md:grid-cols-[0.35fr_0.75fr_1fr]">
-              <span>Priority</span>
-              <span>Decision</span>
-              <span>Why it matters</span>
-            </div>
+          <div className="grid gap-3">
             {visibleManagementActions.map((item) => {
               const badgeClass =
                 item.tone === "critical"
@@ -10777,22 +11042,38 @@ function WorkspaceDashboard({
                   : item.tone === "attention"
                     ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
                     : "border-status-info-border bg-status-info-bg text-status-info-text";
+              const itemIcon =
+                item.tone === "critical"
+                  ? AlertTriangle
+                  : item.tone === "attention"
+                    ? ClipboardCheck
+                    : ShieldCheck;
+              const ItemIcon = itemIcon;
 
               return (
-                <div
+                <article
                   key={`${item.priority}-${item.action}`}
-                  className="grid gap-3 border-t border-border-system px-5 py-4 text-sm text-text-muted transition hover:bg-background/70 md:grid-cols-[0.35fr_0.75fr_1fr] md:items-center"
+                  className="grid gap-4 rounded-sm border border-slate-200 bg-card p-4 text-sm text-text-muted shadow-[var(--finance-shadow)] transition hover:border-border-system-hover md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:items-center"
                 >
-                  <span
-                    className={`inline-flex w-fit rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${badgeClass}`}
-                  >
-                    {item.priority}
-                  </span>
-                  <Cell label="Decision" strong>
-                    {item.action}
-                  </Cell>
-                  <Cell label="Why it matters">{item.detail}</Cell>
-                </div>
+                  <div className="flex min-w-0 gap-3">
+                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-sm border ${badgeClass}`}>
+                      <ItemIcon size={18} strokeWidth={2.2} />
+                    </span>
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex w-fit rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${badgeClass}`}
+                      >
+                        {item.priority}
+                      </span>
+                      <p className="mt-2 font-semibold text-foreground">
+                        {item.action}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-6 text-text-muted" title={item.detail}>
+                    {item.detail}
+                  </p>
+                </article>
               );
             })}
           </div>
