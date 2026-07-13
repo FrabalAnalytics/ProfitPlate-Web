@@ -358,6 +358,13 @@ function getNoticeTone(message: string): NoticeTone {
   return "error";
 }
 
+function normalizeMasterDataKey(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 function downloadCsvReport(
   filename: string,
   rows: Array<Record<string, unknown>>,
@@ -1056,6 +1063,17 @@ export default function DashboardPage() {
       return;
     }
 
+    const supplierAlreadyExists = suppliers.some(
+      (supplier) =>
+        supplier.is_active &&
+        normalizeMasterDataKey(supplier.name) === normalizeMasterDataKey(name),
+    );
+
+    if (supplierAlreadyExists) {
+      setMessage("That supplier already exists. Update the existing supplier record instead.");
+      return;
+    }
+
     setSetupSaving(true);
     setMessage("");
 
@@ -1178,6 +1196,20 @@ export default function DashboardPage() {
       return;
     }
 
+    if (
+      patch.name !== undefined &&
+      suppliers.some(
+        (supplier) =>
+          supplier.id !== supplierId &&
+          supplier.is_active &&
+          normalizeMasterDataKey(supplier.name) ===
+            normalizeMasterDataKey(name),
+      )
+    ) {
+      setMessage("That supplier name already exists. Update the existing supplier instead.");
+      return;
+    }
+
     setSetupSaving(true);
     setMessage("");
 
@@ -1236,13 +1268,25 @@ export default function DashboardPage() {
       inventoryItems.some(
         (item) =>
           item.is_active &&
-          item.cost_type === "purchased" &&
-          item.sku?.trim().toLowerCase() === sku.toLowerCase() &&
+          normalizeMasterDataKey(item.sku) === normalizeMasterDataKey(sku) &&
           extractUuid(item.location_id) === locationId,
       );
 
     if (skuAlreadyExists) {
       setMessage("That SKU already exists in this location. Update the existing item instead.");
+      return;
+    }
+
+    const itemNameAlreadyExists = inventoryItems.some(
+      (item) =>
+        item.is_active &&
+        item.cost_type === "purchased" &&
+        normalizeMasterDataKey(item.name) === normalizeMasterDataKey(name) &&
+        extractUuid(item.location_id) === locationId,
+    );
+
+    if (itemNameAlreadyExists) {
+      setMessage("That item name already exists in this location. Update the existing item instead.");
       return;
     }
 
@@ -2355,6 +2399,18 @@ export default function DashboardPage() {
       return;
     }
 
+    const recipeAlreadyExists = recipes.some(
+      (recipe) =>
+        recipe.is_active &&
+        recipe.recipe_type === recipeType &&
+        normalizeMasterDataKey(recipe.name) === normalizeMasterDataKey(name),
+    );
+
+    if (recipeAlreadyExists) {
+      setMessage("That recipe name already exists for this recipe type. Update the existing recipe instead.");
+      return;
+    }
+
     setRecipeSaving(true);
     setMessage("");
 
@@ -2430,6 +2486,26 @@ export default function DashboardPage() {
     >,
   ) {
     if (!organization) {
+      return;
+    }
+
+    if (
+      patch.name !== undefined &&
+      recipes.some((recipe) => {
+        const nextRecipeType = patch.recipe_type ?? recipes.find(
+          (candidate) => extractUuid(candidate.id) === extractUuid(recipeId),
+        )?.recipe_type;
+
+        return (
+          extractUuid(recipe.id) !== extractUuid(recipeId) &&
+          recipe.is_active &&
+          recipe.recipe_type === nextRecipeType &&
+          normalizeMasterDataKey(recipe.name) ===
+            normalizeMasterDataKey(patch.name)
+        );
+      })
+    ) {
+      setMessage("That recipe name already exists for this recipe type. Update the existing recipe instead.");
       return;
     }
 
