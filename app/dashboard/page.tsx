@@ -9141,6 +9141,17 @@ function WorkspaceDashboard({
     inventory_item_id: extractUuid(row.inventoryItemId),
     counted_quantity: Number(row.countedQuantity),
   }));
+  const openStockMovementAudit = (itemId: string) => {
+    setSelectedMovementInventoryItemId(itemId);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.getElementById("stock-movement-audit-panel")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    });
+  };
   const currentUserIssuedRequisition = (request: ApprovalRequest) =>
     request.approved_by === profile?.id ||
     extractUuid(request.payload?.issued_by) === profile?.id;
@@ -14761,12 +14772,16 @@ function WorkspaceDashboard({
                             <td className="whitespace-nowrap px-4 py-3 text-right align-top">
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setSelectedMovementInventoryItemId(row.itemId)
-                                }
-                                className="h-9 rounded-sm border border-border-system bg-card px-3 text-[11px] font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                                onClick={() => openStockMovementAudit(row.itemId)}
+                                className={`h-9 rounded-sm border px-3 text-[11px] font-bold uppercase tracking-wider transition ${
+                                  selectedMovementInventoryItemId === row.itemId
+                                    ? "border-status-info-border bg-status-info-bg text-status-info-text"
+                                    : "border-border-system bg-card text-foreground hover:border-border-system-hover"
+                                }`}
                               >
-                                Audit
+                                {selectedMovementInventoryItemId === row.itemId
+                                  ? "Open"
+                                  : "Audit"}
                               </button>
                             </td>
                           </tr>
@@ -14793,7 +14808,7 @@ function WorkspaceDashboard({
                       <button
                         key={row.itemId}
                         type="button"
-                        onClick={() => setSelectedMovementInventoryItemId(row.itemId)}
+                        onClick={() => openStockMovementAudit(row.itemId)}
                         className={`rounded-sm border p-4 text-left transition ${
                           selectedMovementInventoryItemId === row.itemId
                             ? "border-accent-muted-border bg-accent-muted-bg"
@@ -14861,7 +14876,10 @@ function WorkspaceDashboard({
             )}
 
             {selectedMovementItem ? (
-              <div className="border-t border-border-system bg-card px-4 py-4 sm:px-5">
+              <div
+                id="stock-movement-audit-panel"
+                className="scroll-mt-24 border-t border-border-system bg-card px-4 py-4 sm:px-5"
+              >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
