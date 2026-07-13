@@ -19,13 +19,13 @@ const sectionEyebrowClass =
   "font-mono text-[10px] font-bold uppercase tracking-widest text-accent";
 
 const ledgerFrameClass =
-  "overflow-hidden rounded-sm border border-border-system bg-background";
+  "overflow-hidden rounded-md border border-border-system bg-card shadow-sm";
 
 const ledgerHeaderClass =
   "flex flex-wrap items-center justify-between gap-3 border-b border-border-system bg-card px-4 py-4 sm:px-5";
 
 const ledgerColumnHeaderClass =
-  "hidden border-b border-border-system bg-card px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost sm:grid";
+  "hidden border-b border-border-system bg-card px-4 py-3.5 font-mono text-[10px] font-bold uppercase leading-5 tracking-widest text-text-ghost sm:grid";
 
 const statusPillClass =
   "inline-flex rounded-sm border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest";

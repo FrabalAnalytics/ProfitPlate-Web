@@ -299,13 +299,13 @@ const secondaryButtonClass =
   "h-11 rounded-sm border border-border-system bg-card px-4 text-sm font-semibold text-foreground transition hover:border-border-system-hover disabled:cursor-not-allowed disabled:opacity-50";
 
 const ledgerFrameClass =
-  "overflow-hidden rounded-sm border border-border-system bg-background";
+  "overflow-hidden rounded-md border border-border-system bg-card shadow-sm";
 
 const ledgerHeaderClass =
   "flex flex-wrap items-center justify-between gap-3 border-b border-border-system bg-card px-4 py-4 sm:px-5";
 
 const ledgerColumnHeaderClass =
-  "hidden border-b border-border-system bg-card px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:grid";
+  "hidden border-b border-border-system bg-card px-5 py-3.5 font-mono text-[10px] font-bold uppercase leading-5 tracking-widest text-text-ghost lg:grid";
 
 const compactActionButtonClass =
   "h-9 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-text-muted transition hover:border-border-system-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
