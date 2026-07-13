@@ -3558,6 +3558,12 @@ function WorkspaceDashboard({
   const canRecordOperations = operationsRoles.has(currentRole);
   const canAuthorSubRecipes = canManageCosting || canRecordOperations;
   const canApproveOperations = approvalRoles.has(currentRole);
+  const canManageOperatingDayClose = [
+    "owner",
+    "admin",
+    "manager",
+    "operations_manager",
+  ].includes(currentRole);
   const canSubmitInventoryMasterData = [
     "owner",
     "admin",
@@ -8148,7 +8154,11 @@ function WorkspaceDashboard({
       status: request.status,
     };
   });
-  const ownerRecentActivity = activityEvents.slice(0, 5);
+  const ownerRecentActivity = (
+    ownerPriceRows.length > 0
+      ? activityEvents.filter((event) => event.type !== "Price")
+      : activityEvents
+  ).slice(0, 6);
   const isRole = (...roles: AppRole[]) => roles.includes(focusRole);
   const showFinancialDashboardSection = isRole(
     "owner",
@@ -9724,8 +9734,8 @@ function WorkspaceDashboard({
                     key={action.id}
                     className={
                       isFinanceFocus
-                        ? `grid gap-3 rounded-sm border border-slate-200 border-l-4 bg-card p-4 shadow-[var(--finance-shadow)] ${financeActionTone.border}`
-                        : `grid gap-3 rounded-sm border p-3 ${
+                        ? `grid min-h-[168px] grid-rows-[1fr_auto] gap-3 rounded-sm border border-slate-200 border-l-4 bg-card p-4 shadow-[var(--finance-shadow)] ${financeActionTone.border}`
+                        : `grid min-h-[168px] grid-rows-[1fr_auto] gap-3 rounded-sm border p-3 ${
                             action.status === "exception"
                               ? "border-status-critical-border bg-status-critical-bg"
                               : action.status === "clear"
@@ -9771,7 +9781,7 @@ function WorkspaceDashboard({
                       className={
                         isFinanceFocus
                           ? `inline-flex h-10 items-center justify-center gap-2 rounded-sm border px-3 text-xs font-extrabold uppercase tracking-wider shadow-sm transition active:scale-[0.98] ${financeActionTone.button}`
-                          : "h-11 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                          : "h-11 w-full rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
                       }
                     >
                       {isFinanceFocus && action.status === "clear" ? (
@@ -10298,92 +10308,7 @@ function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-3">
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Ingredient Price Changes
-              </p>
-            <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                Purchased SKU cost movement
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {ownerPriceRows.length > 0 ? (
-                  ownerPriceRows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="rounded-sm border border-border-system bg-background p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {row.itemName}
-                          </p>
-                          <p className="mt-1 text-sm text-text-muted">
-                            Affects {row.affectedRecipeCount.toLocaleString()} recipe
-                            {row.affectedRecipeCount === 1 ? "" : "s"}
-                          </p>
-                        </div>
-                        <span
-                          className={`${inlineSignalClass} ${
-                            inlineSignalToneStyles[row.tone]
-                          }`}
-                        >
-                          {row.change}
-                        </span>
-                      </div>
-                      <p className="mt-3 font-mono text-sm font-semibold text-foreground">
-                        {row.impact} on hand
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
-                    No purchased SKU cost movement is visible for this period.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Approvals Waiting
-              </p>
-              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                Pending sign-off
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {ownerApprovalRows.length > 0 ? (
-                  ownerApprovalRows.map((row) => (
-                    <button
-                      key={row.id}
-                      type="button"
-                      onClick={() =>
-                        openDashboardSection(
-                          "approvals",
-                          "inventory_manager",
-                        )
-                      }
-                      className="rounded-sm border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover"
-                    >
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
-                        {row.label}
-                      </span>
-                      <span className="mt-2 block font-semibold text-foreground">
-                        {row.title}
-                      </span>
-                      <span className="mt-1 block text-sm text-text-muted">
-                        {row.detail} / {row.status}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
-                    No approvals are waiting right now.
-                  </p>
-                )}
-              </div>
-            </div>
-
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
             <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Recent Activity
@@ -10391,7 +10316,42 @@ function WorkspaceDashboard({
               <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
                 What changed
               </h2>
-              <div className="mt-5 grid gap-3">
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                {ownerPriceRows.length > 0 ? (
+                  ownerPriceRows.slice(0, 2).map((row) => (
+                    <button
+                      key={`price-${row.id}`}
+                      type="button"
+                      onClick={() => openDashboardSection("costing", "finance_manager")}
+                      className="rounded-sm border border-status-attention-border bg-status-attention-bg/50 p-4 text-left transition hover:border-status-attention-text"
+                    >
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
+                        Cost movement
+                      </span>
+                      <span className="mt-2 flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-foreground">
+                            {row.itemName}
+                          </span>
+                          <span className="mt-1 block text-sm text-text-muted">
+                            {row.affectedRecipeCount.toLocaleString()} recipe
+                            {row.affectedRecipeCount === 1 ? "" : "s"} affected
+                          </span>
+                        </span>
+                        <span
+                          className={`${inlineSignalClass} ${
+                            inlineSignalToneStyles[row.tone]
+                          }`}
+                        >
+                          {row.change}
+                        </span>
+                      </span>
+                      <span className="mt-3 block font-mono text-sm font-semibold text-foreground">
+                        {row.impact} on hand
+                      </span>
+                    </button>
+                  ))
+                ) : null}
                 {ownerRecentActivity.length > 0 ? (
                   ownerRecentActivity.map((event) => {
                     const eventToneClass =
@@ -10444,8 +10404,48 @@ function WorkspaceDashboard({
                     );
                   })
                 ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
+                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted md:col-span-2">
                     No operating activity is visible yet.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                Approvals Waiting
+              </p>
+              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
+                Pending sign-off
+              </h2>
+              <div className="mt-5 grid gap-3">
+                {ownerApprovalRows.length > 0 ? (
+                  ownerApprovalRows.map((row) => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() =>
+                        openDashboardSection(
+                          "approvals",
+                          "inventory_manager",
+                        )
+                      }
+                      className="rounded-sm border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover"
+                    >
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+                        {row.label}
+                      </span>
+                      <span className="mt-2 block font-semibold text-foreground">
+                        {row.title}
+                      </span>
+                      <span className="mt-1 block text-sm text-text-muted">
+                        {row.detail} / {row.status}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
+                    No approvals are waiting right now.
                   </p>
                 )}
               </div>
@@ -12801,8 +12801,8 @@ function WorkspaceDashboard({
                         ? new Date(check.submittedAt).toLocaleString()
                         : "-"}
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-wrap justify-end gap-2">
+                    <td className="w-[150px] px-4 py-4">
+                      <div className="ml-auto grid w-full max-w-[132px] gap-2">
                         <button
                           type="button"
                           onClick={() =>
@@ -12811,14 +12811,14 @@ function WorkspaceDashboard({
                               check.ownerRole,
                             )
                           }
-                          className={compactActionButtonClass}
+                          className={`${compactActionButtonClass} w-full text-center`}
                         >
                           Open
                         </button>
                         {checkCanAct ? (
                           <>
                             {check.passed && check.status !== "exception" ? (
-                              <span className="inline-flex h-9 items-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 text-xs font-bold uppercase tracking-wider text-accent">
+                              <span className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-2 text-center text-xs font-bold uppercase tracking-wider text-accent">
                                 <span className="text-sm leading-none">OK</span>
                                 Checked
                               </span>
@@ -12844,7 +12844,7 @@ function WorkspaceDashboard({
                                           : "No activity for this register today.",
                                   })
                                 }
-                                className={compactPrimaryActionButtonClass}
+                                className={`${compactPrimaryActionButtonClass} w-full px-2 text-center`}
                               >
                                 {actionLabel}
                               </button>
@@ -12861,14 +12861,14 @@ function WorkspaceDashboard({
                                     notes: "Exception flagged from daily checklist.",
                                   })
                                 }
-                                className="h-9 rounded-sm border border-status-critical-border bg-status-critical-bg px-3 text-xs font-bold uppercase tracking-wider text-status-critical-text transition hover:border-status-critical-text"
+                                className="h-9 w-full rounded-sm border border-status-critical-border bg-status-critical-bg px-2 text-center text-xs font-bold uppercase tracking-wider text-status-critical-text transition hover:border-status-critical-text"
                               >
                                 Flag issue
                               </button>
                             )}
                           </>
                         ) : (
-                          <span className="inline-flex h-9 items-center rounded-sm border border-border-system bg-background px-3 text-xs font-semibold text-text-muted">
+                          <span className="inline-flex h-9 w-full items-center justify-center rounded-sm border border-border-system bg-background px-2 text-center text-xs font-semibold text-text-muted">
                             {isAuditFocus ? "Review only" : "Owner only"}
                           </span>
                         )}
@@ -12927,8 +12927,8 @@ function WorkspaceDashboard({
                   separate financial status.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {canRecordOperations &&
+              <div className="flex flex-wrap justify-end gap-2">
+                {canManageOperatingDayClose &&
                 currentOperatingDay?.status !== "closed" &&
                 currentOperatingDay?.status !== "locked" ? (
                   <button
@@ -12942,7 +12942,7 @@ function WorkspaceDashboard({
                     Review close
                   </button>
                 ) : null}
-                {canApproveOperations &&
+                {canManageOperatingDayClose &&
                 currentOperatingDay?.status !== "closed" &&
                 currentOperatingDay?.status !== "locked" ? (
                   <button
@@ -12960,7 +12960,7 @@ function WorkspaceDashboard({
                     Close operating day
                   </button>
                 ) : null}
-                {canApproveOperations &&
+                {canManageOperatingDayClose &&
                 currentOperatingDay?.status === "closed" ? (
                   <button
                     type="button"
@@ -12982,16 +12982,30 @@ function WorkspaceDashboard({
                     Reopen with reason
                   </button>
                 ) : null}
+                {!canManageOperatingDayClose ? (
+                  <p className="max-w-sm rounded-sm border border-border-system bg-background px-3 py-2 text-xs font-semibold leading-5 text-text-muted">
+                    Department roles clear their own rows. Operating day review
+                    is managed by Operations or ownership.
+                  </p>
+                ) : null}
               </div>
             </div>
 
             {dayCloseBlockers.length > 0 ? (
-              <div className="mt-4 rounded-sm border border-status-critical-border bg-status-critical-bg p-4">
-                <p className="text-sm font-semibold text-status-critical-text">
-                  {dayCloseBlockers.length} blocking control
-                  {dayCloseBlockers.length === 1 ? "" : "s"} require action
-                </p>
-                <ul className="mt-2 grid gap-2 text-sm text-text-muted md:grid-cols-2">
+              <details
+                className="mt-4 rounded-sm border border-status-critical-border bg-status-critical-bg"
+                open={canManageOperatingDayClose}
+              >
+                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-status-critical-text">
+                  <span>
+                    {dayCloseBlockers.length} blocking control
+                    {dayCloseBlockers.length === 1 ? "" : "s"} require action
+                  </span>
+                  <span className="rounded-full border border-status-critical-border bg-card px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
+                    View / hide
+                  </span>
+                </summary>
+                <ul className="grid gap-2 border-t border-status-critical-border px-4 py-3 text-sm text-text-muted md:grid-cols-2">
                   {dayCloseBlockers.map((blocker) => (
                     <li key={`${blocker.type}-${blocker.key}`}>
                       <span className="font-semibold text-foreground">
@@ -13001,7 +13015,7 @@ function WorkspaceDashboard({
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             ) : currentOperatingDay?.status === "closing_review" ? (
               <p className="mt-4 rounded-sm border border-accent-muted-border bg-accent-muted-bg p-3 text-sm font-semibold text-accent">
                 No blocking controls remain. An authorized approver can close
