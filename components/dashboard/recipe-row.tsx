@@ -121,11 +121,19 @@ export function RecipeRow({
                 extractUuid(inventoryItem.id) ===
                 extractUuid(component.component_inventory_item_id),
             );
+            const yieldPct = Math.max(Number(item?.yield_pct ?? 1) || 1, 0.0001);
+            const netQty = Number(component.qty_in_recipe_uom) || 0;
+            const grossQty = netQty / yieldPct;
 
             return (
-              <span key={component.id}>
-                {component.qty_in_recipe_uom} {component.recipe_uom} per batch{" "}
-                {item?.name ?? component.ingredient_name ?? "Ingredient"}
+              <span key={component.id} className="leading-5">
+                {item?.name ?? component.ingredient_name ?? "Ingredient"}: net{" "}
+                {netQty.toLocaleString(undefined, { maximumFractionDigits: 4 })}{" "}
+                {component.recipe_uom}, gross{" "}
+                {grossQty.toLocaleString(undefined, {
+                  maximumFractionDigits: 4,
+                })}{" "}
+                at {Math.round(yieldPct * 100)}% yield
               </span>
             );
           })

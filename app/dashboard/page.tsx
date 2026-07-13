@@ -2286,78 +2286,18 @@ export default function DashboardPage() {
     }
 
     const targetRecipeId = extractUuid(recipeId);
-    const { data: recipeData, error: recipeError } = await supabase
-      .from("recipes")
-      .select("id, standard_batch_output_qty")
-      .eq("id", targetRecipeId)
-      .eq("organization_id", organization.id)
-      .maybeSingle();
-
-    if (recipeError || !recipeData) {
-      throw recipeError ?? new Error("Recipe could not be recalculated.");
-    }
-
-    const { data: componentData, error: componentError } = await supabase
-      .from("recipe_components")
-      .select("component_inventory_item_id, qty_in_recipe_uom")
-      .eq("recipe_id", targetRecipeId)
-      .eq("organization_id", organization.id);
-
-    if (componentError) {
-      throw componentError;
-    }
-
-    const componentRows = (componentData ?? []) as Array<{
-      component_inventory_item_id: string | null;
-      qty_in_recipe_uom: number;
-    }>;
-    const componentItemIds = componentRows
-      .map((component) => extractUuid(component.component_inventory_item_id))
-      .filter(Boolean);
-
-    if (componentItemIds.length === 0) {
-      await supabase.rpc("set_recipe_cost_from_engine", {
+    const { data: recalculatedCost, error: recalculationError } =
+      await supabase.rpc("calculate_recipe_unit_cost", {
         target_recipe_id: targetRecipeId,
-        new_cost: 0,
-        reason: "dashboard_recipe_edit",
       });
-      return;
+
+    if (recalculationError) {
+      throw recalculationError;
     }
-
-    const { data: itemData, error: itemError } = await supabase
-      .from("inventory_items")
-      .select("id, current_cost_per_base_uom")
-      .in("id", componentItemIds)
-      .eq("organization_id", organization.id);
-
-    if (itemError) {
-      throw itemError;
-    }
-
-    const costsByItemId = new Map(
-      (itemData ?? []).map((item) => [
-        extractUuid((item as InventoryItem).id),
-        Number((item as InventoryItem).current_cost_per_base_uom) || 0,
-      ]),
-    );
-    const batchOutput = Math.max(
-      Number((recipeData as Recipe).standard_batch_output_qty) || 1,
-      1,
-    );
-    const recalculatedCost =
-      componentRows.reduce((total, component) => {
-        const itemId = extractUuid(component.component_inventory_item_id);
-
-        return (
-          total +
-          (Number(component.qty_in_recipe_uom) || 0) *
-            (costsByItemId.get(itemId) ?? 0)
-        );
-      }, 0) / batchOutput;
 
     const { error: costError } = await supabase.rpc("set_recipe_cost_from_engine", {
       target_recipe_id: targetRecipeId,
-      new_cost: recalculatedCost,
+      new_cost: Number(recalculatedCost) || 0,
       reason: "dashboard_recipe_edit",
     });
 
@@ -13048,7 +12988,8 @@ function WorkspaceDashboard({
               </h2>
               <p className="mt-2 max-w-2xl text-sm font-semibold text-text-muted">
                 Test high-value proteins and perishables periodically. ProfitPlate
-                updates the SKU master yield only after three independent tests.
+                updates the SKU master yield from the rolling average of the
+                latest three tests.
               </p>
             </div>
             <button
@@ -15411,6 +15352,12 @@ function WorkspaceDashboard({
                     selectedComponentItem?.base_uom ??
                     selectedComponentItem?.on_hand_uom ??
                     "unit";
+                  const selectedYieldPct = Math.max(
+                    Number(selectedComponentItem?.yield_pct ?? 1) || 1,
+                    0.0001,
+                  );
+                  const netQuantity = Number(row.quantity) || 0;
+                  const grossQuantity = netQuantity / selectedYieldPct;
 
                   return (
                     <div
@@ -15453,7 +15400,7 @@ function WorkspaceDashboard({
                       })}
                     </select>
                     <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                      Qty used ({selectedComponentUom})
+                      Net qty used ({selectedComponentUom})
                       <input
                         type="number"
                         min="0"
@@ -15472,6 +15419,15 @@ function WorkspaceDashboard({
                         required
                         className={formControlClass}
                       />
+                      {selectedComponentItem ? (
+                        <span className="text-[11px] normal-case leading-5 tracking-normal text-text-muted">
+                          Gross draw: {grossQuantity.toLocaleString(undefined, {
+                            maximumFractionDigits: 4,
+                          })}{" "}
+                          {selectedComponentUom} at{" "}
+                          {Math.round(selectedYieldPct * 100)}% yield
+                        </span>
+                      ) : null}
                     </label>
                     <button
                       type="button"
