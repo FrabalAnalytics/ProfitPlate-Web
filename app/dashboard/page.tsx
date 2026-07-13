@@ -10613,113 +10613,212 @@ function WorkspaceDashboard({
         id="profit-movement"
         className={`${showFinancialDashboardSection && isSectionActive("profit-movement") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-slate-200 bg-card p-4 shadow-[var(--finance-shadow)] sm:p-6`}
       >
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-              Owner Priorities
+              Finance Command Center
             </p>
             <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
               Profit Movement
             </h2>
           </div>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-            {formatShortDate(latestActivityMs)}
-          </p>
-        </div>
-
-        {primaryCostCascadeAlert ? (
-          <div className="mt-5 rounded-sm border border-status-critical-border bg-card p-4 shadow-[var(--finance-shadow)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-status-critical-border bg-status-critical-bg text-status-critical-text">
-                  <AlertTriangle size={20} strokeWidth={2.4} />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
-                    SKU Cost Alert
-                  </p>
-                  <h3 className="truncate text-lg font-extrabold text-foreground">
-                    {primaryCostCascadeAlert.skuName} rose
-                    {primaryCostCascadeAlert.changePct !== null
-                      ? ` by ${primaryCostCascadeAlert.changePct.toLocaleString(
-                          undefined,
-                          { maximumFractionDigits: 1 },
-                        )}%`
-                      : ""}
-                  </h3>
-                </div>
-              </div>
-              <span className="rounded-full border border-status-critical-border bg-status-critical-bg px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
-                {formatCurrency(primaryCostCascadeAlert.impact, 0)} exposure
-              </span>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
-              <div className="rounded-sm border border-slate-200 bg-[var(--finance-canvas)] p-3">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                  Level 1 / Trigger
-                </p>
-                <p className="mt-1 truncate text-sm font-bold text-foreground">
-                  {primaryCostCascadeAlert.skuName}
-                </p>
-              </div>
-              <ArrowRight className="hidden text-text-ghost lg:block" size={18} />
-              <div className="rounded-sm border border-status-attention-border bg-status-attention-bg p-3">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
-                  Level 2 / Sub-recipe
-                </p>
-                <p className="mt-1 truncate text-sm font-bold text-foreground">
-                  {primaryCostCascadeAlert.subRecipeName}
-                </p>
-              </div>
-              <ArrowRight className="hidden text-text-ghost lg:block" size={18} />
-              <div className="rounded-sm border border-status-critical-border bg-status-critical-bg p-3">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-critical-text">
-                  Level 3 / Menu margin
-                </p>
-                <p className="mt-1 truncate text-sm font-bold text-foreground">
-                  {primaryCostCascadeAlert.menuName}
-                </p>
-                <p className="mt-1 font-mono text-[11px] font-bold text-status-critical-text">
-                  {primaryCostCascadeAlert.marginPct === null
-                    ? "Margin check needed"
-                    : `${primaryCostCascadeAlert.marginPct.toLocaleString(undefined, {
-                        maximumFractionDigits: 1,
-                      })}% margin`}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="mt-5 grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <div
-            className={`rounded-sm border bg-card p-5 shadow-[var(--finance-shadow)] ${
-              profitMovementNet >= 0
-                ? "border-accent-muted-border"
-                : "border-status-critical-border"
-            }`}
-          >
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-              Net visible movement
-            </p>
-            <p
-              className={`mt-3 font-mono text-4xl font-semibold ${
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-slate-200 bg-[var(--finance-canvas)] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+              {formatShortDate(latestActivityMs)}
+            </span>
+            <span
+              className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
                 profitMovementNet >= 0
-                  ? "text-accent"
-                  : "text-status-critical-text"
+                  ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                  : "border-status-critical-border bg-status-critical-bg text-status-critical-text"
               }`}
             >
-              {formatSignedCurrency(profitMovementNet)}
-            </p>
-            <p className="mt-3 text-sm leading-6 text-text-muted">
-              {largestProfitMovement
-                ? `${largestProfitMovement.owner} is driving the largest visible movement through ${largestProfitMovement.label.toLowerCase()}.`
-                : "No profit movement has been captured yet."}
-            </p>
+              {profitMovementNet >= 0 ? "Protected" : "Exposure"}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
+          <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                {
+                  label: "Net movement",
+                  value:
+                    profitMovementNet === 0
+                      ? "No exposure"
+                      : formatSignedCurrency(profitMovementNet),
+                  detail: largestProfitMovement
+                    ? `${largestProfitMovement.owner} / ${largestProfitMovement.label}`
+                    : "No captured movement",
+                  tone:
+                    profitMovementNet >= 0
+                      ? ("healthy" as const)
+                      : ("critical" as const),
+                },
+                {
+                  label: "Margin health",
+                  value: `${marginHealthScore}%`,
+                  detail: "Current finance score",
+                  tone:
+                    marginHealthScore >= 75
+                      ? ("healthy" as const)
+                      : marginHealthScore >= 55
+                        ? ("attention" as const)
+                        : ("critical" as const),
+                },
+                {
+                  label: "Visible exposure",
+                  value: formatCurrency(potentialLossExposure, 0),
+                  detail: "Loss and recovery queue",
+                  tone:
+                    potentialLossExposure > 0
+                      ? ("attention" as const)
+                      : ("healthy" as const),
+                },
+              ].map((metric) => {
+                const quietMetric = isQuietMetricValue(metric.value);
+                const toneClass =
+                  metric.tone === "healthy"
+                    ? "border-accent-muted-border text-accent"
+                    : metric.tone === "attention"
+                      ? "border-status-attention-border text-status-attention-text"
+                      : "border-status-critical-border text-status-critical-text";
+
+                return (
+                  <article
+                    key={metric.label}
+                    className={`rounded-sm border border-l-4 bg-card p-4 shadow-[var(--finance-shadow)] ${toneClass} ${
+                      quietMetric ? "opacity-70" : ""
+                    }`}
+                  >
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      {metric.label}
+                    </p>
+                    <p className={`mt-3 break-words font-mono text-2xl font-black leading-tight ${
+                      quietMetric ? "text-text-ghost" : ""
+                    }`}>
+                      {metric.value}
+                    </p>
+                    <p className="mt-2 line-clamp-1 text-xs text-text-muted" title={metric.detail}>
+                      {metric.detail}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="rounded-sm border border-slate-200 bg-[var(--finance-canvas)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                    Cost Cascade Watch
+                  </p>
+                  <h3 className="mt-1 text-lg font-extrabold text-foreground">
+                    {primaryCostCascadeAlert
+                      ? primaryCostCascadeAlert.skuName
+                      : "No active purchased SKU spike"}
+                  </h3>
+                </div>
+                <span
+                  className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                    primaryCostCascadeAlert
+                      ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                      : "border-accent-muted-border bg-accent-muted-bg text-accent"
+                  }`}
+                >
+                  {primaryCostCascadeAlert
+                    ? formatCurrency(primaryCostCascadeAlert.impact, 0)
+                    : "Clear"}
+                </span>
+              </div>
+
+              {primaryCostCascadeAlert ? (
+                <div className="mt-4 grid gap-2">
+                  {[
+                    {
+                      level: "Level 1",
+                      label: "Raw SKU trigger",
+                      value:
+                        primaryCostCascadeAlert.changePct !== null
+                          ? `${primaryCostCascadeAlert.skuName} +${primaryCostCascadeAlert.changePct.toLocaleString(
+                              undefined,
+                              { maximumFractionDigits: 1 },
+                            )}%`
+                          : primaryCostCascadeAlert.skuName,
+                      tone: "critical" as const,
+                    },
+                    {
+                      level: "Level 2",
+                      label: "Recipe layer",
+                      value: primaryCostCascadeAlert.subRecipeName,
+                      tone: "attention" as const,
+                    },
+                    {
+                      level: "Level 3",
+                      label: "Menu margin check",
+                      value:
+                        primaryCostCascadeAlert.marginPct === null
+                          ? `${primaryCostCascadeAlert.menuName} / check margin`
+                          : `${primaryCostCascadeAlert.menuName} / ${primaryCostCascadeAlert.marginPct.toLocaleString(
+                              undefined,
+                              { maximumFractionDigits: 1 },
+                            )}% margin`,
+                      tone: "critical" as const,
+                    },
+                  ].map((step, index, steps) => (
+                    <div
+                      key={step.level}
+                      className="grid gap-2 sm:grid-cols-[84px_minmax(0,1fr)] sm:items-center"
+                    >
+                      <span className="font-mono text-[10px] font-black uppercase tracking-widest text-text-ghost">
+                        {step.level}
+                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                            step.tone === "attention"
+                              ? "bg-status-attention-text"
+                              : "bg-status-critical-text"
+                          }`}
+                        />
+                        <div className="min-w-0 flex-1 rounded-sm border border-slate-200 bg-card px-3 py-2">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                            {step.label}
+                          </p>
+                          <p className="truncate text-sm font-bold text-foreground">
+                            {step.value}
+                          </p>
+                        </div>
+                        {index < steps.length - 1 ? (
+                          <ArrowRight className="hidden text-text-ghost sm:block" size={16} />
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 py-3 text-sm font-semibold text-accent">
+                  No supplier cost spike is currently driving recipe or menu-margin exposure.
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="grid gap-3">
-            {profitMovementRows.map((row) => {
+          <div className="rounded-sm border border-slate-200 bg-card p-4 shadow-[var(--finance-shadow)]">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  Exposure Queue
+                </p>
+                <h3 className="mt-1 text-lg font-extrabold text-foreground">
+                  What Finance should review
+                </h3>
+              </div>
+              <LineChart className="text-text-ghost" size={20} />
+            </div>
+            <div className="mt-3 grid gap-2">
+              {profitMovementRows.map((row) => {
               const movementClass =
                 row.value > 0
                   ? "text-accent"
@@ -10739,33 +10838,40 @@ function WorkspaceDashboard({
               return (
                 <article
                   key={row.label}
-                  className="grid gap-4 rounded-sm border border-slate-200 bg-card p-4 shadow-[var(--finance-shadow)] transition hover:border-border-system-hover md:grid-cols-[minmax(0,1fr)_130px_160px_auto] md:items-center"
+                  className="grid gap-3 rounded-sm border border-slate-200 bg-[var(--finance-canvas)] p-3 transition hover:border-border-system-hover"
                 >
-                  <div className="flex min-w-0 gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-slate-200 bg-[var(--finance-canvas)] text-text-muted">
                       <RowIcon size={18} strokeWidth={2.2} />
                     </span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground">{row.label}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="font-semibold text-foreground">{row.label}</p>
+                        <span className={`font-mono text-sm font-black ${movementClass}`}>
+                          {row.value === 0 ? "No exposure" : formatSignedCurrency(row.value)}
+                        </span>
+                      </div>
                       <p className="mt-1 line-clamp-1 text-xs text-text-ghost" title={row.detail}>
                         {row.detail}
                       </p>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <span className="rounded-full border border-slate-200 bg-card px-2.5 py-1 text-[11px] font-bold text-text-muted">
+                          {row.owner}
+                        </span>
+                        <a
+                          href={row.href}
+                          className="inline-flex h-8 w-fit items-center gap-2 rounded-sm border border-border-system bg-card px-3 text-[11px] font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                        >
+                          Review
+                          <ArrowRight size={13} strokeWidth={2.4} />
+                        </a>
+                      </div>
                     </div>
                   </div>
-                  <span className="font-semibold text-text-muted">{row.owner}</span>
-                  <span className={`font-mono font-semibold ${movementClass}`}>
-                    {row.value === 0 ? "No exposure" : formatSignedCurrency(row.value)}
-                  </span>
-                  <a
-                    href={row.href}
-                    className="inline-flex h-9 w-fit items-center gap-2 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
-                  >
-                    Review
-                    <ArrowRight size={14} strokeWidth={2.4} />
-                  </a>
                 </article>
               );
             })}
+            </div>
           </div>
         </div>
       </section>
