@@ -160,6 +160,7 @@ type PurchaseReceiptInputRow = {
   stockOnHandQty: string;
   quantity: string;
   landedUnitCost: string;
+  taxRatePct: string;
 };
 
 type RequisitionInputRow = {
@@ -1469,6 +1470,8 @@ export default function DashboardPage() {
       stock_on_hand_qty?: number | null;
       quantity: number;
       landed_unit_cost: number;
+      tax_rate_pct?: number;
+      tax_amount?: number;
     }> = [];
 
     try {
@@ -1558,6 +1561,8 @@ export default function DashboardPage() {
             inventory_item_id: extractUuid(line.inventory_item_id),
             quantity: line.quantity,
             landed_unit_cost: line.landed_unit_cost,
+            tax_rate_pct: Number(line.tax_rate_pct ?? 0),
+            tax_amount: Number(line.tax_amount ?? 0),
           })),
         },
       );
@@ -1651,17 +1656,36 @@ export default function DashboardPage() {
         (detailedOrder.data as { po_number?: string | null }).po_number ?? "";
     }
 
-    const { error: lineError } = await supabase.from("purchase_order_lines").insert(
-      validPurchaseLines.map((line) => ({
+    const linePayloads = validPurchaseLines.map((line) => ({
         purchase_order_id: createdOrderId,
         inventory_item_id: extractUuid(line.inventory_item_id),
         qty: line.quantity,
         landed_unit_cost: line.landed_unit_cost,
-      })),
-    );
+        tax_rate_pct: Number(line.tax_rate_pct ?? 0),
+        tax_amount: Number(line.tax_amount ?? 0),
+        tax_inclusive: false,
+      }));
+    const { error: lineError } = await supabase
+      .from("purchase_order_lines")
+      .insert(linePayloads);
+    const taxColumnUnavailable =
+      lineError?.message.toLowerCase().includes("tax_rate_pct") ||
+      lineError?.message.toLowerCase().includes("tax_amount") ||
+      lineError?.message.toLowerCase().includes("tax_inclusive");
+    const fallbackLineInsert = taxColumnUnavailable
+      ? await supabase.from("purchase_order_lines").insert(
+          validPurchaseLines.map((line) => ({
+            purchase_order_id: createdOrderId,
+            inventory_item_id: extractUuid(line.inventory_item_id),
+            qty: line.quantity,
+            landed_unit_cost: line.landed_unit_cost,
+          })),
+        )
+      : null;
+    const fallbackLineError = fallbackLineInsert?.error ?? null;
 
-    if (lineError) {
-      setMessage(lineError.message);
+    if (fallbackLineError || (lineError && !taxColumnUnavailable)) {
+      setMessage(fallbackLineError?.message ?? lineError?.message ?? "");
       setPurchaseOrderSaving(false);
       return false;
     }
@@ -3521,6 +3545,7 @@ function WorkspaceDashboard({
       stockOnHandQty: "",
       quantity: "",
       landedUnitCost: "",
+      taxRatePct: "",
     },
   ]);
   const [editingPurchaseOrderId, setEditingPurchaseOrderId] = useState("");
@@ -9064,6 +9089,16 @@ function WorkspaceDashboard({
           visible: showFinancialSection && !isRole("procurement_manager"),
         },
         {
+          href: "#procurement-intelligence",
+          label: "Procurement Intel",
+          badge:
+            todayPurchaseOrderCount > 0
+              ? `${todayPurchaseOrderCount.toLocaleString()} POs`
+              : "Review",
+          tone: todayPurchaseOrderCount > 0 ? "warning" : "setup",
+          visible: showFinancialSection || isRole("procurement_manager"),
+        },
+        {
           href: "#sales-pos",
           label: "Sales & POS",
           badge:
@@ -9253,6 +9288,11 @@ function WorkspaceDashboard({
       row.stockOnHandQty.trim() === "" ? null : Number(row.stockOnHandQty),
     quantity: Number(row.quantity),
     landed_unit_cost: Number(row.landedUnitCost),
+    tax_rate_pct: Number(row.taxRatePct || 0),
+    tax_amount:
+      Number(row.quantity || 0) *
+      Number(row.landedUnitCost || 0) *
+      (Number(row.taxRatePct || 0) / 100),
   }));
   const requisitionLinesPayload = requisitionRows.map((row) => ({
     inventory_item_id: extractUuid(row.inventoryItemId),
@@ -9397,11 +9437,210 @@ function WorkspaceDashboard({
         outstanding_qty: Math.max(Number(line.qty) - receivedQty, 0),
         uom: item?.on_hand_uom ?? item?.base_uom ?? "",
         unit_cost: line.landed_unit_cost,
+        tax_rate_pct: Number(line.tax_rate_pct ?? 0),
+        tax_amount: Number(line.tax_amount ?? 0),
         ordered_value: Number(line.qty) * Number(line.landed_unit_cost),
         short_supply_reason: order.short_supply_reason ?? "",
       };
     }),
   );
+  const procurementLineEvents = purchaseOrderReportSummaries
+    .flatMap((order) =>
+      order.lines.map((line) => {
+        const item =
+          allInventoryItemsById.get(extractUuid(line.inventory_item_id)) ??
+          activeInventoryItemsById.get(extractUuid(line.inventory_item_id));
+        const orderedQty = Number(line.qty ?? 0);
+        const receivedQty = Number(line.received_qty ?? 0);
+        const unitCost = Number(line.landed_unit_cost ?? 0);
+        const taxAmount = Number(line.tax_amount ?? 0);
+
+        return {
+          order,
+          line,
+          item,
+          itemId: extractUuid(line.inventory_item_id),
+          supplierKey:
+            extractUuid(order.supplier_id) ||
+            order.supplierName.trim().toLowerCase() ||
+            "unassigned supplier",
+          supplierName: order.supplierName,
+          orderedQty,
+          receivedQty,
+          unitCost,
+          taxAmount,
+          orderedValue: orderedQty * unitCost,
+          receivedValue: receivedQty * unitCost,
+          createdAt: order.created_at,
+        };
+      }),
+    )
+    .sort(
+      (first, second) =>
+        new Date(first.createdAt).getTime() -
+        new Date(second.createdAt).getTime(),
+    );
+  const previousProcurementCostByItem = new Map<string, number>();
+  const procurementPriceVarianceRows = procurementLineEvents.map((event) => {
+    const previousUnitCost = previousProcurementCostByItem.get(event.itemId);
+    previousProcurementCostByItem.set(event.itemId, event.unitCost);
+
+    const unitDelta =
+      previousUnitCost === undefined ? 0 : event.unitCost - previousUnitCost;
+    const variancePct =
+      previousUnitCost && previousUnitCost > 0
+        ? (unitDelta / previousUnitCost) * 100
+        : null;
+
+    return {
+      ...event,
+      previousUnitCost: previousUnitCost ?? null,
+      unitDelta,
+      variancePct,
+      varianceValue: unitDelta * event.orderedQty,
+    };
+  });
+  const procurementInflationExposure = procurementPriceVarianceRows.reduce(
+    (total, row) => total + Math.max(row.varianceValue, 0),
+    0,
+  );
+  const procurementDeflationRelief = procurementPriceVarianceRows.reduce(
+    (total, row) => total + Math.abs(Math.min(row.varianceValue, 0)),
+    0,
+  );
+  const procurementCommittedSpend = procurementLineEvents.reduce(
+    (total, row) => total + row.orderedValue,
+    0,
+  );
+  const procurementReceivedValue = procurementLineEvents.reduce(
+    (total, row) => total + row.receivedValue,
+    0,
+  );
+  const procurementTaxExposure = procurementLineEvents.reduce(
+    (total, row) => total + row.taxAmount,
+    0,
+  );
+  const supplierIntelligenceRows = Array.from(
+    procurementLineEvents.reduce((supplierMap, row) => {
+      const current = supplierMap.get(row.supplierKey) ?? {
+        supplier_key: row.supplierKey,
+        supplier: row.supplierName,
+        orderIds: new Set<string>(),
+        ordered_value: 0,
+        received_value: 0,
+        tax_amount: 0,
+        ordered_qty: 0,
+        received_qty: 0,
+        short_supply_orders: new Set<string>(),
+        partial_orders: new Set<string>(),
+        completed_orders: new Set<string>(),
+        open_orders: new Set<string>(),
+        price_variance_value: 0,
+        price_variance_count: 0,
+      };
+      current.orderIds.add(row.order.id);
+      current.ordered_value += row.orderedValue;
+      current.received_value += row.receivedValue;
+      current.tax_amount += row.taxAmount;
+      current.ordered_qty += row.orderedQty;
+      current.received_qty += row.receivedQty;
+
+      if (row.order.short_supply_reason) {
+        current.short_supply_orders.add(row.order.id);
+      }
+      if (row.order.receipt_status === "partially_received") {
+        current.partial_orders.add(row.order.id);
+      }
+      if (
+        row.order.status === "completed" ||
+        row.order.receipt_status === "completed"
+      ) {
+        current.completed_orders.add(row.order.id);
+      }
+      if (
+        row.order.status !== "completed" &&
+        row.order.receipt_status !== "completed"
+      ) {
+        current.open_orders.add(row.order.id);
+      }
+
+      const varianceRow = procurementPriceVarianceRows.find(
+        (candidate) => candidate.line.id === row.line.id,
+      );
+      if (varianceRow && varianceRow.previousUnitCost !== null) {
+        current.price_variance_value += varianceRow.varianceValue;
+        current.price_variance_count += 1;
+      }
+
+      supplierMap.set(row.supplierKey, current);
+      return supplierMap;
+    }, new Map<string, {
+      supplier_key: string;
+      supplier: string;
+      orderIds: Set<string>;
+      ordered_value: number;
+      received_value: number;
+      tax_amount: number;
+      ordered_qty: number;
+      received_qty: number;
+      short_supply_orders: Set<string>;
+      partial_orders: Set<string>;
+      completed_orders: Set<string>;
+      open_orders: Set<string>;
+      price_variance_value: number;
+      price_variance_count: number;
+    }>()),
+  )
+    .map(([, row]) => {
+      const orderCount = row.orderIds.size;
+      const receiptRate =
+        row.ordered_qty > 0 ? (row.received_qty / row.ordered_qty) * 100 : 0;
+      const shortSupplyRate =
+        orderCount > 0 ? (row.short_supply_orders.size / orderCount) * 100 : 0;
+      const status =
+        receiptRate >= 95 && shortSupplyRate === 0
+          ? "Reliable"
+          : receiptRate >= 75 && shortSupplyRate <= 25
+            ? "Monitor"
+            : "At risk";
+
+      return {
+        supplier: row.supplier,
+        orders: orderCount,
+        open_orders: row.open_orders.size,
+        completed_orders: row.completed_orders.size,
+        partial_orders: row.partial_orders.size,
+        short_supply_orders: row.short_supply_orders.size,
+        ordered_value: row.ordered_value,
+        received_value: row.received_value,
+        outstanding_value: Math.max(row.ordered_value - row.received_value, 0),
+        tax_amount: row.tax_amount,
+        receipt_rate: receiptRate,
+        short_supply_rate: shortSupplyRate,
+        price_variance_value: row.price_variance_value,
+        status,
+      };
+    })
+    .sort((first, second) => second.ordered_value - first.ordered_value);
+  const supplierPerformanceRiskCount = supplierIntelligenceRows.filter(
+    (row) => row.status !== "Reliable",
+  ).length;
+  const procurementSupplierReportRows = supplierIntelligenceRows.map((row) => ({
+    supplier: row.supplier,
+    orders: row.orders,
+    open_orders: row.open_orders,
+    completed_orders: row.completed_orders,
+    partial_orders: row.partial_orders,
+    short_supply_orders: row.short_supply_orders,
+    ordered_value: row.ordered_value,
+    received_value: row.received_value,
+    outstanding_value: row.outstanding_value,
+    tax_amount: row.tax_amount,
+    receipt_rate_pct: row.receipt_rate,
+    short_supply_rate_pct: row.short_supply_rate,
+    price_variance_value: row.price_variance_value,
+    status: row.status,
+  }));
   const goodsReceiptReportRows = purchaseReceipts.flatMap((receipt) => {
     const order = purchaseOrderReportSummaries.find(
       (candidate) => candidate.id === receipt.purchase_order_id,
@@ -9558,6 +9797,12 @@ function WorkspaceDashboard({
       dateScoped: true,
     },
     {
+      label: "Supplier intelligence",
+      filename: `supplier-intelligence-${reportDateLabel}.csv`,
+      rows: procurementSupplierReportRows,
+      dateScoped: true,
+    },
+    {
       label: "Goods received notes",
       filename: `goods-received-notes-${reportDateLabel}.csv`,
       rows: goodsReceiptReportRows,
@@ -9657,6 +9902,7 @@ function WorkspaceDashboard({
         stockOnHandQty: "",
         quantity: "",
         landedUnitCost: "",
+        taxRatePct: "",
       },
     ]);
   }
@@ -9695,6 +9941,7 @@ function WorkspaceDashboard({
               stockOnHandQty: Number(lineItem?.on_hand_qty ?? 0).toString(),
               quantity: Number(line.qty ?? 0).toString(),
               landedUnitCost: Number(line.landed_unit_cost ?? 0).toString(),
+              taxRatePct: Number(line.tax_rate_pct ?? 0).toString(),
             };
           })
         : [
@@ -9705,6 +9952,7 @@ function WorkspaceDashboard({
               stockOnHandQty: "",
               quantity: "",
               landedUnitCost: "",
+              taxRatePct: "",
             },
           ],
     );
@@ -12872,6 +13120,171 @@ function WorkspaceDashboard({
       </section>
 
       <section
+        id="procurement-intelligence"
+        className={`${(showFinancialSection || isRole("procurement_manager")) && isSectionActive("procurement-intelligence") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
+      >
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+              Procurement & Supplier Intelligence
+            </p>
+            <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
+              Supplier spend, price variance, and delivery discipline
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-text-muted">
+              VAT is captured separately from landed cost, so recipe costing stays clean
+              while Finance can still review tax exposure.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              downloadCsvReport(
+                `supplier-intelligence-${reportDateLabel}.csv`,
+                filterRowsForReportRange(procurementSupplierReportRows),
+              )
+            }
+            disabled={procurementSupplierReportRows.length === 0}
+            className={secondaryButtonClass}
+          >
+            Download
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricPill
+            label="Committed spend"
+            value={formatCurrency(procurementCommittedSpend)}
+          />
+          <MetricPill
+            label="Received value"
+            value={formatCurrency(procurementReceivedValue)}
+          />
+          <MetricPill
+            label="Inflation exposure"
+            value={formatCurrency(procurementInflationExposure)}
+            valueClassName={
+              procurementInflationExposure > 0
+                ? "font-semibold text-status-critical-text"
+                : "font-semibold text-foreground"
+            }
+          />
+          <MetricPill
+            label="Price relief"
+            value={formatCurrency(procurementDeflationRelief)}
+            valueClassName={
+              procurementDeflationRelief > 0
+                ? "font-semibold text-accent"
+                : "font-semibold text-foreground"
+            }
+          />
+          <MetricPill
+            label="VAT / tax captured"
+            value={formatCurrency(procurementTaxExposure)}
+          />
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-sm border border-border-system bg-background">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-sm">
+              <colgroup>
+                <col className="w-[210px]" />
+                <col className="w-[90px]" />
+                <col className="w-[140px]" />
+                <col className="w-[140px]" />
+                <col className="w-[140px]" />
+                <col className="w-[120px]" />
+                <col className="w-[120px]" />
+                <col className="w-[120px]" />
+              </colgroup>
+              <thead className="border-b border-border-system bg-card">
+                <tr className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  <th className="px-4 py-3">Supplier</th>
+                  <th className="px-4 py-3 text-right">Orders</th>
+                  <th className="px-4 py-3 text-right">Ordered</th>
+                  <th className="px-4 py-3 text-right">Received</th>
+                  <th className="px-4 py-3 text-right">Outstanding</th>
+                  <th className="px-4 py-3 text-right">Receipt %</th>
+                  <th className="px-4 py-3 text-right">Price variance</th>
+                  <th className="px-4 py-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {supplierIntelligenceRows.length > 0 ? (
+                  supplierIntelligenceRows.map((supplier) => (
+                    <tr
+                      key={supplier.supplier}
+                      className="border-t border-border-system transition hover:bg-card/80"
+                    >
+                      <td className="px-4 py-4 align-top">
+                        <p className="truncate font-semibold text-foreground">
+                          {supplier.supplier}
+                        </p>
+                        <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                          {supplier.short_supply_orders.toLocaleString()} short supply /{" "}
+                          {supplier.partial_orders.toLocaleString()} partial
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {supplier.orders.toLocaleString()}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {formatCurrency(supplier.ordered_value)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {formatCurrency(supplier.received_value)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-status-attention-text">
+                        {formatCurrency(supplier.outstanding_value)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
+                        {supplier.receipt_rate.toLocaleString(undefined, {
+                          maximumFractionDigits: 1,
+                        })}%
+                      </td>
+                      <td
+                        className={`whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums ${
+                          supplier.price_variance_value > 0
+                            ? "text-status-critical-text"
+                            : supplier.price_variance_value < 0
+                              ? "text-accent"
+                              : "text-foreground"
+                        }`}
+                      >
+                        {formatCurrency(supplier.price_variance_value)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top">
+                        <span
+                          className={`${inlineSignalClass} ${
+                            supplier.status === "Reliable"
+                              ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                              : supplier.status === "Monitor"
+                                ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                                : "border-status-critical-border bg-status-critical-bg text-status-critical-text"
+                          }`}
+                        >
+                          {supplier.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-5 py-8 text-center text-sm text-text-muted"
+                    >
+                      No procurement activity is available for the selected window.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section
         id="costing"
         className={`${showFinancialSection && isSectionActive("costing") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
       >
@@ -16029,6 +16442,7 @@ function WorkspaceDashboard({
                             inventoryItemId: "",
                             stockOnHandQty: "",
                             landedUnitCost: "",
+                            taxRatePct: "",
                           };
                     }),
                   );
@@ -16086,7 +16500,7 @@ function WorkspaceDashboard({
                 return (
                 <div
                   key={row.id}
-                  className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_132px_112px_128px_96px]"
+                  className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_132px_112px_128px_112px_96px]"
                 >
                   <div className="grid gap-1">
                     <input
@@ -16251,6 +16665,35 @@ function WorkspaceDashboard({
                       </span>
                     </div>
                   </label>
+                  <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                    VAT / Tax %
+                    <div className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        placeholder="0"
+                        value={row.taxRatePct}
+                        onChange={(event) =>
+                          setPurchaseReceiptRows((currentRows) =>
+                            currentRows.map((currentRow) =>
+                              currentRow.id === row.id
+                                ? {
+                                    ...currentRow,
+                                    taxRatePct: event.target.value,
+                                  }
+                                : currentRow,
+                            ),
+                          )
+                        }
+                        className={formControlClass}
+                      />
+                      <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
+                        %
+                      </span>
+                    </div>
+                  </label>
                   <button
                     type="button"
                     disabled={purchaseReceiptRows.length === 1}
@@ -16290,6 +16733,7 @@ function WorkspaceDashboard({
                       stockOnHandQty: "",
                       quantity: "",
                       landedUnitCost: "",
+                      taxRatePct: "",
                     },
                   ])
                 }

@@ -130,6 +130,9 @@ export type PurchaseOrderLine = {
   qty: number;
   received_qty?: number;
   landed_unit_cost: number;
+  tax_rate_pct?: number;
+  tax_amount?: number;
+  tax_inclusive?: boolean;
   created_at: string;
 };
 
@@ -845,10 +848,21 @@ export async function loadPurchaseOrderLines(orderIds: string[]) {
     return [];
   }
 
-  const { data, error } = await supabase
+  const detailed = await supabase
     .from("purchase_order_lines")
-    .select("id, purchase_order_id, inventory_item_id, qty, received_qty, landed_unit_cost, created_at")
+    .select(
+      "id, purchase_order_id, inventory_item_id, qty, received_qty, landed_unit_cost, tax_rate_pct, tax_amount, tax_inclusive, created_at",
+    )
     .in("purchase_order_id", orderIds);
+
+  const fallback = detailed.error
+    ? await supabase
+        .from("purchase_order_lines")
+        .select("id, purchase_order_id, inventory_item_id, qty, received_qty, landed_unit_cost, created_at")
+        .in("purchase_order_id", orderIds)
+    : detailed;
+
+  const { data, error } = fallback;
 
   if (error) {
     return [];
@@ -859,6 +873,9 @@ export async function loadPurchaseOrderLines(orderIds: string[]) {
     qty: Number((line as PurchaseOrderLine).qty) || 0,
     received_qty: Number((line as PurchaseOrderLine).received_qty) || 0,
     landed_unit_cost: Number((line as PurchaseOrderLine).landed_unit_cost) || 0,
+    tax_rate_pct: Number((line as PurchaseOrderLine).tax_rate_pct) || 0,
+    tax_amount: Number((line as PurchaseOrderLine).tax_amount) || 0,
+    tax_inclusive: Boolean((line as PurchaseOrderLine).tax_inclusive),
   }));
 }
 
