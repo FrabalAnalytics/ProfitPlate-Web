@@ -12,6 +12,24 @@ const trendTextClass: Record<Trend, string> = {
   neutral: "text-text-muted",
 };
 
+const publicPageClass =
+  "dashboard-readable flex min-h-screen max-w-full flex-col overflow-x-hidden bg-background font-sans text-foreground antialiased";
+
+const sectionEyebrowClass =
+  "font-mono text-[10px] font-bold uppercase tracking-widest text-accent";
+
+const ledgerFrameClass =
+  "overflow-hidden rounded-sm border border-border-system bg-background";
+
+const ledgerHeaderClass =
+  "flex flex-wrap items-center justify-between gap-3 border-b border-border-system bg-card px-4 py-4 sm:px-5";
+
+const ledgerColumnHeaderClass =
+  "hidden border-b border-border-system bg-card px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost sm:grid";
+
+const statusPillClass =
+  "inline-flex rounded-sm border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest";
+
 const liveKPIs: {
   label: string;
   value: string;
@@ -243,11 +261,11 @@ const yieldTestRows = [
 
 export default function Home() {
   return (
-    <div id="top" className="max-w-full overflow-x-hidden flex min-h-screen flex-col bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
+    <div id="top" className={publicPageClass}>
       <header className="sticky top-0 z-50 border-b border-border-system/80 bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-8">
           <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-accent/15 bg-white shadow-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-card shadow-sm">
               <Image
                 src="/ProfitPlate logo.png.png"
                 alt="ProfitPlate Logo"
@@ -289,7 +307,7 @@ export default function Home() {
             </Link>
             <Link
               href="/signup"
-              className="whitespace-nowrap rounded-md bg-accent px-2.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent-hover sm:px-5"
+            className="whitespace-nowrap rounded-sm bg-accent px-2.5 py-2.5 text-xs font-bold text-background shadow-sm transition hover:bg-accent-hover sm:px-5"
             >
               Get started
             </Link>
@@ -304,7 +322,7 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-5 pb-8 pt-10 sm:px-8 sm:pt-14 lg:pb-10 lg:pt-16">
             <div className="grid min-w-0 gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center xl:gap-16">
               <div className="min-w-0 max-w-2xl">
-                <span className="inline-flex max-w-full rounded-full border border-accent-muted-border bg-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-accent shadow-sm">
+                <span className={`${statusPillClass} max-w-full border-accent-muted-border bg-card px-3 py-1.5 text-accent shadow-sm`}>
                   Operational Discipline Protocol
                 </span>
 
@@ -323,13 +341,13 @@ export default function Home() {
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/signup"
-                    className="rounded-md bg-accent px-6 py-3.5 text-center text-xs font-bold text-white shadow-sm transition hover:bg-accent-hover"
+                  className="rounded-sm bg-accent px-6 py-3.5 text-center text-xs font-bold text-background shadow-sm transition hover:bg-accent-hover"
                   >
                     Get started
                   </Link>
                   <a
                     href="#live-preview"
-                    className="rounded-md border border-border-system bg-white px-6 py-3.5 text-center text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                    className="rounded-sm border border-border-system bg-card px-6 py-3.5 text-center text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
                   >
                     See operating dashboard
                   </a>
@@ -339,9 +357,9 @@ export default function Home() {
               {/* LIVE PREVIEW MODULE */}
               <div
                 id="live-preview"
-                className="relative min-w-0 rounded-lg border border-border-system bg-white p-4 shadow-[0_24px_70px_rgba(25,65,45,0.12)] sm:p-6"
+                className="relative min-w-0 rounded-sm border border-border-system bg-card p-4 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:p-6"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-system pb-4">
+                <div className={ledgerHeaderClass}>
                   <div>
                     <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                       Live operating example
@@ -350,7 +368,7 @@ export default function Home() {
                       Today&apos;s margin control
                     </h2>
                   </div>
-                  <span className="rounded-full border border-accent-muted-border bg-accent-muted-bg px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-accent">
+                  <span className={`${statusPillClass} border-accent-muted-border bg-accent-muted-bg text-accent`}>
                     Updated 8m ago
                   </span>
                 </div>
@@ -359,7 +377,7 @@ export default function Home() {
                   {liveKPIs.map((kpi) => (
                     <div
                       key={kpi.label}
-                      className={`relative flex min-h-28 flex-col overflow-hidden rounded-md border border-border-system p-4 ${
+                      className={`relative flex min-h-28 flex-col overflow-hidden rounded-sm border border-border-system p-4 ${
                         kpi.size === "large"
                           ? "min-h-0 border-accent-muted-border bg-accent-muted-bg sm:col-span-2"
                           : "bg-background"
@@ -407,7 +425,7 @@ export default function Home() {
                 </div>
 
                 {/* DYNAMIC ATTENTION REGISTRY */}
-                <div className="mt-4 rounded-md border border-border-system bg-white p-4">
+                <div className="mt-4 rounded-sm border border-border-system bg-background p-4">
                   <div className="flex items-center justify-between gap-4 border-b border-border-system pb-3">
                     <h3 className="text-sm font-bold text-foreground">
                       What needs your attention
@@ -421,7 +439,7 @@ export default function Home() {
                     {priorityAlerts.slice(0, 3).map((alert) => (
                       <div key={alert.title} className="py-3 last:pb-0">
                         <span
-                          className={`inline-flex rounded-sm border px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider ${alert.style}`}
+                          className={`${statusPillClass} px-2 py-0.5 text-[8px] tracking-wider ${alert.style}`}
                         >
                           {alert.type}
                         </span>
@@ -438,7 +456,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-8 grid border-y border-border-system bg-white sm:grid-cols-3">
+            <div className="mt-8 grid border-y border-border-system bg-card sm:grid-cols-3">
               {[
                 ["Purchasing to plate", "Costs cascade automatically into recipes"],
                 ["Immutable accountability", "Logs lock instantly; adjustments form clear audit trails"],
@@ -463,7 +481,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
           <div className="mb-20">
             <div className="mb-8 border-b border-border-system pb-4">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+              <span className={sectionEyebrowClass}>
                 Implementation Path
               </span>
               <h2 className="mt-1 font-sans font-extrabold tracking-tight text-2xl text-foreground">
@@ -493,7 +511,7 @@ export default function Home() {
           {/* GEOGRAPHIC MARGIN SPILLS BREAKDOWN */}
           <div className="grid gap-12 lg:grid-cols-[1fr_1.3fr] lg:items-start">
             <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-accent">
+              <span className={sectionEyebrowClass}>
                 See Where Margin Is Leaking
               </span>
               <h2 className="mt-3 font-sans font-extrabold tracking-tight text-2xl leading-tight text-foreground">
@@ -505,8 +523,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-sm border border-border-system bg-background shadow-xl">
-              <div className="flex items-center justify-between border-b border-border-system bg-card px-5 py-4">
+            <div className={`${ledgerFrameClass} shadow-xl`}>
+              <div className={ledgerHeaderClass}>
                 <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                   Actual vs Standard, By Location
                 </span>
@@ -550,7 +568,7 @@ export default function Home() {
       {/* STRATEGIC CONTROL INDEX */}
       <section id="platform" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
         <div className="mx-auto mb-16 max-w-3xl text-center">
-          <span className="text-xs font-bold uppercase tracking-widest text-accent">
+          <span className={sectionEyebrowClass}>
             What ProfitPlate Controls
           </span>
           <h2 className="mt-3 font-sans font-extrabold tracking-tight text-3xl text-foreground sm:text-4xl">
@@ -570,7 +588,7 @@ export default function Home() {
             >
               <div className="absolute left-0 top-0 h-0.5 w-0 bg-accent transition-all duration-300 group-hover:w-12" />
               <div>
-                <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-accent">
+                <span className={`${sectionEyebrowClass} mb-1 block tracking-wider`}>
                   {index.tracking}
                 </span>
                 <h3 className="font-sans font-bold text-xl text-foreground transition group-hover:text-accent">
@@ -607,10 +625,10 @@ export default function Home() {
               ProfitPlate menu items, and lock those parameters. Gross sales, promotions, voids, and true net sales are preserved cleanly across every calculation.
             </p>
 
-            <div className="mt-6 overflow-hidden rounded-sm border border-border-system bg-background">
+            <div className={`mt-6 ${ledgerFrameClass}`}>
               <div>
                 <div>
-                  <div className="hidden grid-cols-[0.7fr_1fr_1fr_0.45fr_0.8fr] gap-3 border-b border-border-system bg-card px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost sm:grid">
+                  <div className={`${ledgerColumnHeaderClass} grid-cols-[0.7fr_1fr_1fr_0.45fr_0.8fr] gap-3`}>
                     <span>POS</span>
                     <span>Export item</span>
                     <span>Maps to</span>
@@ -771,7 +789,7 @@ export default function Home() {
           <div className="mt-8 shrink-0 lg:mt-0">
             <Link
               href="/signup"
-              className="inline-block rounded-md bg-accent px-6 py-4 text-center text-xs font-bold text-white shadow-sm transition hover:bg-accent-hover"
+              className="inline-block rounded-sm bg-accent px-6 py-4 text-center text-xs font-bold text-background shadow-sm transition hover:bg-accent-hover"
             >
               Secure Your Margins Now
             </Link>
@@ -781,14 +799,14 @@ export default function Home() {
     </main>
 
     {/* GLOBAL ROOT FOOTER */}
-    <footer className="mt-auto border-t border-border-system bg-white">
+    <footer className="mt-auto border-t border-border-system bg-card">
       <div className="mx-auto max-w-7xl px-6 py-12 sm:px-8 lg:py-16">
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4 lg:gap-12">
           
           {/* BRANDING SECTION */}
           <div className="sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-white shadow-sm">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-background shadow-sm">
                 <Image
                   src="/ProfitPlate logo.png.png"
                   alt="ProfitPlate Logo"
@@ -887,7 +905,7 @@ export default function Home() {
     </footer>
     <a
       href="#top"
-      className="fixed bottom-5 right-5 z-50 rounded-full border border-accent-muted-border bg-white/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-[0_12px_36px_rgba(25,65,45,0.20)] backdrop-blur transition hover:bg-accent-muted-bg"
+      className="fixed bottom-5 right-5 z-50 rounded-sm border border-accent-muted-border bg-card/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-2xl shadow-black/30 backdrop-blur transition hover:bg-accent-muted-bg"
       aria-label="Back to top"
     >
       ↑ Top

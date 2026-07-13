@@ -308,11 +308,11 @@ export default function PlatformAdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background font-sans text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--text-ghost:#71877c] [--text-muted:#4f665b]">
-      <header className="border-b border-border-system bg-white/90 backdrop-blur">
+    <main className="dashboard-readable min-h-screen bg-background font-sans text-foreground antialiased">
+      <header className="sticky top-0 z-50 border-b border-border-system/80 bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border border-accent/15 bg-white shadow-sm">
+            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-card shadow-sm">
               <Image
                 src="/ProfitPlate logo.png.png"
                 alt="ProfitPlate Logo"
@@ -334,14 +334,14 @@ export default function PlatformAdminPage() {
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
             <Link
               href="/dashboard"
-              className="rounded-md border border-border-system bg-white px-3 py-2.5 text-center text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover sm:px-4"
+              className="rounded-sm border border-border-system bg-card px-3 py-2.5 text-center text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover sm:px-4"
             >
               My workspace dashboard
             </Link>
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-md border border-border-system bg-white px-3 py-2.5 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover sm:px-4"
+              className="rounded-sm border border-border-system bg-card px-3 py-2.5 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover sm:px-4"
             >
               Logout
             </button>
@@ -350,7 +350,7 @@ export default function PlatformAdminPage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
-        <section className="rounded-lg border border-border-system bg-white p-5 shadow-[0_24px_70px_rgba(25,65,45,0.10)] sm:p-8">
+        <section className="rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/40 sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr] lg:items-end">
             <div>
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
@@ -366,20 +366,20 @@ export default function PlatformAdminPage() {
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 {adminRole ? (
-                  <span className="inline-flex rounded-full border border-accent-muted-border bg-accent-muted-bg px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
+                  <span className="inline-flex rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
                     {formatLabel(adminRole)}
                   </span>
                 ) : null}
                 <a
                   href="#add-restaurant"
-                  className="inline-flex rounded-md border border-border-system bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                  className="inline-flex rounded-sm border border-border-system bg-card px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
                 >
                   Add restaurant entity
                 </a>
               </div>
             </div>
 
-            <div className="grid overflow-hidden rounded-md border border-border-system bg-background min-[420px]:grid-cols-2">
+            <div className="grid overflow-hidden rounded-sm border border-border-system bg-background min-[420px]:grid-cols-2">
               {[
                 ["Entities", totals.entities],
                 ["Users", totals.users],
@@ -403,19 +403,19 @@ export default function PlatformAdminPage() {
         </section>
 
         {loading ? (
-          <p className="mt-6 rounded-md border border-border-system bg-white px-5 py-4 text-sm font-semibold text-text-muted">
+          <p className="mt-6 rounded-sm border border-border-system bg-card px-5 py-4 text-sm font-semibold text-text-muted">
             Loading platform dashboard...
           </p>
         ) : (
           <>
             {message ? (
-              <p className="mt-6 rounded-md border border-status-info-border bg-status-info-bg px-5 py-4 text-sm font-semibold text-status-info-text">
+              <p className="mt-6 rounded-sm border border-status-info-border bg-status-info-bg px-5 py-4 text-sm font-semibold text-status-info-text">
                 {message}
               </p>
             ) : null}
             <section
               id="add-restaurant"
-              className="mt-6 rounded-lg border border-border-system bg-white p-5 shadow-sm"
+              className="mt-6 rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/25"
             >
               <div className="grid gap-5 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
                 <div>
@@ -432,7 +432,7 @@ export default function PlatformAdminPage() {
                 </div>
                 <form
                   onSubmit={handleCreateWorkspace}
-                  className="grid gap-3 rounded-md border border-border-system bg-background p-4 sm:grid-cols-2"
+                  className="grid gap-3 rounded-sm border border-border-system bg-background p-4 sm:grid-cols-2"
                 >
                   <label className="grid gap-1 sm:col-span-2">
                     <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
@@ -444,7 +444,7 @@ export default function PlatformAdminPage() {
                         setNewWorkspaceName(event.target.value)
                       }
                       placeholder="e.g. Lagos Island Grill"
-                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                      className="h-11 rounded-sm border border-border-system bg-card px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     />
                   </label>
                   <label className="grid gap-1">
@@ -456,7 +456,7 @@ export default function PlatformAdminPage() {
                       onChange={(event) =>
                         setNewWorkspaceTier(event.target.value)
                       }
-                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                      className="h-11 rounded-sm border border-border-system bg-card px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     >
                       <option value="solo">Solo</option>
                       <option value="multi_unit">Multi Unit</option>
@@ -475,7 +475,7 @@ export default function PlatformAdminPage() {
                         )
                       }
                       maxLength={3}
-                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold uppercase text-foreground outline-none transition focus:border-accent"
+                      className="h-11 rounded-sm border border-border-system bg-card px-3 text-sm font-semibold uppercase text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     />
                   </label>
                   <label className="grid gap-1 sm:col-span-2">
@@ -489,13 +489,13 @@ export default function PlatformAdminPage() {
                         setNewWorkspaceOwnerEmail(event.target.value)
                       }
                       placeholder="owner@restaurant.com"
-                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                      className="h-11 rounded-sm border border-border-system bg-card px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     />
                   </label>
                   <button
                     type="submit"
                     disabled={workspaceCreating}
-                    className="h-11 rounded-md bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
+                    className="h-11 rounded-sm bg-accent px-4 text-sm font-bold text-background transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
                   >
                     {workspaceCreating ? "Creating..." : "Create restaurant"}
                   </button>
@@ -504,7 +504,7 @@ export default function PlatformAdminPage() {
             </section>
 
             <section className="mt-6 grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-              <div className="rounded-lg border border-border-system bg-white p-5 shadow-sm">
+              <div className="rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/25">
                 <div className="flex items-center justify-between border-b border-border-system pb-4">
                   <div>
                     <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -514,7 +514,7 @@ export default function PlatformAdminPage() {
                       Entities needing review
                     </h2>
                   </div>
-                  <span className="rounded-full border border-status-attention-border bg-status-attention-bg px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
+                  <span className="rounded-sm border border-status-attention-border bg-status-attention-bg px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
                     {attentionWorkspaces.length.toLocaleString()} open
                   </span>
                 </div>
@@ -526,7 +526,7 @@ export default function PlatformAdminPage() {
                         type="button"
                         key={workspace.organization_id}
                         onClick={() => beginManageWorkspace(workspace)}
-                        className="rounded-md border border-border-system bg-background px-4 py-3 text-left transition hover:border-border-system-hover hover:bg-white"
+                        className="rounded-sm border border-border-system bg-background px-4 py-3 text-left transition hover:border-border-system-hover hover:bg-card"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -539,9 +539,9 @@ export default function PlatformAdminPage() {
                             </p>
                           </div>
                           <span
-                            className={`rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
+                            className={`rounded-sm border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
                               statusClass[workspace.system_status] ??
-                              "border-border-system bg-white text-text-muted"
+                              "border-border-system bg-card text-text-muted"
                             }`}
                           >
                             {formatLabel(workspace.system_status)}
@@ -550,14 +550,14 @@ export default function PlatformAdminPage() {
                       </button>
                     ))
                   ) : (
-                    <p className="rounded-md border border-accent-muted-border bg-accent-muted-bg px-4 py-3 text-sm font-semibold text-accent">
+                    <p className="rounded-sm border border-accent-muted-border bg-accent-muted-bg px-4 py-3 text-sm font-semibold text-accent">
                       No workspace needs platform attention right now.
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border-system bg-white shadow-sm">
+              <div className="overflow-hidden rounded-sm border border-border-system bg-card shadow-2xl shadow-black/25">
                 <div className="grid gap-4 border-b border-border-system px-5 py-4 lg:grid-cols-[1fr_auto] lg:items-end">
                   <div>
                     <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -576,12 +576,12 @@ export default function PlatformAdminPage() {
                       value={searchTerm}
                       onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Search restaurants"
-                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                      className="h-11 rounded-sm border border-border-system bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     />
                     <select
                       value={statusFilter}
                       onChange={(event) => setStatusFilter(event.target.value)}
-                      className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                      className="h-11 rounded-sm border border-border-system bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     >
                       <option value="all">All statuses</option>
                       <option value="implementation_mode">
@@ -598,7 +598,7 @@ export default function PlatformAdminPage() {
                     onSubmit={handleUpdateWorkspaceSettings}
                     className="grid gap-4 border-b border-border-system bg-background px-5 py-4 lg:grid-cols-[minmax(220px,1fr)_minmax(300px,0.9fr)]"
                   >
-                    <div className="rounded-md border border-border-system bg-white p-4">
+                    <div className="rounded-sm border border-border-system bg-card p-4">
                       <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                         Managing
                       </p>
@@ -614,7 +614,7 @@ export default function PlatformAdminPage() {
                         ].map(([label, value]) => (
                           <div
                             key={label}
-                            className="rounded-md border border-border-system bg-background px-3 py-2"
+                            className="rounded-sm border border-border-system bg-background px-3 py-2"
                           >
                             <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                               {label}
@@ -625,7 +625,7 @@ export default function PlatformAdminPage() {
                           </div>
                         ))}
                       </div>
-                      <div className="mt-4 rounded-md border border-status-info-border bg-status-info-bg px-4 py-3 text-sm leading-6 text-status-info-text">
+                      <div className="mt-4 rounded-sm border border-status-info-border bg-status-info-bg px-4 py-3 text-sm leading-6 text-status-info-text">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <p className="font-bold text-foreground">
@@ -643,7 +643,7 @@ export default function PlatformAdminPage() {
                               type="button"
                               onClick={handleEnsureFrontCounter}
                               disabled={frontCounterEnsuring}
-                              className="inline-flex rounded-md border border-status-info-border bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex rounded-sm border border-status-info-border bg-card px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {frontCounterEnsuring
                                 ? "Creating..."
@@ -653,7 +653,7 @@ export default function PlatformAdminPage() {
                         </div>
                         <div className="mt-4 grid gap-2 sm:grid-cols-2">
                           <div
-                            className={`rounded-md border px-3 py-2 ${
+                            className={`rounded-sm border px-3 py-2 ${
                               selectedHasSalesOutlet
                                 ? "border-accent-muted-border bg-accent-muted-bg text-accent"
                                 : "border-status-attention-border bg-status-attention-bg text-status-attention-text"
@@ -667,10 +667,10 @@ export default function PlatformAdminPage() {
                             </p>
                           </div>
                           <div
-                            className={`rounded-md border px-3 py-2 ${
+                            className={`rounded-sm border px-3 py-2 ${
                               selectedFinalProductCount > 0
                                 ? "border-accent-muted-border bg-accent-muted-bg text-accent"
-                                : "border-status-info-border bg-white text-status-info-text"
+                              : "border-status-info-border bg-card text-status-info-text"
                             }`}
                           >
                             <p className="font-mono text-[9px] font-bold uppercase tracking-widest">
@@ -689,7 +689,7 @@ export default function PlatformAdminPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-3 rounded-md border border-border-system bg-white p-4 sm:grid-cols-2">
+                    <div className="grid gap-3 rounded-sm border border-border-system bg-card p-4 sm:grid-cols-2">
                       <label className="grid gap-1">
                         <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                           System status
@@ -699,7 +699,7 @@ export default function PlatformAdminPage() {
                           onChange={(event) =>
                             setSelectedSystemStatus(event.target.value)
                           }
-                          className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                          className="h-11 rounded-sm border border-border-system bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                         >
                           <option value="implementation_mode">
                             Implementation mode
@@ -718,7 +718,7 @@ export default function PlatformAdminPage() {
                           onChange={(event) =>
                             setSelectedSubscriptionTier(event.target.value)
                           }
-                          className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                          className="h-11 rounded-sm border border-border-system bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                         >
                           <option value="solo">Solo</option>
                           <option value="multi_unit">Multi Unit</option>
@@ -739,14 +739,14 @@ export default function PlatformAdminPage() {
                             )
                           }
                           maxLength={3}
-                          className="h-11 rounded-md border border-border-system bg-white px-3 text-sm font-semibold uppercase text-foreground outline-none transition focus:border-accent"
+                          className="h-11 rounded-sm border border-border-system bg-background px-3 text-sm font-semibold uppercase text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                           aria-label="Workspace currency"
                         />
                       </label>
                       <button
                         type="submit"
                         disabled={managementSaving}
-                        className="h-11 self-end rounded-md bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        className="h-11 self-end rounded-sm bg-accent px-4 text-sm font-bold text-background transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {managementSaving ? "Saving..." : "Save changes"}
                       </button>
@@ -759,7 +759,7 @@ export default function PlatformAdminPage() {
                     filteredWorkspaces.map((workspace) => (
                       <article
                         key={workspace.organization_id}
-                        className="rounded-md border border-border-system bg-background p-4"
+                        className="rounded-sm border border-border-system bg-background p-4"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -772,9 +772,9 @@ export default function PlatformAdminPage() {
                             </p>
                           </div>
                           <span
-                            className={`shrink-0 rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
+                            className={`shrink-0 rounded-sm border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
                               statusClass[workspace.system_status] ??
-                              "border-border-system bg-white text-text-muted"
+                              "border-border-system bg-card text-text-muted"
                             }`}
                           >
                             {formatLabel(workspace.system_status)}
@@ -790,7 +790,7 @@ export default function PlatformAdminPage() {
                           ].map(([label, value]) => (
                             <div
                               key={label}
-                              className="rounded-md border border-border-system bg-white px-3 py-2"
+                              className="rounded-sm border border-border-system bg-card px-3 py-2"
                             >
                               <dt className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                                 {label}
@@ -817,7 +817,7 @@ export default function PlatformAdminPage() {
                           <button
                             type="button"
                             onClick={() => beginManageWorkspace(workspace)}
-                            className="rounded-md border border-border-system bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                            className="rounded-sm border border-border-system bg-card px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
                           >
                             Manage
                           </button>
@@ -825,7 +825,7 @@ export default function PlatformAdminPage() {
                       </article>
                     ))
                   ) : (
-                    <p className="rounded-md border border-border-system bg-background px-4 py-3 text-sm font-semibold text-text-muted">
+                    <p className="rounded-sm border border-border-system bg-background px-4 py-3 text-sm font-semibold text-text-muted">
                       No restaurant entities match this filter.
                     </p>
                   )}
@@ -862,7 +862,7 @@ export default function PlatformAdminPage() {
                           </td>
                           <td className="px-5 py-4">
                             <span
-                              className={`inline-flex rounded-full border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
+                              className={`inline-flex rounded-sm border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest ${
                                 statusClass[workspace.system_status] ??
                                 "border-border-system bg-background text-text-muted"
                               }`}
@@ -902,7 +902,7 @@ export default function PlatformAdminPage() {
                             <button
                               type="button"
                               onClick={() => beginManageWorkspace(workspace)}
-                              className="rounded-md border border-border-system bg-white px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
+                              className="rounded-sm border border-border-system bg-card px-3 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-border-system-hover"
                             >
                               Manage
                             </button>
@@ -930,7 +930,7 @@ export default function PlatformAdminPage() {
       <button
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="fixed bottom-5 right-5 z-50 rounded-full border border-accent-muted-border bg-white/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-[0_12px_36px_rgba(25,65,45,0.20)] backdrop-blur transition hover:bg-accent-muted-bg"
+        className="fixed bottom-5 right-5 z-50 rounded-sm border border-accent-muted-border bg-card/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-2xl shadow-black/30 backdrop-blur transition hover:bg-accent-muted-bg"
         aria-label="Back to top"
       >
         ↑ Top

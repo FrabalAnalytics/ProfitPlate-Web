@@ -313,6 +313,9 @@ const compactActionButtonClass =
 const compactPrimaryActionButtonClass =
   "h-9 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-3 text-xs font-bold uppercase tracking-wider text-accent transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-50";
 
+const receivingQuantityInputClass =
+  "h-14 min-w-0 w-full rounded-sm border border-border-system bg-background px-3 text-lg font-black text-foreground outline-none transition placeholder:text-text-ghost focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60";
+
 function getNoticeTone(message: string): NoticeTone {
   const normalizedMessage = message.trim().toLowerCase();
 
@@ -3052,7 +3055,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="dashboard-readable flex min-h-screen items-center justify-center bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
+      <main className="dashboard-readable flex min-h-screen items-center justify-center bg-background font-sans antialiased text-foreground">
         <p className="font-mono text-xs font-bold uppercase tracking-widest text-text-ghost">
           Loading your margin dashboard...
         </p>
@@ -3078,7 +3081,7 @@ export default function DashboardPage() {
     salesCaptureMode === "pos_import" || salesCaptureMode === "test_mode";
 
   return (
-    <main className="dashboard-readable min-h-screen overflow-x-hidden bg-background font-sans antialiased text-foreground [--accent-hover:#0d5d3d] [--accent-muted-bg:#e6f3eb] [--accent-muted-border:#c9e2d3] [--accent-primary:#126b46] [--attention-bg:#fff6dc] [--attention-border:#eedca8] [--attention-text:#9a6500] [--background:#f5f8f6] [--card-bg:#ffffff] [--card-border:#d9e2dd] [--card-border-hover:#aebdb5] [--critical-bg:#fff0ed] [--critical-border:#efc6be] [--critical-text:#bd3b2c] [--foreground:#10261c] [--info-bg:#eef5f7] [--info-border:#cbdde2] [--info-text:#356b78] [--text-ghost:#71877c] [--text-muted:#4f665b]">
+    <main className="dashboard-readable min-h-screen overflow-x-hidden bg-background font-sans antialiased text-foreground">
       <header className="sticky top-0 z-40 border-b border-border-system/80 bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex min-h-16 max-w-[1320px] items-center justify-between gap-4 px-5 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
@@ -3087,7 +3090,7 @@ export default function DashboardPage() {
               aria-label="ProfitPlate home"
               className="flex shrink-0 items-center gap-3"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-accent/15 bg-white shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-card shadow-sm">
               <Image
                 src="/ProfitPlate logo.png.png"
                 alt=""
@@ -3130,7 +3133,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-md border border-border-system bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-border-system-hover"
+              className="rounded-sm border border-border-system bg-card px-3 py-2 text-xs font-bold text-foreground transition hover:border-border-system-hover"
             >
               Logout
             </button>
@@ -3226,7 +3229,7 @@ export default function DashboardPage() {
       <button
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="fixed bottom-5 right-5 z-50 rounded-full border border-accent-muted-border bg-white/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-[0_12px_36px_rgba(25,65,45,0.20)] backdrop-blur transition hover:bg-accent-muted-bg"
+        className="fixed bottom-5 right-5 z-50 rounded-sm border border-accent-muted-border bg-card/95 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-accent shadow-2xl shadow-black/30 backdrop-blur transition hover:bg-accent-muted-bg"
         aria-label="Back to top"
       >
         ↑ Top
@@ -3458,6 +3461,7 @@ function WorkspaceDashboard({
   const [selectedDashboardSection, setSelectedDashboardSection] = useState("");
   const [selectedDashboardTargetId, setSelectedDashboardTargetId] = useState("");
   const [mobileDashboardMenuOpen, setMobileDashboardMenuOpen] = useState(false);
+  const [ownerDetailExpanded, setOwnerDetailExpanded] = useState(false);
   const [openNavGroups, setOpenNavGroups] = useState<Record<string, boolean>>(
     {},
   );
@@ -7492,16 +7496,7 @@ function WorkspaceDashboard({
       tone: "info" as const,
     },
     {
-      label: "Gross profit",
-      value: formatCurrency(latestDayGrossProfit),
-      detail:
-        previousDayGrossProfit !== 0
-          ? `${formatSignedCurrency(latestDayGrossProfit - previousDayGrossProfit)} vs previous operating day`
-          : "Revenue retained after food cost",
-      tone: latestDayGrossProfit >= 0 ? ("healthy" as const) : ("critical" as const),
-    },
-    {
-      label: "Margin",
+      label: "Gross margin",
       value:
         latestDayMarginPct === null
           ? `${marginHealthScore}%`
@@ -7526,7 +7521,21 @@ function WorkspaceDashboard({
               : ("critical" as const),
     },
     {
-      label: "Daily compliance",
+      label: "Visible leakage",
+      value: formatCurrency(visibleMarginLeakage),
+      detail:
+        visibleMarginLeakage > 0
+          ? "Current controllable loss exposure"
+          : "No visible activity leakage in the selected period",
+      tone:
+        visibleMarginLeakage > Math.max(1000, totalSalesRevenue * 0.08)
+          ? ("critical" as const)
+          : visibleMarginLeakage > 0
+            ? ("attention" as const)
+            : ("healthy" as const),
+    },
+    {
+      label: "Control readiness",
       value: `${readinessScore}%`,
       detail:
         compliancePendingCount > 0
@@ -7541,19 +7550,16 @@ function WorkspaceDashboard({
             ? ("attention" as const)
             : ("healthy" as const),
     },
+  ];
+  const ownerSecondaryMetricCards = [
     {
-      label: "Visible leakage",
-      value: formatCurrency(visibleMarginLeakage),
+      label: "Gross profit",
+      value: formatCurrency(latestDayGrossProfit),
       detail:
-        visibleMarginLeakage > 0
-          ? "Waste, stock variance, supplier cost, production loss, and menu underpricing"
-          : "No visible activity leakage in the selected period",
-      tone:
-        visibleMarginLeakage > Math.max(1000, totalSalesRevenue * 0.08)
-          ? ("critical" as const)
-          : visibleMarginLeakage > 0
-            ? ("attention" as const)
-            : ("healthy" as const),
+        previousDayGrossProfit !== 0
+          ? `${formatSignedCurrency(latestDayGrossProfit - previousDayGrossProfit)} vs previous operating day`
+          : "Revenue retained after food cost",
+      tone: latestDayGrossProfit >= 0 ? ("healthy" as const) : ("critical" as const),
     },
     {
       label: "Leakage rate",
@@ -7575,6 +7581,22 @@ function WorkspaceDashboard({
             : visibleLeakageRate > 0
               ? ("attention" as const)
               : ("healthy" as const),
+    },
+    {
+      label: "Food cost",
+      value:
+        latestDayFoodCostPct === null
+          ? "N/A"
+          : `${latestDayFoodCostPct.toLocaleString(undefined, {
+              maximumFractionDigits: 1,
+            })}%`,
+      detail: `${targetMenuMarginPct}% target margin benchmark`,
+      tone:
+        latestDayFoodCostPct === null
+          ? ("info" as const)
+          : latestDayFoodCostPct >= 40
+            ? ("attention" as const)
+            : ("healthy" as const),
     },
   ];
   const ownerLeakageRows = profitMovementRows
@@ -7722,6 +7744,7 @@ function WorkspaceDashboard({
             sectionId: "overview",
           },
         ];
+  const ownerExecutiveAction = visibleOwnerAttentionItems[0];
   const ownerLocationRows =
     locationStockSummaries.length > 0
       ? locationStockSummaries.slice(0, 4).map((location) => {
@@ -8955,7 +8978,7 @@ function WorkspaceDashboard({
 
   return (
     <section className="mx-auto grid max-w-[1320px] gap-4 px-3 py-4 sm:gap-5 sm:px-8 sm:py-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="rounded-lg border border-border-system bg-white p-3 shadow-[0_10px_30px_rgba(25,65,45,0.06)] xl:sticky xl:top-20 xl:self-start">
+      <aside className="rounded-sm border border-border-system bg-card p-3 shadow-2xl shadow-black/30 xl:sticky xl:top-20 xl:self-start">
         <div className="mb-3 rounded-sm border border-border-system bg-background p-3 xl:hidden">
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
             Dashboard View
@@ -9233,7 +9256,7 @@ function WorkspaceDashboard({
           ))}
         </div>
         <details className="group relative">
-          <summary className="flex h-9 cursor-pointer list-none items-center rounded-full border border-border-system bg-white px-4 text-xs font-bold text-text-muted transition hover:border-border-system-hover hover:text-foreground">
+          <summary className="flex h-9 cursor-pointer list-none items-center rounded-sm border border-border-system bg-card px-4 text-xs font-bold text-text-muted transition hover:border-border-system-hover hover:text-foreground">
             Export reports
           </summary>
           <div className="absolute right-0 z-20 mt-2 grid w-[calc(100vw-2rem)] max-w-[360px] gap-2 rounded-sm border border-border-system bg-card p-3 shadow-2xl shadow-black/35 sm:min-w-[320px]">
@@ -9248,7 +9271,7 @@ function WorkspaceDashboard({
                     type="date"
                     value={reportStartDate}
                     onChange={(event) => setReportStartDate(event.target.value)}
-                    className="h-9 rounded-sm border border-border-system bg-white px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    className="h-9 rounded-sm border border-border-system bg-background px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                   />
                 </label>
                 <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -9257,7 +9280,7 @@ function WorkspaceDashboard({
                     type="date"
                     value={reportEndDate}
                     onChange={(event) => setReportEndDate(event.target.value)}
-                    className="h-9 rounded-sm border border-border-system bg-white px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    className="h-9 rounded-sm border border-border-system bg-background px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                   />
                 </label>
               </div>
@@ -9301,7 +9324,7 @@ function WorkspaceDashboard({
       </div>
       {!ownerOverviewActive ? (
         <div
-          className={`mb-5 grid gap-4 rounded-lg border px-5 py-4 shadow-[0_10px_30px_rgba(25,65,45,0.05)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
+          className={`mb-5 grid gap-4 rounded-sm border px-5 py-4 shadow-2xl shadow-black/20 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
             roleNextAction.tone === "healthy"
               ? "border-accent-muted-border bg-accent-muted-bg"
               : "border-status-attention-border bg-status-attention-bg"
@@ -9330,7 +9353,7 @@ function WorkspaceDashboard({
             className={
               roleNextAction.tone === "healthy"
                 ? compactPrimaryActionButtonClass
-                : "h-10 rounded-sm border border-status-attention-border bg-white px-4 text-xs font-bold uppercase tracking-wider text-status-attention-text shadow-sm transition hover:border-status-attention-text"
+                : "h-10 rounded-sm border border-status-attention-border bg-card px-4 text-xs font-bold uppercase tracking-wider text-status-attention-text shadow-sm transition hover:border-status-attention-text"
             }
           >
             {roleNextAction.cta}
@@ -9341,7 +9364,7 @@ function WorkspaceDashboard({
         <div className="grid gap-6">
           <section>
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="min-w-0 rounded-lg border border-border-system bg-white px-6 py-6 shadow-[0_10px_30px_rgba(25,65,45,0.05)] sm:px-7">
+              <div className="min-w-0 rounded-sm border border-border-system bg-card px-6 py-6 shadow-2xl shadow-black/25 sm:px-7">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
                   Owner Dashboard
                 </p>
@@ -9357,52 +9380,49 @@ function WorkspaceDashboard({
                   .
                 </p>
               </div>
-              <div className="grid content-start gap-3 rounded-lg bg-accent p-5 text-white shadow-[0_10px_30px_rgba(18,107,70,0.15)]">
+              <div className="grid content-start gap-3 rounded-sm bg-accent p-5 text-background shadow-2xl shadow-black/25">
                 <div>
-                  <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-white/65">
-                    Quick actions
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-background/65">
+                    Next best action
                   </p>
                   <h2 className="mt-2 font-serif text-xl font-normal">
-                    Move on today&apos;s exposure.
+                    {ownerExecutiveAction.title}
                   </h2>
-                  <p className="mt-2 text-xs leading-5 text-white/75">
-                    Jump into the areas pulling on margin before they compound.
+                  <p className="mt-2 text-xs leading-5 text-background/75">
+                    {ownerExecutiveAction.detail}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    {
-                      label: "Menu margins",
-                      role: "finance_manager" as AppRole,
-                      section: "overview",
-                    },
-                    {
-                      label: "Inventory",
-                      role: "inventory_manager" as AppRole,
-                      section: "inventory",
-                    },
-                    {
-                      label: "Waste",
-                      role: "inventory_manager" as AppRole,
-                      section: "waste",
-                    },
-                    {
-                      label: "Cost changes",
-                      role: "finance_manager" as AppRole,
-                      section: "costing",
-                    },
-                  ].map((action) => (
-                    <button
-                      key={action.label}
-                      type="button"
-                      onClick={() =>
-                        openDashboardSection(action.section, action.role)
-                      }
-                      className="min-h-10 rounded-md border border-white/25 bg-white/10 px-3 text-left text-[11px] font-bold text-white transition hover:bg-white/20"
-                    >
-                      {action.label}
-                    </button>
-                  ))}
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-sm border border-background/25 bg-background/10 px-3 py-2">
+                      <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-background/60">
+                        Exposure
+                      </p>
+                      <p className="mt-1 break-words font-mono text-sm font-semibold">
+                        {ownerExecutiveAction.value}
+                      </p>
+                    </div>
+                    <div className="rounded-sm border border-background/25 bg-background/10 px-3 py-2">
+                      <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-background/60">
+                        Owner
+                      </p>
+                      <p className="mt-1 text-sm font-semibold">
+                        {roleLabels[ownerExecutiveAction.targetRole]}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openDashboardSection(
+                        ownerExecutiveAction.sectionId,
+                        ownerExecutiveAction.targetRole,
+                      )
+                    }
+                    className="min-h-11 rounded-sm border border-background/30 bg-background px-4 text-left text-xs font-black uppercase tracking-wider text-accent transition hover:bg-background/90"
+                  >
+                    Open action
+                  </button>
                 </div>
               </div>
             </div>
@@ -9412,7 +9432,7 @@ function WorkspaceDashboard({
                 <article
                   key={metric.label}
                   title={`${metric.label}: ${metric.detail}`}
-                  className={`relative flex min-h-[116px] flex-col rounded-lg border border-border-system bg-white p-4 shadow-[0_8px_24px_rgba(25,65,45,0.04)] before:absolute before:inset-y-0 before:left-0 before:w-0.5 ${
+                  className={`relative flex min-h-[116px] flex-col rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/20 before:absolute before:inset-y-0 before:left-0 before:w-0.5 ${
                     metric.tone === "healthy"
                       ? "before:bg-accent"
                       : metric.tone === "attention"
@@ -9435,7 +9455,7 @@ function WorkspaceDashboard({
               ))}
             </div>
 
-            <div className="mt-4 rounded-lg border border-border-system bg-white p-5 shadow-[0_10px_30px_rgba(25,65,45,0.05)]">
+            <div className="mt-4 rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/20">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -9456,7 +9476,9 @@ function WorkspaceDashboard({
                 </span>
               </div>
               <div className="mt-4 grid gap-3 lg:grid-cols-5">
-                {ownerLeakageRows.map((row) => {
+                {ownerLeakageRows
+                  .slice(0, ownerDetailExpanded ? ownerLeakageRows.length : 3)
+                  .map((row) => {
                   const isRecovery = row.recovery > 0;
                   const displayValue = isRecovery ? row.recovery : row.leakage;
                   const rowToneClass = isRecovery
@@ -9472,7 +9494,7 @@ function WorkspaceDashboard({
                       onClick={() =>
                         openDashboardSection(row.href.replace("#", ""))
                       }
-                      className="rounded-md border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover hover:bg-white"
+                      className="rounded-sm border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover hover:bg-card"
                     >
                       <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
                         {row.owner}
@@ -9496,8 +9518,12 @@ function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <div className="rounded-lg border border-border-system bg-white p-5 shadow-[0_10px_30px_rgba(25,65,45,0.05)]">
+          <section
+            className={`grid gap-4 ${
+              ownerDetailExpanded ? "xl:grid-cols-[1.05fr_0.95fr]" : ""
+            }`}
+          >
+            <div className="rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/20">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -9557,7 +9583,11 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="rounded-lg border border-border-system bg-white p-5 shadow-[0_10px_30px_rgba(25,65,45,0.05)]">
+            <div
+              className={`rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/20 ${
+                ownerDetailExpanded ? "" : "hidden"
+              }`}
+            >
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                 Inventory By Location
               </p>
@@ -9609,6 +9639,56 @@ function WorkspaceDashboard({
               </div>
             </div>
           </section>
+
+          <div className="rounded-sm border border-border-system bg-card px-4 py-3 shadow-2xl shadow-black/20 sm:flex sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                Executive drilldown
+              </p>
+              <p className="mt-1 text-sm text-text-muted">
+                Trends, location stock exposure, day-close controls, menu
+                profit, supplier cost movement, approvals, and recent activity.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setOwnerDetailExpanded((currentValue) => !currentValue)
+              }
+              className="mt-3 h-10 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-4 text-xs font-black uppercase tracking-wider text-accent transition hover:border-accent sm:mt-0"
+            >
+              {ownerDetailExpanded ? "Show less" : "See more +"}
+            </button>
+          </div>
+
+          {ownerDetailExpanded ? (
+            <>
+              <section className="grid gap-3 sm:grid-cols-3">
+                {ownerSecondaryMetricCards.map((metric) => (
+                  <article
+                    key={metric.label}
+                    className={`relative rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/20 before:absolute before:inset-y-0 before:left-0 before:w-0.5 ${
+                      metric.tone === "healthy"
+                        ? "before:bg-accent"
+                        : metric.tone === "attention"
+                          ? "before:bg-status-attention-text"
+                          : metric.tone === "critical"
+                            ? "before:bg-status-critical-text"
+                            : "before:bg-status-info-text"
+                    }`}
+                  >
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      {metric.label}
+                    </p>
+                    <p className="mt-2 break-words font-mono text-lg font-semibold leading-tight text-foreground">
+                      {metric.value}
+                    </p>
+                    <p className="mt-2 text-[11px] leading-4 text-text-muted">
+                      {metric.detail}
+                    </p>
+                  </article>
+                ))}
+              </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
@@ -9945,6 +10025,8 @@ function WorkspaceDashboard({
               </div>
             </div>
           </section>
+            </>
+          ) : null}
         </div>
       ) : null}
 
@@ -11912,7 +11994,7 @@ function WorkspaceDashboard({
                         check.ownerRole,
                       )
                     }
-                    className="h-10 rounded-sm border border-border-system bg-white px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
+                    className="h-10 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition hover:border-border-system-hover"
                   >
                     Open ledger
                   </button>
@@ -11945,7 +12027,7 @@ function WorkspaceDashboard({
                                     : "No activity for this register today.",
                             })
                           }
-                          className="h-10 rounded-sm bg-accent px-3 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-accent-hover"
+                          className="h-10 rounded-sm bg-accent px-3 text-xs font-bold uppercase tracking-wider text-background transition hover:bg-accent-hover"
                         >
                           {check.activityCount > 0 ||
                           check.key.includes("readiness")
@@ -12209,7 +12291,7 @@ function WorkspaceDashboard({
                     onClick={() =>
                       onCloseOperatingDay(currentOperatingDate)
                     }
-                    className="h-10 rounded-sm bg-accent px-4 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-10 rounded-sm bg-accent px-4 text-xs font-bold uppercase tracking-wider text-background transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Close operating day
                   </button>
@@ -14102,6 +14184,64 @@ function WorkspaceDashboard({
                     ["draft", "pending", "accepted"].includes(order.status) &&
                     !orderHasReceivedLines;
                   const isExpanded = expandedPurchaseOrderId === order.id;
+                  const receiptDraftLines = order.lines
+                    .map((line) => {
+                      const outstandingQty = Math.max(
+                        Number(line.qty) - Number(line.received_qty ?? 0),
+                        0,
+                      );
+                      const enteredQty = Number(
+                        purchaseReceiptQuantities[line.id] ?? outstandingQty,
+                      );
+
+                      return {
+                        purchase_order_line_id: line.id,
+                        received_qty: Math.min(
+                          Math.max(Number.isFinite(enteredQty) ? enteredQty : 0, 0),
+                          outstandingQty,
+                        ),
+                        outstanding_qty: outstandingQty,
+                        ordered_qty: Number(line.qty ?? 0),
+                        already_received_qty: Number(line.received_qty ?? 0),
+                        landed_unit_cost: Number(line.landed_unit_cost ?? 0),
+                      };
+                    })
+                    .filter((line) => line.received_qty > 0);
+                  const totalOrderedQty = order.lines.reduce(
+                    (total, line) => total + Number(line.qty ?? 0),
+                    0,
+                  );
+                  const totalAlreadyReceivedQty = order.lines.reduce(
+                    (total, line) => total + Number(line.received_qty ?? 0),
+                    0,
+                  );
+                  const totalReceivingQty = receiptDraftLines.reduce(
+                    (total, line) => total + line.received_qty,
+                    0,
+                  );
+                  const expectedRemainingQty = Math.max(
+                    totalOrderedQty - totalAlreadyReceivedQty,
+                    0,
+                  );
+                  const shortLineCount = receiptDraftLines.filter(
+                    (line) => line.received_qty < line.outstanding_qty,
+                  ).length;
+                  const hasShortDelivery =
+                    orderCanBeReceived &&
+                    (shortLineCount > 0 ||
+                      totalReceivingQty < expectedRemainingQty);
+                  const receiptValue = receiptDraftLines.reduce(
+                    (total, line) =>
+                      total + line.received_qty * line.landed_unit_cost,
+                    0,
+                  );
+                  const receiptNeedsReason =
+                    hasShortDelivery && purchaseShortSupplyReason.trim().length === 0;
+                  const confirmReceiptDisabled =
+                    !orderCanBeReceived ||
+                    receivingPurchaseOrderId === order.id ||
+                    receiptDraftLines.length === 0 ||
+                    receiptNeedsReason;
 
                   return (
                     <div
@@ -14170,36 +14310,15 @@ function WorkspaceDashboard({
                           </button>
                           <button
                             type="button"
-                            disabled={
-                              !orderCanBeReceived ||
-                              receivingPurchaseOrderId === order.id
-                            }
+                            disabled={confirmReceiptDisabled}
                             onClick={() => {
-                              const receivedLines = order.lines
-                                .map((line) => {
-                                  const outstandingQty = Math.max(
-                                    Number(line.qty) -
-                                      Number(line.received_qty ?? 0),
-                                    0,
-                                  );
-                                  const enteredQty = Number(
-                                    purchaseReceiptQuantities[line.id] ??
-                                      outstandingQty,
-                                  );
-
-                                  return {
-                                    purchase_order_line_id: line.id,
-                                    received_qty: Math.min(
-                                      Math.max(enteredQty, 0),
-                                      outstandingQty,
-                                    ),
-                                  };
-                                })
-                                .filter((line) => line.received_qty > 0);
-
                               void onReceivePurchaseOrder(
                                 order.id,
-                                receivedLines,
+                                receiptDraftLines.map((line) => ({
+                                  purchase_order_line_id:
+                                    line.purchase_order_line_id,
+                                  received_qty: line.received_qty,
+                                })),
                                 purchaseShortSupplyReason,
                               ).then(() => {
                                 setPurchaseReceiptQuantities({});
@@ -14207,7 +14326,7 @@ function WorkspaceDashboard({
                               });
                             }}
                             className={
-                              orderCanBeReceived
+                              !confirmReceiptDisabled
                                 ? compactPrimaryActionButtonClass
                                 : `${compactPrimaryActionButtonClass} opacity-50`
                             }
@@ -14221,7 +14340,35 @@ function WorkspaceDashboard({
                         </div>
                       </div>
                       {isExpanded ? (
-                        <div className="border-t border-border-system bg-card/40 px-5 py-4">
+                        <div className="border-t border-border-system bg-card/40 px-4 py-4 sm:px-5">
+                          <div className="grid gap-3 pb-4 sm:grid-cols-4">
+                            {[
+                              ["Expected", totalOrderedQty],
+                              ["Already received", totalAlreadyReceivedQty],
+                              ["Receiving now", totalReceivingQty],
+                              ["Still missing", Math.max(expectedRemainingQty - totalReceivingQty, 0)],
+                            ].map(([label, value]) => (
+                              <div
+                                key={String(label)}
+                                className="rounded-sm border border-border-system bg-background px-3 py-3"
+                              >
+                                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                                  {label}
+                                </p>
+                                <p className="mt-1 text-xl font-black leading-none text-foreground">
+                                  {Number(value).toLocaleString(undefined, {
+                                    maximumFractionDigits: 3,
+                                  })}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          {receiptNeedsReason ? (
+                            <p className="mb-3 rounded-sm border border-status-attention-border bg-status-attention-bg px-3 py-2 text-xs font-semibold text-status-attention-text">
+                              Delivery is short. Record the supplier or invoice
+                              discrepancy before confirming receipt.
+                            </p>
+                          ) : null}
                           <div className="hidden grid-cols-[minmax(0,1fr)_120px_160px_140px] gap-3 border-b border-border-system pb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost lg:grid">
                             <span>SKU</span>
                             <span>Order qty</span>
@@ -14254,11 +14401,28 @@ function WorkspaceDashboard({
                               );
                               const lineCanReceive =
                                 orderCanBeReceived && outstandingQty > 0;
+                              const enteredReceiptQty = Math.min(
+                                Math.max(
+                                  Number(
+                                    purchaseReceiptQuantities[line.id] ??
+                                      outstandingQty,
+                                  ) || 0,
+                                  0,
+                                ),
+                                outstandingQty,
+                              );
+                              const varianceQty = outstandingQty - enteredReceiptQty;
+                              const lineIsShort =
+                                lineCanReceive && varianceQty > 0;
 
                               return (
                                 <div
                                   key={line.id}
-                                  className="grid gap-3 border-b border-border-system/70 py-3 lg:grid-cols-[minmax(0,1fr)_120px_160px_140px] lg:items-center"
+                                  className={`grid gap-3 border-b border-border-system/70 py-3 lg:grid-cols-[minmax(0,1fr)_120px_160px_140px] lg:items-center ${
+                                    lineIsShort
+                                      ? "bg-status-attention-bg/35 px-3"
+                                      : ""
+                                  }`}
                                 >
                                   <div className="min-w-0">
                                     <p className="truncate font-semibold text-foreground">
@@ -14270,6 +14434,29 @@ function WorkspaceDashboard({
                                         order.receivingLocationName}{" "}
                                       / {Number(line.received_qty ?? 0).toLocaleString()} received
                                     </p>
+                                    <div className="mt-2 flex flex-wrap gap-2 lg:hidden">
+                                      <span className="rounded-full border border-border-system bg-background px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                                        Ordered{" "}
+                                        {Number(line.qty ?? 0).toLocaleString(
+                                          undefined,
+                                          { maximumFractionDigits: 3 },
+                                        )}{" "}
+                                        {lineUom}
+                                      </span>
+                                      <span
+                                        className={`rounded-full border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                                          lineIsShort
+                                            ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                                            : "border-accent-muted-border bg-accent-muted-bg text-accent"
+                                        }`}
+                                      >
+                                        {lineIsShort
+                                          ? `${varianceQty.toLocaleString(undefined, {
+                                              maximumFractionDigits: 3,
+                                            })} short`
+                                          : "Matched"}
+                                      </span>
+                                    </div>
                                   </div>
                                   <span>
                                     {Number(line.qty ?? 0).toLocaleString(undefined, {
@@ -14296,31 +14483,45 @@ function WorkspaceDashboard({
                                       {lineUom}
                                     </p>
                                   </div>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max={outstandingQty}
-                                    step="any"
-                                    aria-label={`Received quantity for ${
-                                      lineItem?.name ?? "purchase order item"
-                                    }`}
-                                    value={
-                                      purchaseReceiptQuantities[line.id] ??
-                                      outstandingQty.toString()
-                                    }
-                                    onChange={(event) =>
-                                      setPurchaseReceiptQuantities((current) => ({
-                                        ...current,
-                                        [line.id]: event.target.value,
-                                      }))
-                                    }
-                                    disabled={!lineCanReceive}
-                                    className={
-                                      lineCanReceive
-                                        ? formControlClass
-                                        : `${formControlClass} opacity-60`
-                                    }
-                                  />
+                                  <div className="grid gap-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={outstandingQty}
+                                      step="any"
+                                      aria-label={`Received quantity for ${
+                                        lineItem?.name ?? "purchase order item"
+                                      }`}
+                                      value={
+                                        purchaseReceiptQuantities[line.id] ??
+                                        outstandingQty.toString()
+                                      }
+                                      onChange={(event) =>
+                                        setPurchaseReceiptQuantities((current) => ({
+                                          ...current,
+                                          [line.id]: event.target.value,
+                                        }))
+                                      }
+                                      disabled={!lineCanReceive}
+                                      className={receivingQuantityInputClass}
+                                    />
+                                    {lineCanReceive ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setPurchaseReceiptQuantities(
+                                            (current) => ({
+                                              ...current,
+                                              [line.id]: outstandingQty.toString(),
+                                            }),
+                                          )
+                                        }
+                                        className={compactActionButtonClass}
+                                      >
+                                        Match invoice
+                                      </button>
+                                    ) : null}
+                                  </div>
                                   {!lineCanReceive && outstandingQty === 0 ? (
                                     <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
                                       Complete
@@ -14343,6 +14544,46 @@ function WorkspaceDashboard({
                               }
                               className={`${formControlClass} mt-3 w-full`}
                             />
+                          ) : null}
+                          {orderCanBeReceived ? (
+                            <div className="mt-3 flex flex-col gap-3 border-t border-border-system pt-3 sm:flex-row sm:items-center sm:justify-between">
+                              <p className="text-xs font-semibold text-text-muted">
+                                Receiving value: {organization.local_currency}{" "}
+                                {receiptValue.toLocaleString(undefined, {
+                                  maximumFractionDigits: 2,
+                                })}
+                                {hasShortDelivery
+                                  ? ` / ${shortLineCount.toLocaleString()} short line${
+                                      shortLineCount === 1 ? "" : "s"
+                                    }`
+                                  : " / all expected quantities matched"}
+                              </p>
+                              <button
+                                type="button"
+                                disabled={confirmReceiptDisabled}
+                                onClick={() =>
+                                  void onReceivePurchaseOrder(
+                                    order.id,
+                                    receiptDraftLines.map((line) => ({
+                                      purchase_order_line_id:
+                                        line.purchase_order_line_id,
+                                      received_qty: line.received_qty,
+                                    })),
+                                    purchaseShortSupplyReason,
+                                  ).then(() => {
+                                    setPurchaseReceiptQuantities({});
+                                    setPurchaseShortSupplyReason("");
+                                  })
+                                }
+                                className={
+                                  !confirmReceiptDisabled
+                                    ? primaryButtonClass
+                                    : `${primaryButtonClass} opacity-50`
+                                }
+                              >
+                                Confirm checked receipt
+                              </button>
+                            </div>
                           ) : null}
                         </div>
                       ) : null}
@@ -15846,7 +16087,7 @@ function WorkspaceDashboard({
 
           {selectedProductionIsFinalMenu ? (
             <div className="grid gap-3 rounded-sm border border-status-info-border bg-status-info-bg p-4 md:grid-cols-[0.8fr_1.2fr] md:items-start">
-              <div className="rounded-sm border border-status-info-border bg-white/80 px-4 py-3">
+              <div className="rounded-sm border border-status-info-border bg-card/80 px-4 py-3">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                   Auto destination
                 </p>
@@ -15877,7 +16118,7 @@ function WorkspaceDashboard({
                   <button
                     type="button"
                     onClick={() => openDashboardSection("setup")}
-                    className="ml-0 mt-3 block rounded-sm border border-status-attention-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-border-system-hover sm:ml-3 sm:mt-0 sm:inline-flex"
+                    className="ml-0 mt-3 block rounded-sm border border-status-attention-border bg-card px-3 py-2 text-xs font-bold text-foreground transition hover:border-border-system-hover sm:ml-3 sm:mt-0 sm:inline-flex"
                   >
                     Create sales outlet
                   </button>
