@@ -1,0 +1,324 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="ProgId" content="Word.Document">
+<title>ProfitPlate Implementation SOP</title>
+<style>
+body { font-family: Arial, sans-serif; color: #111827; line-height: 1.45; }
+h1 { color: #0f5132; font-size: 28px; }
+h2 { color: #0f5132; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-top: 28px; }
+h3 { color: #1f2937; margin-top: 20px; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+th, td { border: 1px solid #d1d5db; padding: 7px; vertical-align: top; }
+th { background: #ecfdf5; color: #064e3b; text-align: left; }
+ul, ol { margin-top: 8px; }
+.meta { color: #4b5563; }
+.callout { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 12px; margin: 12px 0; }
+.warning { background: #fff7ed; border: 1px solid #fed7aa; padding: 10px 12px; margin: 12px 0; }
+.critical { background: #fef2f2; border: 1px solid #fecaca; padding: 10px 12px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<h1>ProfitPlate Implementation SOP</h1>
+<p class="meta"><strong>Document type:</strong> Standard Operating Procedure and rollout blueprint</p>
+<p class="meta"><strong>Last updated:</strong> July 13, 2026</p>
+<p class="meta"><strong>Audience:</strong> Restaurant owners, general managers, finance managers, procurement managers, inventory managers, chefs, department heads, storekeepers, and implementation leads.</p>
+
+<h2>1. Purpose</h2>
+<p>This SOP defines how a restaurant should onboard, implement, and execute ProfitPlate as an operating discipline system. ProfitPlate is not only a software tool. It is a control framework for procurement, inventory, production, sales depletion, waste, stock counts, margin visibility, and daily close accountability.</p>
+<div class="callout"><strong>Core principle:</strong> ProfitPlate should make the right operational habit easier than the wrong one. Every material stock movement, cost movement, and daily declaration must have clear ownership, evidence, and management review.</div>
+
+<h2>2. Scope</h2>
+<p>This SOP covers the full ProfitPlate operating cycle:</p>
+<ul>
+<li>Restaurant workspace setup.</li>
+<li>User roles and access governance.</li>
+<li>Master data onboarding.</li>
+<li>Procurement and supplier controls.</li>
+<li>Purchase order and GRN workflow.</li>
+<li>Inventory, requisition, transfer, and stock movement discipline.</li>
+<li>Kitchen production and finished goods movement.</li>
+<li>POS and menu mapping.</li>
+<li>Sales depletion and margin reporting.</li>
+<li>Waste, yield testing, and cost cascade controls.</li>
+<li>Physical stock count, variance, and adjustment workflow.</li>
+<li>Daily checklist, day close, and management review.</li>
+</ul>
+
+<h2>3. Operating Phases</h2>
+<table>
+<tr><th>Phase</th><th>Objective</th><th>Primary Owner</th><th>Exit Criteria</th></tr>
+<tr><td>Phase 1: Onboarding</td><td>Create the workspace, roles, locations, master data, and initial control structure.</td><td>Implementation Lead with Owner</td><td>Workspace users, locations, suppliers, SKUs, recipes, menu items, and controls are loaded or ready for testing.</td></tr>
+<tr><td>Phase 2: Implementation</td><td>Test live workflows with restaurant users and confirm that data produces reliable reports.</td><td>Operations Manager with Finance</td><td>Sample day is completed from procurement to day close with correct audit trail.</td></tr>
+<tr><td>Phase 3: Daily Execution</td><td>Run ProfitPlate as the daily operating control system.</td><td>Restaurant Management</td><td>Daily registers, approvals, stock movement, variance review, and management dashboard are completed every operating day.</td></tr>
+</table>
+
+<h2>4. Structural Pillars</h2>
+<table>
+<tr><th>Pillar</th><th>Meaning</th><th>Control Outcome</th></tr>
+<tr><td>Roles and Accountabilities</td><td>Every task has a responsible role, not a vague group.</td><td>Users know what they can create, confirm, approve, reject, or review.</td></tr>
+<tr><td>Data and Access Governance</td><td>Master data and financial data are protected by permission and review controls.</td><td>Bad data, duplicate SKUs, unauthorized approvals, and unapproved adjustments are prevented.</td></tr>
+<tr><td>Management Responsibility</td><td>Owners and managers must review exceptions, not just receive summary reports.</td><td>ProfitPlate becomes an accountability system, not a passive reporting tool.</td></tr>
+</table>
+
+<h2>5. Roles and Accountabilities</h2>
+<table>
+<tr><th>Role</th><th>Main Responsibilities</th><th>Must Not Do</th></tr>
+<tr><td>Owner / Top Management</td><td>Set operating expectations, review dashboard exceptions, monitor margin risk, approve governance policy, hold teams accountable.</td><td>Ignore daily exceptions or use reports without checking completion discipline.</td></tr>
+<tr><td>Operations Manager / General Manager</td><td>Coordinate daily execution, confirm day close readiness, review blockers, supervise department compliance.</td><td>Close the day when critical controls remain unresolved without approved waiver.</td></tr>
+<tr><td>Finance Manager / Cost Controller</td><td>Approve stock counts and adjustments, review AvT variance, confirm POS imports, review unmapped POS items, monitor procurement tax and margin impact.</td><td>Approve stock variances without reconciliation evidence.</td></tr>
+<tr><td>Procurement Manager</td><td>Create suppliers, draft purchase orders, monitor supplier pricing, enter procurement tax/VAT where applicable, follow up open POs.</td><td>Confirm supplier receipt into stock if segregation of duties requires inventory/store confirmation.</td></tr>
+<tr><td>Inventory Manager</td><td>Own stock master accuracy, receive GRNs where allowed, manage stock counts, submit physical counts, review stock movement, maintain store discipline.</td><td>Approve own stock adjustment when Finance approval is required.</td></tr>
+<tr><td>Storekeeper</td><td>Issue items from store, confirm received supplier deliveries where authorized, maintain store documentation, escalate shortages.</td><td>Issue stock without approved requisition or evidence.</td></tr>
+<tr><td>Chef / Kitchen Manager</td><td>Own kitchen production, kitchen stock usage, waste recording, production requisitions, yield tests where applicable.</td><td>Record waste as prep waste when inherent yield already captures trimming loss.</td></tr>
+<tr><td>Bar Manager</td><td>Own bar stock, drink production, bar waste, bar stock counts, and bar sales depletion review.</td><td>Let bar stock move outside the transfer/receipt process.</td></tr>
+<tr><td>Front House / Front Counter Lead</td><td>Accept finished goods transfers, review counter stock, support POS mapping and sales outlet activity.</td><td>Receive kitchen transfers without acceptance or exception record.</td></tr>
+<tr><td>Quality Assurance</td><td>Review quality exceptions, spoilage reasons, receiving condition, and high-value item concerns.</td><td>Override operational records without evidence.</td></tr>
+</table>
+
+<h2>6. Permission and Access Governance</h2>
+<h3>6.1 Access Principles</h3>
+<ul>
+<li>Users should receive the least access required to perform their role.</li>
+<li>Approvals must be segregated from creation where risk is material.</li>
+<li>Finance controls financial approval, AvT reconciliation, and stock adjustment acceptance.</li>
+<li>Procurement controls supplier and PO creation, but stock receipt should be confirmed by inventory/store where segregation is required.</li>
+<li>Department heads can submit counts, waste, production, and requisitions for their own areas.</li>
+<li>Owner and admin access should be limited to trusted management users.</li>
+</ul>
+
+<h3>6.2 Data Entry Rules</h3>
+<table>
+<tr><th>Data Area</th><th>Rule</th><th>Reason</th></tr>
+<tr><td>Supplier master</td><td>Use legal supplier name, contact details, and active/inactive status.</td><td>Supplier intelligence and procurement reports depend on clean supplier identity.</td></tr>
+<tr><td>SKU master</td><td>Each SKU must have location, UOM, cost type, cost, and active status.</td><td>Stock movement and recipe costing require location-specific items.</td></tr>
+<tr><td>Recipes</td><td>Final menu items must have components, output UOM, batch quantity, yield, and selling price.</td><td>Menu profitability and theoretical depletion require complete recipe data.</td></tr>
+<tr><td>POS mapping</td><td>Every POS item must map to the correct ProfitPlate final menu item before reports are trusted.</td><td>Unmapped POS items cannot reliably drive depletion or food cost.</td></tr>
+<tr><td>Purchase orders</td><td>Use supplier, receiving location, line SKU, quantity, unit cost, and VAT/tax where applicable.</td><td>Supplier spend, inflation, tax, and GRN reconciliation require line-level detail.</td></tr>
+<tr><td>Waste</td><td>Waste must be recorded by exact SKU, exact location, quantity, reason, and stage.</td><td>Waste intelligence needs root-cause accountability.</td></tr>
+<tr><td>Stock counts</td><td>Physical count must be submitted by location and SKU, then approved by Finance after review.</td><td>AvT loss is only reliable when physical count is independently reviewed.</td></tr>
+</table>
+
+<h3>6.3 Master Data Change Control</h3>
+<p>Master data changes that can affect costing, margins, or stock integrity should be reviewed or restricted. Examples include:</p>
+<ul>
+<li>New supplier creation.</li>
+<li>New SKU creation.</li>
+<li>Recipe component changes.</li>
+<li>Yield percentage changes.</li>
+<li>Selling price changes.</li>
+<li>POS mapping changes.</li>
+<li>Location model changes.</li>
+</ul>
+<div class="warning"><strong>Control rule:</strong> Master data should not be treated as casual setup data after go-live. It becomes operational policy.</div>
+
+<h2>7. Phase 1: Onboarding SOP</h2>
+<h3>7.1 Workspace Setup</h3>
+<ol>
+<li>Create the restaurant workspace.</li>
+<li>Set currency and implementation mode.</li>
+<li>Create or confirm owner user.</li>
+<li>Assign owner, admin, and core management roles.</li>
+<li>Confirm workspace status is in implementation mode until sample workflows pass.</li>
+</ol>
+
+<h3>7.2 Location Setup</h3>
+<table>
+<tr><th>Location</th><th>Recommended Type</th><th>Purpose</th></tr>
+<tr><td>Main Store</td><td>Main store / stock holding</td><td>Receives purchased stock and issues to departments.</td></tr>
+<tr><td>Kitchen</td><td>Department stock</td><td>Holds kitchen-issued ingredients and production output.</td></tr>
+<tr><td>Bar</td><td>Department stock or sales outlet</td><td>Controls beverage and cocktail stock.</td></tr>
+<tr><td>Pastry</td><td>Department stock</td><td>Controls pastry production and ingredients.</td></tr>
+<tr><td>Front Counter / Front House</td><td>Sales outlet</td><td>Receives finished goods for sales depletion.</td></tr>
+<tr><td>Central Kitchen / Warehouse</td><td>Central production or warehouse</td><td>Use for multi-unit or commissary models.</td></tr>
+</table>
+
+<h3>7.3 Data Import Checklist</h3>
+<table>
+<tr><th>Data</th><th>Required Fields</th><th>Owner</th></tr>
+<tr><td>Users</td><td>Name, email, role, department, workspace assignment.</td><td>Owner / Admin</td></tr>
+<tr><td>Suppliers</td><td>Name, contact person, phone, email, active status.</td><td>Procurement / Finance</td></tr>
+<tr><td>SKUs</td><td>Name, SKU code, location, UOM, cost, yield, stock quantity, cost type.</td><td>Inventory / Finance</td></tr>
+<tr><td>Recipes</td><td>Name, recipe type, output UOM, batch quantity, yield, selling price.</td><td>Kitchen / Finance</td></tr>
+<tr><td>Recipe components</td><td>Recipe, component SKU or sub-recipe, quantity, UOM logic.</td><td>Kitchen / Cost Controller</td></tr>
+<tr><td>POS items</td><td>POS item name, POS code where available, linked menu item.</td><td>Finance / Operations</td></tr>
+<tr><td>Opening stock</td><td>SKU, location, physical quantity, unit cost.</td><td>Inventory / Finance</td></tr>
+</table>
+
+<h2>8. Phase 2: Implementation SOP</h2>
+<h3>8.1 Workflow Testing</h3>
+<p>Before go-live, the implementation team must test a complete sample operating day.</p>
+<table>
+<tr><th>Workflow</th><th>Test Action</th><th>Expected Result</th></tr>
+<tr><td>Purchase order</td><td>Create PO with supplier, receiving store, line items, unit cost, and VAT/tax where applicable.</td><td>PO appears in receiving queue and procurement reports.</td></tr>
+<tr><td>GRN receipt</td><td>Inventory/store confirms received quantity.</td><td>Stock increases, weighted cost updates, GRN is created, and cost cascade triggers if cost changed.</td></tr>
+<tr><td>Requisition</td><td>Kitchen requests stock from store.</td><td>Store issues, kitchen accepts or rejects receipt, audit trail is preserved.</td></tr>
+<tr><td>Production</td><td>Kitchen records production output.</td><td>Ingredient consumption and finished goods output are posted.</td></tr>
+<tr><td>Transfer</td><td>Kitchen transfers finished goods to front house.</td><td>Issuing and receiving locations both have audit trail and acceptance status.</td></tr>
+<tr><td>POS import</td><td>Import POS sales file.</td><td>Mapped items deplete theoretical stock; unmapped items are flagged.</td></tr>
+<tr><td>Waste</td><td>Record true waste event.</td><td>Stock reduces, waste variance is recorded, and waste dashboard updates.</td></tr>
+<tr><td>Stock count</td><td>Submit physical count for selected location.</td><td>Finance receives pending approval and variance is calculated on approval.</td></tr>
+<tr><td>Daily checklist</td><td>Each role completes required daily registers.</td><td>Day close blockers reduce as evidence is submitted.</td></tr>
+</table>
+
+<h3>8.2 Go-Live Readiness Criteria</h3>
+<ul>
+<li>Users can log in and see only their relevant workspace actions.</li>
+<li>At least one PO-to-GRN test is completed.</li>
+<li>At least one requisition issue and receipt is completed.</li>
+<li>At least one production or kitchen movement is completed where applicable.</li>
+<li>At least one POS import or sample POS mapping test is completed.</li>
+<li>At least one stock count and Finance approval is completed.</li>
+<li>Daily checklist blockers are understood by each role.</li>
+<li>Owner dashboard shows meaningful management signals.</li>
+</ul>
+
+<h2>9. Phase 3: Daily Execution SOP</h2>
+<h3>9.1 Daily Operating Rhythm</h3>
+<table>
+<tr><th>Time</th><th>Activity</th><th>Owner</th><th>Evidence</th></tr>
+<tr><td>Opening</td><td>Confirm opening readiness, high-value items, critical stock, and pending blockers.</td><td>Operations / Inventory</td><td>Opening readiness register.</td></tr>
+<tr><td>During service</td><td>Record requisitions, production, transfers, waste, supplier receipts, and exceptions as they happen.</td><td>Department Heads</td><td>System transaction records.</td></tr>
+<tr><td>After service</td><td>Import POS, review unmapped items, record final waste, review production and transfers.</td><td>Finance / Operations / Kitchen</td><td>POS import, mapping status, waste register.</td></tr>
+<tr><td>Stock count window</td><td>Count high-value items and required storage locations.</td><td>Inventory / Department Heads</td><td>Submitted stock count.</td></tr>
+<tr><td>Finance review</td><td>Approve or reject counts, review AvT variance, confirm financial controls.</td><td>Finance</td><td>Approved variance and checklist declaration.</td></tr>
+<tr><td>Day close</td><td>Review blockers, approve waivers if valid, close day only when controls are reliable.</td><td>Operations / Owner</td><td>Operating day close record.</td></tr>
+</table>
+
+<h3>9.2 Daily Checklist Discipline</h3>
+<p>Each role must complete its daily registers. A register can be:</p>
+<ul>
+<li><strong>Activity recorded:</strong> Work happened and evidence exists.</li>
+<li><strong>No activity:</strong> No event happened, and the user declares zero.</li>
+<li><strong>Reviewed:</strong> A review was performed.</li>
+<li><strong>Exception:</strong> A problem exists and must be reviewed.</li>
+</ul>
+<div class="critical"><strong>Daily close rule:</strong> No manager should close an operating day just because the restaurant is physically closed. The day should close only when operational evidence is complete or exceptions are formally reviewed.</div>
+
+<h2>10. Procurement and Supplier Intelligence SOP</h2>
+<h3>10.1 Purchase Order Workflow</h3>
+<ol>
+<li>Procurement creates the purchase order.</li>
+<li>Each PO line must include SKU, quantity, unit cost, and tax/VAT where applicable.</li>
+<li>Inventory or store confirms actual receipt quantity.</li>
+<li>Short supply must include a reason.</li>
+<li>Confirmed receipt creates GRN and updates stock.</li>
+<li>Unit cost change triggers cost cascade across raw materials, sub-recipes, and final menu items.</li>
+</ol>
+
+<h3>10.2 VAT and Tax Handling</h3>
+<p>VAT/tax must be captured separately from landed cost unless management has decided that tax is non-recoverable and should form part of stock cost.</p>
+<table>
+<tr><th>Invoice Structure</th><th>ProfitPlate Treatment</th></tr>
+<tr><td>VAT shown per item line</td><td>Enter the VAT/tax percentage or amount on each PO line.</td></tr>
+<tr><td>VAT shown as one invoice-level line</td><td>Use invoice-level tax allocation by applying the rate to taxable lines or proportionally allocating the VAT amount.</td></tr>
+<tr><td>Some items are zero-rated</td><td>Enter zero tax for zero-rated items and tax rate for taxable items.</td></tr>
+<tr><td>Supplier price includes VAT</td><td>Mark as tax-inclusive if enabled and separate net cost from tax for reporting.</td></tr>
+</table>
+<p>For Nigerian VAT at 7.5%, users should enter <strong>7.5</strong>, not 0.075. The system calculates tax as quantity multiplied by unit cost multiplied by 7.5 divided by 100.</p>
+
+<h3>10.3 Supplier Performance Intelligence</h3>
+<table>
+<tr><th>Metric</th><th>Meaning</th><th>Management Use</th></tr>
+<tr><td>Committed spend</td><td>Total value of PO lines created.</td><td>Procurement exposure.</td></tr>
+<tr><td>Received value</td><td>Value actually received through GRN.</td><td>Receipt discipline and stock inflow.</td></tr>
+<tr><td>Outstanding value</td><td>Ordered value not yet received.</td><td>Follow-up and cash planning.</td></tr>
+<tr><td>Inflation exposure</td><td>Positive unit cost movement compared with previous procurement cost.</td><td>Supplier price pressure monitoring.</td></tr>
+<tr><td>Price relief</td><td>Negative unit cost movement compared with previous procurement cost.</td><td>Cost-saving visibility.</td></tr>
+<tr><td>Short supply rate</td><td>How often supplier deliveries are incomplete.</td><td>Supplier reliability review.</td></tr>
+<tr><td>VAT/tax captured</td><td>Total procurement tax recorded separately.</td><td>Finance tax and invoice reconciliation.</td></tr>
+</table>
+
+<h2>11. Stock Count, Variance, and Adjustment SOP</h2>
+<ol>
+<li>Inventory manager or department head completes physical stock documentation.</li>
+<li>Count is submitted to Finance for approval.</li>
+<li>Finance reviews system stock, movement history, pending receipts, transfers, waste, and sales depletion.</li>
+<li>Finance approves or rejects the count.</li>
+<li>On approval, the system records variance and updates inventory balance where appropriate.</li>
+<li>Variance report becomes available for download.</li>
+<li>If adjustment requires a separate operational explanation, inventory or department head submits stock adjustment request.</li>
+<li>Finance approves the adjustment.</li>
+<li>SKU stock is adjusted and movement ledger records the adjustment.</li>
+<li>Relevant daily checklist is completed only after count and reconciliation are done.</li>
+</ol>
+
+<h2>12. POS and Menu Mapping SOP</h2>
+<ol>
+<li>Create final menu item and recipe in ProfitPlate.</li>
+<li>Import or enter POS item list.</li>
+<li>Map POS item name/code to ProfitPlate final menu item.</li>
+<li>Review unmapped POS rows after every POS import.</li>
+<li>Finance confirms POS import completion or no-sales declaration.</li>
+<li>Unmapped items must be resolved before food cost and AvT reports are considered management-ready.</li>
+</ol>
+
+<h2>13. Waste and Yield SOP</h2>
+<table>
+<tr><th>Control</th><th>Rule</th><th>Owner</th></tr>
+<tr><td>Waste recording</td><td>Record exact SKU, location, reason, stage, quantity, and notes.</td><td>Kitchen / Bar / Inventory</td></tr>
+<tr><td>Yield testing</td><td>High-value proteins and perishables must be tested periodically.</td><td>Kitchen / Finance</td></tr>
+<tr><td>Below-master yield flag</td><td>Any test below current master yield should be flagged.</td><td>System / Finance</td></tr>
+<tr><td>Yield update</td><td>Rolling average updates master yield and triggers cost cascade.</td><td>System / Finance Review</td></tr>
+<tr><td>Prep waste control</td><td>Do not record inherent trimming loss as waste when yield already captures it.</td><td>Kitchen</td></tr>
+</table>
+
+<h2>14. Day Close and Management Responsibility</h2>
+<h3>14.1 Management Review Protocol</h3>
+<p>Management should review the following before accepting the operating day:</p>
+<ul>
+<li>Open blockers by department.</li>
+<li>Unapproved stock counts or adjustments.</li>
+<li>Unmapped POS items.</li>
+<li>Waste and high-value item exceptions.</li>
+<li>Procurement price spikes and supplier short supply.</li>
+<li>Margin risk and menu profitability exceptions.</li>
+<li>AvT variance and finance reconciliation status.</li>
+<li>Pending requisitions, transfers, and receipts.</li>
+</ul>
+
+<h3>14.2 Waiver Rules</h3>
+<p>A waiver should be used only when management accepts a documented exception. It should not be used to hide incomplete operational work.</p>
+<table>
+<tr><th>Waiver Condition</th><th>Required Evidence</th></tr>
+<tr><td>POS file unavailable</td><td>Reason, expected upload time, responsible person.</td></tr>
+<tr><td>Physical count delayed</td><td>Location, reason, next count time, manager approval.</td></tr>
+<tr><td>Supplier document missing</td><td>Supplier name, PO/GRN reference, follow-up owner.</td></tr>
+<tr><td>Stock movement dispute</td><td>Movement ID or requisition reference, department owner, action plan.</td></tr>
+</table>
+
+<h2>15. Governance Cadence</h2>
+<table>
+<tr><th>Cadence</th><th>Review</th><th>Owner</th></tr>
+<tr><td>Daily</td><td>Day close blockers, stock movement, POS import, waste, count approval.</td><td>Operations / Finance</td></tr>
+<tr><td>Weekly</td><td>Supplier performance, price movement, waste trend, AvT loss, menu margin risk.</td><td>Owner / Management</td></tr>
+<tr><td>Monthly</td><td>Master data quality, slow-moving SKUs, procurement inflation, menu profitability, role access review.</td><td>Owner / Finance / Operations</td></tr>
+<tr><td>Quarterly</td><td>Policy review, control changes, supplier negotiation, menu engineering decisions.</td><td>Owner / Executive Team</td></tr>
+</table>
+
+<h2>16. Implementation Sign-Off Checklist</h2>
+<table>
+<tr><th>Item</th><th>Owner</th><th>Status</th></tr>
+<tr><td>Workspace created and owner assigned.</td><td>Implementation Lead</td><td></td></tr>
+<tr><td>User roles and access confirmed.</td><td>Owner / Admin</td><td></td></tr>
+<tr><td>Locations created and verified.</td><td>Operations</td><td></td></tr>
+<tr><td>Suppliers imported or created.</td><td>Procurement</td><td></td></tr>
+<tr><td>SKU master loaded and validated.</td><td>Inventory / Finance</td><td></td></tr>
+<tr><td>Recipes and final menu items validated.</td><td>Kitchen / Finance</td><td></td></tr>
+<tr><td>POS mapping completed or gaps documented.</td><td>Finance</td><td></td></tr>
+<tr><td>Sample PO and GRN completed.</td><td>Procurement / Inventory</td><td></td></tr>
+<tr><td>Sample requisition and receipt completed.</td><td>Store / Department</td><td></td></tr>
+<tr><td>Sample production and transfer completed.</td><td>Kitchen / Front House</td><td></td></tr>
+<tr><td>Sample stock count and Finance approval completed.</td><td>Inventory / Finance</td><td></td></tr>
+<tr><td>Daily checklist and day close tested.</td><td>Operations</td><td></td></tr>
+<tr><td>Owner dashboard reviewed with management.</td><td>Owner</td><td></td></tr>
+</table>
+
+<h2>17. Final Operating Standard</h2>
+<p>ProfitPlate should be used as the restaurant's daily control room. The system is only as strong as the discipline around it. Every role must submit accurate data, every manager must review exceptions, and every owner must insist that numbers are supported by operational evidence.</p>
+<div class="callout"><strong>Management standard:</strong> Do not ask only, "What did we spend?" Ask, "What changed, who confirmed it, what was the variance, and what are we doing about it?"</div>
+
+</body>
+</html>
