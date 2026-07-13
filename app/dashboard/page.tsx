@@ -16500,9 +16500,9 @@ function WorkspaceDashboard({
                 return (
                 <div
                   key={row.id}
-                  className="grid min-w-0 gap-3 rounded-sm border border-border-system bg-card p-3 2xl:grid-cols-12 2xl:items-start"
+                  className="grid min-w-0 max-w-full gap-3 overflow-hidden rounded-sm border border-border-system bg-card p-3"
                 >
-                  <div className="grid min-w-0 gap-1 2xl:col-span-5">
+                  <div className="grid min-w-0 max-w-full gap-1">
                     <input
                       type="search"
                       placeholder={
@@ -16583,7 +16583,7 @@ function WorkspaceDashboard({
                           } in selected location`}
                     </p>
                   </div>
-                  <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(145px,1fr)_minmax(110px,0.75fr)_minmax(170px,1fr)_minmax(155px,0.9fr)_96px] 2xl:col-span-7">
+                  <div className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.75fr)_minmax(0,1.15fr)_minmax(0,1fr)_96px]">
                     <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
                       Stock in hand
                       <div className="flex min-w-0 items-center gap-2">
@@ -16605,7 +16605,7 @@ function WorkspaceDashboard({
                               ),
                             )
                           }
-                          className={`${formControlClass} font-mono tabular-nums`}
+                          className={`${formControlClass} min-w-0 font-mono tabular-nums`}
                         />
                         <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
                           {selectedPurchaseUom}
@@ -16630,7 +16630,7 @@ function WorkspaceDashboard({
                           )
                         }
                         required
-                        className={`${formControlClass} font-mono tabular-nums`}
+                        className={`${formControlClass} min-w-0 font-mono tabular-nums`}
                       />
                     </label>
                     <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
@@ -16662,7 +16662,7 @@ function WorkspaceDashboard({
                             )
                           }
                           required
-                          className={`${formControlClass} font-mono tabular-nums`}
+                          className={`${formControlClass} min-w-0 font-mono tabular-nums`}
                         />
                         <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
                           {organization.local_currency}
@@ -16691,7 +16691,7 @@ function WorkspaceDashboard({
                               ),
                             )
                           }
-                          className={`${formControlClass} font-mono tabular-nums`}
+                          className={`${formControlClass} min-w-0 font-mono tabular-nums`}
                         />
                         <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
                           %
