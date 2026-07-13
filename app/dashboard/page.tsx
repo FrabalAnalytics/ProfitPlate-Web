@@ -283,6 +283,12 @@ type OperationRegisterActivityState =
 type NoticeTone = "success" | "error" | "info";
 type DateFilter = "today" | "7d" | "30d" | "all";
 type PurchaseOrderQueueFilter = "open" | "partial" | "completed" | "all";
+type MenuProfitabilityFilter =
+  | "all"
+  | "margin_risk"
+  | "protected"
+  | "missing_price"
+  | "incomplete_costing";
 
 const planLabels = {
   solo: "Solo Operator",
@@ -3475,6 +3481,9 @@ function WorkspaceDashboard({
   const [showWasteTable, setShowWasteTable] = useState(true);
   const [priceSimulationPct, setPriceSimulationPct] = useState("5");
   const [selectedPriceMovementId, setSelectedPriceMovementId] = useState("");
+  const [menuProfitabilitySearch, setMenuProfitabilitySearch] = useState("");
+  const [menuProfitabilityFilter, setMenuProfitabilityFilter] =
+    useState<MenuProfitabilityFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("30d");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -5057,7 +5066,7 @@ function WorkspaceDashboard({
     100,
   );
   const targetMenuFoodCostPct = 100 - targetMenuMarginPct;
-  const menuPricingGuardrails = activeFinalMenuItems
+  const menuProfitabilityRows = activeFinalMenuItems
     .map((recipe) => {
       const recipeFamily = activeRecipes.filter(
         (familyRecipe) =>
@@ -5090,9 +5099,12 @@ function WorkspaceDashboard({
         return totalCost + (component.qty_in_recipe_uom / batchOutput) * unitCost;
       }, 0);
       const sellingPrice = Number(recipe.selling_price ?? 0);
+      const costPerBatch = unitFoodCost * batchOutput;
       const grossProfit = sellingPrice - unitFoodCost;
       const marginPct =
         sellingPrice > 0 ? (grossProfit / sellingPrice) * 100 : null;
+      const foodCostPct =
+        sellingPrice > 0 ? (unitFoodCost / sellingPrice) * 100 : null;
       const recommendedPrice =
         unitFoodCost > 0
           ? unitFoodCost / (targetMenuFoodCostPct / 100)
@@ -5106,20 +5118,88 @@ function WorkspaceDashboard({
         recipe,
         components,
         unitFoodCost,
+        costPerBatch,
         sellingPrice,
         grossProfit,
         marginPct,
+        foodCostPct,
         recommendedPrice,
         priceGap,
         soldQuantity: salesPerformance?.quantity ?? 0,
+        outputUom: recipe.output_uom ?? "unit",
         batchOutput,
+        status:
+          sellingPrice <= 0
+            ? "missing_price"
+            : components.length === 0
+              ? "incomplete_costing"
+              : priceGap > 0.01 ||
+                  (marginPct !== null && marginPct < targetMenuMarginPct)
+                ? "margin_risk"
+                : "protected",
       };
     })
-    .filter((item) => item.components.length > 0)
     .sort(
       (leftItem, rightItem) =>
         Math.max(rightItem.priceGap, 0) - Math.max(leftItem.priceGap, 0),
     );
+  const menuPricingGuardrails = menuProfitabilityRows.filter(
+    (item) => item.components.length > 0,
+  );
+  const normalizedMenuProfitabilitySearch = menuProfitabilitySearch
+    .trim()
+    .toLowerCase();
+  const filteredMenuProfitabilityRows = menuProfitabilityRows.filter((item) => {
+    const matchesSearch =
+      normalizedMenuProfitabilitySearch.length === 0 ||
+      item.recipe.name.toLowerCase().includes(normalizedMenuProfitabilitySearch);
+    const matchesFilter =
+      menuProfitabilityFilter === "all" ||
+      item.status === menuProfitabilityFilter;
+
+    return matchesSearch && matchesFilter;
+  });
+  const menuProfitabilityTotals = menuProfitabilityRows.reduce(
+    (totals, item) => ({
+      total: totals.total + 1,
+      marginRisk:
+        totals.marginRisk + (item.status === "margin_risk" ? 1 : 0),
+      protected:
+        totals.protected + (item.status === "protected" ? 1 : 0),
+      missingSetup:
+        totals.missingSetup +
+        (item.status === "missing_price" ||
+        item.status === "incomplete_costing"
+          ? 1
+          : 0),
+    }),
+    { total: 0, marginRisk: 0, protected: 0, missingSetup: 0 },
+  );
+  const menuProfitabilityStatusLabels: Record<string, string> = {
+    margin_risk: "Margin risk",
+    protected: "Protected",
+    missing_price: "Missing price",
+    incomplete_costing: "Incomplete costing",
+  };
+  const menuProfitabilityStatusStyles: Record<string, string> = {
+    margin_risk:
+      "border-status-attention-border bg-status-attention-bg text-status-attention-text",
+    protected: "border-accent-muted-border bg-accent-muted-bg text-accent",
+    missing_price:
+      "border-status-critical-border bg-status-critical-bg text-status-critical-text",
+    incomplete_costing:
+      "border-status-info-border bg-status-info-bg text-status-info-text",
+  };
+  const menuProfitabilityFilterOptions: Array<{
+    value: MenuProfitabilityFilter;
+    label: string;
+  }> = [
+    { value: "all", label: "All items" },
+    { value: "margin_risk", label: "Margin risk" },
+    { value: "protected", label: "Protected" },
+    { value: "missing_price", label: "Missing price" },
+    { value: "incomplete_costing", label: "Incomplete costing" },
+  ];
   const underpricedMenuItems = menuPricingGuardrails.filter(
     (item) => item.priceGap > 0.01,
   );
@@ -6081,6 +6161,19 @@ function WorkspaceDashboard({
     owner: row.owner,
     movement: row.value,
     detail: row.detail,
+  }));
+  const menuProfitabilityReportRows = menuProfitabilityRows.map((item) => ({
+    menu_item: item.recipe.name,
+    batch_uom: item.outputUom,
+    batch_qty: item.batchOutput,
+    cost_per_batch: item.costPerBatch,
+    selling_price: item.sellingPrice,
+    unit_food_cost: item.unitFoodCost,
+    food_cost_pct: item.foodCostPct ?? "",
+    gross_margin_pct: item.marginPct ?? "",
+    suggested_selling_price: item.recommendedPrice,
+    price_gap: Math.max(item.priceGap, 0),
+    status: item.status,
   }));
   const productionReportSource = reportRangeActive
     ? allProductionHistory
@@ -8803,6 +8896,17 @@ function WorkspaceDashboard({
           visible: showFinancialSection && !isRole("procurement_manager"),
         },
         {
+          href: "#menu-profitability",
+          label: "Menu Profitability",
+          badge: `${menuProfitabilityTotals.total.toLocaleString()} items`,
+          tone:
+            menuProfitabilityTotals.marginRisk > 0 ||
+            menuProfitabilityTotals.missingSetup > 0
+              ? "warning"
+              : "healthy",
+          visible: showFinancialSection && !isRole("procurement_manager"),
+        },
+        {
           href: "#overview",
           label: "Menu Margins",
           badge:
@@ -9235,6 +9339,12 @@ function WorkspaceDashboard({
       filename: `margin-trend-${reportDateLabel}.csv`,
       rows: marginTrendReportRows,
       dateScoped: true,
+    },
+    {
+      label: "Menu profitability",
+      filename: `menu-profitability-${reportDateLabel}.csv`,
+      rows: menuProfitabilityReportRows,
+      dateScoped: false,
     },
     {
       label: "Inventory by location",
@@ -12247,6 +12357,287 @@ function WorkspaceDashboard({
               with ingredients and selling prices to see pricing guardrails.
             </p>
           )}
+        </div>
+      </section>
+
+      <section
+        id="menu-profitability"
+        className={`${showFinancialSection && isSectionActive("menu-profitability") ? "" : "hidden"} mt-6 scroll-mt-24 rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6`}
+      >
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-system pb-4">
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+              Executive Menu Economics
+            </p>
+            <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
+              Final Menu Profitability Summary
+            </h2>
+          </div>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+            {targetMenuMarginPct}% margin target / {targetMenuFoodCostPct}% food cost ceiling
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricPill
+            label="Final menu items"
+            value={menuProfitabilityTotals.total.toLocaleString()}
+          />
+          <MetricPill
+            label="Margin risk"
+            value={menuProfitabilityTotals.marginRisk.toLocaleString()}
+            valueClassName={
+              menuProfitabilityTotals.marginRisk > 0
+                ? "font-semibold text-status-attention-text"
+                : "font-semibold text-foreground"
+            }
+          />
+          <MetricPill
+            label="Protected"
+            value={menuProfitabilityTotals.protected.toLocaleString()}
+            valueClassName={
+              menuProfitabilityTotals.protected > 0
+                ? "font-semibold text-accent"
+                : "font-semibold text-foreground"
+            }
+          />
+          <MetricPill
+            label="Setup gaps"
+            value={menuProfitabilityTotals.missingSetup.toLocaleString()}
+            valueClassName={
+              menuProfitabilityTotals.missingSetup > 0
+                ? "font-semibold text-status-critical-text"
+                : "font-semibold text-foreground"
+            }
+          />
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_260px]">
+          <label className="grid gap-2 text-sm font-semibold text-text-muted">
+            Search menu item
+            <input
+              type="search"
+              value={menuProfitabilitySearch}
+              onChange={(event) => setMenuProfitabilitySearch(event.target.value)}
+              placeholder="Search final menu items"
+              className={formControlClass}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-text-muted">
+            Profitability status
+            <select
+              value={menuProfitabilityFilter}
+              onChange={(event) =>
+                setMenuProfitabilityFilter(
+                  event.target.value as MenuProfitabilityFilter,
+                )
+              }
+              className={formControlClass}
+            >
+              {menuProfitabilityFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-sm border border-border-system bg-background">
+          <div className="hidden overflow-x-auto xl:block">
+            <table className="w-full min-w-[1240px] table-fixed border-collapse text-left text-sm">
+              <colgroup>
+                <col className="w-[230px]" />
+                <col className="w-[95px]" />
+                <col className="w-[95px]" />
+                <col className="w-[150px]" />
+                <col className="w-[135px]" />
+                <col className="w-[115px]" />
+                <col className="w-[125px]" />
+                <col className="w-[155px]" />
+                <col className="w-[140px]" />
+              </colgroup>
+              <thead className="border-b border-border-system bg-card">
+                <tr className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  <th className="px-4 py-3">Final menu item</th>
+                  <th className="px-4 py-3">Batch UOM</th>
+                  <th className="px-4 py-3 text-right">Batch qty</th>
+                  <th className="px-4 py-3 text-right">Cost per batch</th>
+                  <th className="px-4 py-3 text-right">Selling price</th>
+                  <th className="px-4 py-3 text-right">Food cost %</th>
+                  <th className="px-4 py-3 text-right">Gross margin %</th>
+                  <th className="px-4 py-3 text-right">Suggested price</th>
+                  <th className="px-4 py-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMenuProfitabilityRows.length > 0 ? (
+                  filteredMenuProfitabilityRows.map((item) => (
+                    <tr
+                      key={item.recipe.id}
+                      className="border-t border-border-system transition hover:bg-card/80"
+                    >
+                      <td className="px-4 py-4 align-top">
+                        <p className="truncate font-semibold text-foreground">
+                          {item.recipe.name}
+                        </p>
+                        <p className="mt-1 truncate font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                          {item.components.length.toLocaleString()} ingredient
+                          {item.components.length === 1 ? "" : "s"}
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 align-top font-semibold text-text-muted">
+                        {item.outputUom}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {item.batchOutput.toLocaleString(undefined, {
+                          maximumFractionDigits: 3,
+                        })}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {formatCurrency(item.costPerBatch)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {formatCurrency(item.sellingPrice)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-text-muted">
+                        {item.foodCostPct === null
+                          ? "N/A"
+                          : `${item.foodCostPct.toLocaleString(undefined, {
+                              maximumFractionDigits: 1,
+                            })}%`}
+                      </td>
+                      <td
+                        className={`whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums ${
+                          item.marginPct !== null &&
+                          item.marginPct >= targetMenuMarginPct
+                            ? "text-accent"
+                            : "text-status-attention-text"
+                        }`}
+                      >
+                        {item.marginPct === null
+                          ? "N/A"
+                          : `${item.marginPct.toLocaleString(undefined, {
+                              maximumFractionDigits: 1,
+                            })}%`}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono font-semibold tabular-nums text-foreground">
+                        {formatCurrency(item.recommendedPrice)}
+                        {item.priceGap > 0.01 ? (
+                          <span className="mt-1 block text-[11px] text-status-critical-text">
+                            +{formatCurrency(item.priceGap)}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right align-top">
+                        <span
+                          className={`${inlineSignalClass} ${
+                            menuProfitabilityStatusStyles[item.status]
+                          }`}
+                        >
+                          {menuProfitabilityStatusLabels[item.status]}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-5 py-8 text-center text-sm text-text-muted"
+                    >
+                      No final menu item matches the selected profitability filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid gap-3 p-3 xl:hidden">
+            {filteredMenuProfitabilityRows.length > 0 ? (
+              filteredMenuProfitabilityRows.map((item) => (
+                <div
+                  key={item.recipe.id}
+                  className="rounded-sm border border-border-system bg-card p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {item.recipe.name}
+                      </p>
+                      <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                        {item.batchOutput.toLocaleString(undefined, {
+                          maximumFractionDigits: 3,
+                        })}{" "}
+                        {item.outputUom} batch
+                      </p>
+                    </div>
+                    <span
+                      className={`${inlineSignalClass} ${
+                        menuProfitabilityStatusStyles[item.status]
+                      }`}
+                    >
+                      {menuProfitabilityStatusLabels[item.status]}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <MetricPill
+                      label="Cost per batch"
+                      value={formatCurrency(item.costPerBatch)}
+                    />
+                    <MetricPill
+                      label="Selling price"
+                      value={formatCurrency(item.sellingPrice)}
+                    />
+                    <MetricPill
+                      label="Food cost"
+                      value={
+                        item.foodCostPct === null
+                          ? "N/A"
+                          : `${item.foodCostPct.toLocaleString(undefined, {
+                              maximumFractionDigits: 1,
+                            })}%`
+                      }
+                    />
+                    <MetricPill
+                      label="Gross margin"
+                      value={
+                        item.marginPct === null
+                          ? "N/A"
+                          : `${item.marginPct.toLocaleString(undefined, {
+                              maximumFractionDigits: 1,
+                            })}%`
+                      }
+                      valueClassName={
+                        item.marginPct !== null &&
+                        item.marginPct >= targetMenuMarginPct
+                          ? "font-semibold text-accent"
+                          : "font-semibold text-status-attention-text"
+                      }
+                    />
+                  </div>
+                  <div className="mt-3 rounded-sm border border-border-system bg-background p-3">
+                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                      Suggested selling price
+                    </p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-foreground">
+                      {formatCurrency(item.recommendedPrice)}
+                    </p>
+                    {item.priceGap > 0.01 ? (
+                      <p className="mt-1 text-sm font-semibold text-status-critical-text">
+                        Increase by {formatCurrency(item.priceGap)}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-sm border border-border-system bg-card p-4 text-sm text-text-muted">
+                No final menu item matches the selected profitability filter.
+              </p>
+            )}
+          </div>
         </div>
       </section>
 
