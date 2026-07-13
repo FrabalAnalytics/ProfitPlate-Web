@@ -3480,6 +3480,8 @@ function WorkspaceDashboard({
   const [showDepletionTable, setShowDepletionTable] = useState(false);
   const [showWasteTable, setShowWasteTable] = useState(true);
   const [priceSimulationPct, setPriceSimulationPct] = useState("5");
+  const [selectedPricingSimulationRecipeId, setSelectedPricingSimulationRecipeId] =
+    useState("");
   const [selectedPriceMovementId, setSelectedPriceMovementId] = useState("");
   const [menuProfitabilitySearch, setMenuProfitabilitySearch] = useState("");
   const [menuProfitabilityFilter, setMenuProfitabilityFilter] =
@@ -5277,7 +5279,18 @@ function WorkspaceDashboard({
       };
     })
     .sort((leftAction, rightAction) => rightAction.impact - leftAction.impact);
-  const simulatedPricingItem = underpricedMenuItems[0] ?? menuPricingGuardrails[0];
+  const selectedPricingSimulationItem =
+    selectedPricingSimulationRecipeId.length > 0
+      ? menuPricingGuardrails.find(
+          (item) =>
+            getRecipeId(item.recipe) ===
+            extractUuid(selectedPricingSimulationRecipeId),
+        )
+      : undefined;
+  const simulatedPricingItem =
+    selectedPricingSimulationItem ??
+    underpricedMenuItems[0] ??
+    menuPricingGuardrails[0];
   const simulationPct = Number(priceSimulationPct);
   const normalizedSimulationPct =
     Number.isFinite(simulationPct) && simulationPct > -95 ? simulationPct : 0;
@@ -12293,14 +12306,31 @@ function WorkspaceDashboard({
           {menuPricingGuardrails.length > 0 ? (
             menuPricingGuardrails.slice(0, 10).map((item) => {
               const needsReview = item.priceGap > 0.01;
+              const isSimulatedItem =
+                simulatedPricingItem &&
+                getRecipeId(simulatedPricingItem.recipe) ===
+                  getRecipeId(item.recipe);
 
               return (
-                <div
+                <button
                   key={item.recipe.id}
-                  className="grid gap-3 border-t border-border-system px-5 py-4 text-sm text-text-muted transition hover:bg-background/70 lg:grid-cols-[1fr_0.7fr_0.7fr_0.6fr_0.8fr_0.75fr] lg:items-center"
+                  type="button"
+                  onClick={() =>
+                    setSelectedPricingSimulationRecipeId(getRecipeId(item.recipe))
+                  }
+                  className={`grid w-full gap-3 border-t border-border-system px-5 py-4 text-left text-sm text-text-muted transition hover:bg-background/70 lg:grid-cols-[1fr_0.7fr_0.7fr_0.6fr_0.8fr_0.75fr] lg:items-center ${
+                    isSimulatedItem
+                      ? "bg-status-info-bg ring-1 ring-inset ring-status-info-border"
+                      : ""
+                  }`}
                 >
                   <Cell label="Menu item" strong>
                     {item.recipe.name}
+                    {isSimulatedItem ? (
+                      <span className="mt-1 block text-xs font-normal text-status-info-text">
+                        Active simulation
+                      </span>
+                    ) : null}
                   </Cell>
                   <Cell label="Selling price">
                     {organization.local_currency}{" "}
@@ -12338,16 +12368,23 @@ function WorkspaceDashboard({
                   <Cell
                     label="Action"
                     strong
-                    className={needsReview ? "text-status-critical-text" : "text-accent"}
+                    className={
+                      needsReview ? "text-status-critical-text" : "text-accent"
+                    }
                   >
-                    {needsReview
-                      ? `Raise ${organization.local_currency} ${item.priceGap.toLocaleString(
-                          undefined,
-                          { maximumFractionDigits: 2 },
-                        )}`
-                      : "Protected"}
+                    <span className="block">
+                      {needsReview
+                        ? `Raise ${organization.local_currency} ${item.priceGap.toLocaleString(
+                            undefined,
+                            { maximumFractionDigits: 2 },
+                          )}`
+                        : "Protected"}
+                    </span>
+                    <span className="mt-1 block text-xs font-normal text-text-ghost">
+                      {isSimulatedItem ? "Selected" : "Simulate"}
+                    </span>
                   </Cell>
-                </div>
+                </button>
               );
             })
           ) : (
