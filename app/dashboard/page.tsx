@@ -8900,7 +8900,7 @@ function WorkspaceDashboard({
               ? ("attention" as const)
               : ("healthy" as const),
         }));
-  const ownerPriceRows = ingredientPriceMovements.slice(0, 4).map((event) => {
+  const ownerPriceRows = ingredientPriceMovements.slice(0, 8).map((event) => {
     const affectedRecipeCount = new Set(
       recipeComponents
         .filter(
@@ -11409,7 +11409,7 @@ function WorkspaceDashboard({
                 ))}
               </div>
               <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-                <table className="min-w-full text-left text-sm">
+                <table className="executive-table min-w-full text-left text-sm">
                   <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                     <tr>
                       <th className="px-4 py-3 font-black">Type</th>
@@ -11437,6 +11437,32 @@ function WorkspaceDashboard({
                     ))}
                   </tbody>
                 </table>
+                {ownerInventoryTypeRows.length > 4 ? (
+                  <details className="border-t border-slate-100 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-black text-slate-700">
+                      See more inventory types
+                    </summary>
+                    <div className="mt-3 grid gap-2">
+                      {ownerInventoryTypeRows.slice(4).map((row) => (
+                        <div
+                          key={`extra-${row.type}`}
+                          className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                        >
+                          <span className="font-semibold capitalize text-slate-950">
+                            {row.type}
+                          </span>
+                          <span className="font-mono text-sm text-slate-600">
+                            {row.skuCount.toLocaleString()} SKU
+                            {row.skuCount === 1 ? "" : "s"}
+                          </span>
+                          <span className="font-mono font-black text-slate-950">
+                            {formatCurrency(row.stockValue, 0)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
               </div>
             </div>
 
@@ -11538,7 +11564,7 @@ function WorkspaceDashboard({
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
+              <table className="executive-table min-w-full text-left text-sm">
                 <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-black">Location</th>
@@ -11602,6 +11628,40 @@ function WorkspaceDashboard({
                   )}
                 </tbody>
               </table>
+              {ownerAvtLocationRows.length > 5 ? (
+                <details className="border-t border-slate-100 px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-black text-slate-700">
+                    See more AvT locations
+                  </summary>
+                  <div className="mt-3 grid gap-2">
+                    {ownerAvtLocationRows.slice(5).map((row) => (
+                      <div
+                        key={`extra-avt-${row.location}`}
+                        className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                      >
+                        <span className="font-semibold text-slate-950">
+                          {row.location}
+                        </span>
+                        <span className="font-mono text-sm text-slate-600">
+                          {row.confidence.toLocaleString(undefined, {
+                            maximumFractionDigits: 0,
+                          })}
+                          % confidence
+                        </span>
+                        <span
+                          className={`font-mono font-black ${
+                            row.variance > 0.01
+                              ? "text-red-800"
+                              : "text-emerald-700"
+                          }`}
+                        >
+                          {formatCurrency(row.variance, 0)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </div>
           </section>
 
@@ -11634,7 +11694,7 @@ function WorkspaceDashboard({
               </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-sm">
+                  <table className="executive-table min-w-full text-left text-sm">
                     <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-black">Dish</th>
@@ -11645,7 +11705,7 @@ function WorkspaceDashboard({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {ownerMenuRows.map((item) => (
+                      {ownerMenuRows.slice(0, 4).map((item) => (
                         <tr key={item.name} className="hover:bg-[#faf9f6]">
                           <td className="px-4 py-3 font-semibold text-slate-950">
                             {item.name}
@@ -11682,6 +11742,45 @@ function WorkspaceDashboard({
                       ))}
                     </tbody>
                   </table>
+                  {ownerMenuRows.length > 4 ? (
+                    <details className="border-t border-slate-100 px-4 py-3">
+                      <summary className="cursor-pointer text-sm font-black text-slate-700">
+                        See more menu items
+                      </summary>
+                      <div className="mt-3 grid gap-2">
+                        {ownerMenuRows.slice(4).map((item) => (
+                          <div
+                            key={`extra-menu-${item.name}`}
+                            className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
+                          >
+                            <span className="font-semibold text-slate-950">
+                              {item.name}
+                            </span>
+                            <span className="font-mono text-sm text-slate-600">
+                              {item.soldQuantity.toLocaleString(undefined, {
+                                maximumFractionDigits: 1,
+                              })}{" "}
+                              sold
+                            </span>
+                            <span className="font-mono font-black text-slate-950">
+                              {formatCurrency(item.revenue, 0)}
+                            </span>
+                            <span
+                              className={`rounded-lg px-2.5 py-1 text-xs font-black ${
+                                item.tone === "critical"
+                                  ? "bg-red-50 text-red-800"
+                                  : item.tone === "attention"
+                                    ? "bg-amber-50 text-amber-800"
+                                    : "bg-emerald-50 text-emerald-800"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -11715,6 +11814,30 @@ function WorkspaceDashboard({
                     No waste cost is visible for this period.
                   </p>
                 )}
+                {wasteByReason.length > 4 ? (
+                  <details className="rounded-xl border border-slate-100 bg-white px-5 py-3 shadow-sm">
+                    <summary className="cursor-pointer text-sm font-black text-slate-700">
+                      See more waste reasons
+                    </summary>
+                    <div className="mt-3 grid gap-2">
+                      {wasteByReason.slice(4).map((reason) => (
+                        <button
+                          key={`extra-waste-${reason.name}`}
+                          type="button"
+                          onClick={() => openDashboardSection("waste")}
+                          className="grid rounded-xl border border-slate-200 bg-white px-4 py-3 text-left sm:grid-cols-[1fr_auto] sm:items-center"
+                        >
+                          <span className="font-semibold capitalize text-slate-950">
+                            {reason.name.replaceAll("_", " ")}
+                          </span>
+                          <span className="font-mono font-black text-red-800">
+                            {formatCurrency(reason.cost, 0)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
               </div>
             </div>
 
@@ -11725,7 +11848,7 @@ function WorkspaceDashboard({
               <p className="mt-1 text-sm text-slate-500">
                 Spend, supplier reliability, VAT, and price movement from recent purchase orders.
               </p>
-              <div className="mt-4 grid gap-4 xl:grid-cols-2">
+              <div className="mt-4 grid gap-3">
                 <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                   <div className="border-b border-slate-100 px-4 py-3">
                     <p className="text-xs font-black uppercase text-slate-400">
@@ -11733,7 +11856,7 @@ function WorkspaceDashboard({
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-left text-sm">
+                    <table className="executive-table min-w-full text-left text-sm">
                       <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Product</th>
@@ -11744,7 +11867,7 @@ function WorkspaceDashboard({
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {ownerProcurementProductRows.length > 0 ? (
-                          ownerProcurementProductRows.map((row) => (
+                          ownerProcurementProductRows.slice(0, 4).map((row) => (
                             <tr key={`${row.item}-${row.sku}`} className="hover:bg-[#faf9f6]">
                               <td className="px-4 py-3 font-semibold text-slate-950">
                                 {row.item}
@@ -11783,6 +11906,45 @@ function WorkspaceDashboard({
                         )}
                       </tbody>
                     </table>
+                    {ownerProcurementProductRows.length > 4 ? (
+                      <details className="border-t border-slate-100 px-4 py-3">
+                        <summary className="cursor-pointer text-sm font-black text-slate-700">
+                          See more product spend
+                        </summary>
+                        <div className="mt-3 grid gap-2">
+                          {ownerProcurementProductRows.slice(4).map((row) => (
+                            <div
+                              key={`extra-product-${row.item}-${row.sku}`}
+                              className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
+                            >
+                              <span className="font-semibold text-slate-950">
+                                {row.item}
+                                <span className="block text-xs font-medium text-slate-500">
+                                  {row.lastSupplier}
+                                </span>
+                              </span>
+                              <span className="font-mono font-black text-slate-950">
+                                {formatCurrency(row.spend, 0)}
+                              </span>
+                              <span className="font-mono text-sm text-slate-600">
+                                {formatCurrency(row.tax, 0)} VAT
+                              </span>
+                              <span
+                                className={`font-mono font-black ${
+                                  row.priceVariance > 0.01
+                                    ? "text-red-800"
+                                    : row.priceVariance < -0.01
+                                      ? "text-emerald-700"
+                                      : "text-slate-500"
+                                }`}
+                              >
+                                {formatSignedCurrency(row.priceVariance)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </div>
                 </div>
 
@@ -11793,7 +11955,7 @@ function WorkspaceDashboard({
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-left text-sm">
+                    <table className="executive-table min-w-full text-left text-sm">
                       <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Supplier</th>
@@ -11804,7 +11966,7 @@ function WorkspaceDashboard({
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {ownerSupplierRows.length > 0 ? (
-                          ownerSupplierRows.map((row) => (
+                          ownerSupplierRows.slice(0, 4).map((row) => (
                             <tr key={row.supplier} className="hover:bg-[#faf9f6]">
                               <td className="px-4 py-3 font-semibold text-slate-950">
                                 {row.supplier}
@@ -11849,6 +12011,49 @@ function WorkspaceDashboard({
                         )}
                       </tbody>
                     </table>
+                    {ownerSupplierRows.length > 4 ? (
+                      <details className="border-t border-slate-100 px-4 py-3">
+                        <summary className="cursor-pointer text-sm font-black text-slate-700">
+                          See more suppliers
+                        </summary>
+                        <div className="mt-3 grid gap-2">
+                          {ownerSupplierRows.slice(4).map((row) => (
+                            <div
+                              key={`extra-supplier-${row.supplier}`}
+                              className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
+                            >
+                              <span className="font-semibold text-slate-950">
+                                {row.supplier}
+                                <span className="block text-xs font-medium text-slate-500">
+                                  {row.orders.toLocaleString()} PO
+                                  {row.orders === 1 ? "" : "s"} / {row.partial_orders.toLocaleString()} partial
+                                </span>
+                              </span>
+                              <span className="font-mono font-black text-slate-950">
+                                {formatCurrency(row.ordered_value, 0)}
+                              </span>
+                              <span className="font-mono text-sm text-slate-600">
+                                {row.receipt_rate.toLocaleString(undefined, {
+                                  maximumFractionDigits: 0,
+                                })}
+                                % receipt
+                              </span>
+                              <span
+                                className={`rounded-lg px-2.5 py-1 text-xs font-black ${
+                                  row.status === "Reliable"
+                                    ? "bg-emerald-50 text-emerald-800"
+                                    : row.status === "Monitor"
+                                      ? "bg-amber-50 text-amber-800"
+                                      : "bg-red-50 text-red-800"
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -11863,7 +12068,7 @@ function WorkspaceDashboard({
               </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-sm">
+                  <table className="executive-table min-w-full text-left text-sm">
                     <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-black">Ingredient</th>
@@ -11872,9 +12077,9 @@ function WorkspaceDashboard({
                         <th className="px-4 py-3 font-black">Impact</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {ownerPriceRows.length > 0 ? (
-                        ownerPriceRows.map((row) => (
+                      <tbody className="divide-y divide-slate-100">
+                        {ownerPriceRows.length > 0 ? (
+                        ownerPriceRows.slice(0, 4).map((row) => (
                           <tr key={row.id} className="hover:bg-[#faf9f6]">
                             <td className="px-4 py-3 font-semibold text-slate-950">
                               {row.itemName}
@@ -11911,6 +12116,43 @@ function WorkspaceDashboard({
                       )}
                     </tbody>
                   </table>
+                  {ownerPriceRows.length > 4 ? (
+                    <details className="border-t border-slate-100 px-4 py-3">
+                      <summary className="cursor-pointer text-sm font-black text-slate-700">
+                        See more price changes
+                      </summary>
+                      <div className="mt-3 grid gap-2">
+                        {ownerPriceRows.slice(4).map((row) => (
+                          <div
+                            key={`extra-price-${row.id}`}
+                            className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
+                          >
+                            <span className="font-semibold text-slate-950">
+                              {row.itemName}
+                            </span>
+                            <span
+                              className={`font-mono font-black ${
+                                row.tone === "healthy"
+                                  ? "text-emerald-700"
+                                  : row.tone === "attention"
+                                    ? "text-red-800"
+                                    : "text-slate-500"
+                              }`}
+                            >
+                              {row.change}
+                            </span>
+                            <span className="text-sm text-slate-600">
+                              {row.affectedRecipeCount.toLocaleString()} recipe
+                              {row.affectedRecipeCount === 1 ? "" : "s"}
+                            </span>
+                            <span className="font-mono font-black text-slate-950">
+                              {row.impact}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
                 </div>
               </div>
             </div>
