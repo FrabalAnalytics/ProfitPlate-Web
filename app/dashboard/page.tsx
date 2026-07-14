@@ -10847,741 +10847,537 @@ function WorkspaceDashboard({
         </div>
       ) : null}
       {ownerOverviewActive ? (
-        <div className="grid gap-6">
-          <section>
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="min-w-0 rounded-sm border border-border-system bg-card px-6 py-6 shadow-2xl shadow-black/25 sm:px-7">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
-                  Owner Dashboard
-                </p>
-                <h1 className="mt-3 max-w-4xl font-serif text-3xl font-normal leading-tight text-foreground sm:text-4xl">
-                  {organization.name} margin command.
-                </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-text-muted">
-                  A consolidated executive view of revenue, margin, waste,
-                  inventory exposure, and supplier cost movement across{" "}
-                  <strong className="font-extrabold text-foreground">
-                    {operatingScopeLabel}
-                  </strong>
-                  .
-                </p>
+        <div className="mx-auto grid max-w-[980px] gap-7 rounded-[18px] bg-[#f4f2ee] p-4 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-7">
+          <section className="grid gap-5 border-b border-slate-200 pb-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="h-11 w-11 shrink-0 rounded-2xl bg-blue-100" />
+                <div className="min-w-0">
+                  <h1 className="truncate text-base font-black tracking-tight text-slate-950">
+                    {organization.name}
+                  </h1>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {stats.locations.toLocaleString()} location
+                    {stats.locations === 1 ? "" : "s"} · Owner view
+                  </p>
+                </div>
               </div>
-              <div className="grid content-start gap-3 rounded-sm bg-accent p-5 text-background shadow-2xl shadow-black/25">
-                <div>
-                  <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-background/65">
-                    Next best action
-                  </p>
-                  <h2 className="mt-2 font-serif text-xl font-normal">
-                    {ownerExecutiveAction.title}
-                  </h2>
-                  <p className="mt-2 text-xs leading-5 text-background/75">
-                    {ownerExecutiveAction.detail}
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-sm border border-background/25 bg-background/10 px-3 py-2">
-                      <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-background/60">
-                        Exposure
-                      </p>
-                      <p className="mt-1 break-words font-mono text-sm font-semibold">
-                        {ownerExecutiveAction.value}
-                      </p>
-                    </div>
-                    <div className="rounded-sm border border-background/25 bg-background/10 px-3 py-2">
-                      <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-background/60">
-                        Owner
-                      </p>
-                      <p className="mt-1 text-sm font-semibold">
-                        {roleLabels[ownerExecutiveAction.targetRole]}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openDashboardSection(
-                        ownerExecutiveAction.sectionId,
-                        ownerExecutiveAction.targetRole,
-                      )
-                    }
-                    className="min-h-11 rounded-sm border border-background/30 bg-background px-4 text-left text-xs font-black uppercase tracking-wider text-accent transition hover:bg-background/90"
-                  >
-                    Open action
-                  </button>
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800">
+                  Live
+                </span>
+                <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm">
+                  {dateFilterLabels[dateFilter]}
+                </span>
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {ownerMetricCards.map((metric) => (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {[
+                {
+                  label: "Revenue",
+                  value: formatCurrency(latestDayRevenue),
+                  detail:
+                    previousDayRevenue > 0
+                      ? `${formatSignedCurrency(latestDayRevenue - previousDayRevenue)} vs yesterday`
+                      : latestOperatingDayLabel,
+                  tone: "healthy" as const,
+                },
+                {
+                  label: "Gross profit",
+                  value: formatCurrency(latestDayGrossProfit),
+                  detail:
+                    previousDayGrossProfit !== 0
+                      ? `${formatSignedCurrency(latestDayGrossProfit - previousDayGrossProfit)} vs yesterday`
+                      : "After food cost",
+                  tone:
+                    latestDayGrossProfit >= 0
+                      ? ("healthy" as const)
+                      : ("critical" as const),
+                },
+                {
+                  label: "Margin",
+                  value:
+                    latestDayMarginPct === null
+                      ? `${marginHealthScore}%`
+                      : `${latestDayMarginPct.toLocaleString(undefined, {
+                          maximumFractionDigits: 1,
+                        })}%`,
+                  detail: `Target: ${targetMenuMarginPct}%`,
+                  tone:
+                    latestDayMarginPct !== null &&
+                    latestDayMarginPct < targetMenuMarginPct
+                      ? ("attention" as const)
+                      : ("healthy" as const),
+                },
+                {
+                  label: "Procurement",
+                  value: formatCurrency(priceIncreaseImpact, 0),
+                  detail: `${todayPurchaseOrderCount.toLocaleString()} PO today · ${partialPurchaseOrders.length.toLocaleString()} partial`,
+                  tone:
+                    priceIncreaseImpact > 0 || partialPurchaseOrders.length > 0
+                      ? ("attention" as const)
+                      : ("healthy" as const),
+                },
+                {
+                  label: "Open issues",
+                  value: (
+                    criticalExceptionCount + visibleOwnerAttentionItems.length
+                  ).toLocaleString(),
+                  detail: "Needs attention today",
+                  tone:
+                    criticalExceptionCount > 0
+                      ? ("critical" as const)
+                      : visibleOwnerAttentionItems.length > 0
+                        ? ("attention" as const)
+                        : ("healthy" as const),
+                },
+              ].map((metric) => (
                 <article
                   key={metric.label}
-                  title={`${metric.label}: ${metric.detail}`}
-                  className={`relative flex min-h-[116px] flex-col rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/20 before:absolute before:inset-y-0 before:left-0 before:w-0.5 ${
-                    metric.tone === "healthy"
-                      ? "before:bg-accent"
+                  className={`min-h-[118px] rounded-xl border p-4 shadow-sm ${
+                    metric.tone === "critical"
+                      ? "border-red-100 bg-red-50 text-red-950"
                       : metric.tone === "attention"
-                        ? "before:bg-status-attention-text"
-                        : metric.tone === "critical"
-                          ? "before:bg-status-critical-text"
-                          : "before:bg-status-info-text"
+                        ? "border-amber-100 bg-amber-50 text-amber-950"
+                        : "border-slate-100 bg-white text-slate-950"
                   }`}
                 >
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+                  <p className="text-sm font-medium text-slate-600">
                     {metric.label}
                   </p>
-                  <p className="mt-2 break-words font-mono text-[clamp(1.125rem,2vw,1.5rem)] font-semibold leading-tight tracking-tight text-foreground sm:whitespace-nowrap">
+                  <p className="mt-2 break-words font-mono text-2xl font-black leading-none tracking-tight">
                     {metric.value}
                   </p>
-                  <p className="mt-auto pt-3 text-[11px] leading-4 text-text-muted">
+                  <p
+                    className={`mt-3 text-xs font-semibold ${
+                      metric.tone === "critical"
+                        ? "text-red-700"
+                        : metric.tone === "attention"
+                          ? "text-amber-800"
+                          : "text-emerald-800"
+                    }`}
+                  >
                     {metric.detail}
                   </p>
                 </article>
               ))}
             </div>
+          </section>
 
-            <div className="mt-4 rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/20">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                    Margin Leakage Map
-                  </p>
-                  <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
-                    Activities converted to financial impact
-                  </h2>
-                </div>
-                <span
-                  className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
-                    visibleMarginLeakage > 0
-                      ? "border-status-attention-border bg-status-attention-bg text-status-attention-text"
-                      : "border-accent-muted-border bg-accent-muted-bg text-accent"
+          <section className="grid gap-3">
+            <h2 className="text-base font-black text-slate-950">
+              What needs your attention
+            </h2>
+            <div className="grid gap-2">
+              {visibleOwnerAttentionItems.map((item) => (
+                <button
+                  key={`${item.label}-${item.title}`}
+                  type="button"
+                  onClick={() =>
+                    openDashboardSection(item.sectionId, item.targetRole)
+                  }
+                  className={`grid gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:grid-cols-[1fr_auto] sm:items-center ${
+                    item.tone === "critical"
+                      ? "border-red-100 bg-red-50"
+                      : item.tone === "attention"
+                        ? "border-amber-100 bg-amber-50"
+                        : "border-slate-100 bg-white"
                   }`}
                 >
-                  {formatCurrency(visibleMarginLeakage, 0)} visible
-                </span>
-              </div>
-              <div className="mt-4 grid gap-3 lg:grid-cols-5">
-                {ownerLeakageRows
-                  .slice(0, ownerDetailExpanded ? ownerLeakageRows.length : 3)
-                  .map((row) => {
-                  const isRecovery = row.recovery > 0;
-                  const displayValue = isRecovery ? row.recovery : row.leakage;
-                  const rowToneClass = isRecovery
-                    ? "border-accent-muted-border bg-accent-muted-bg text-accent"
-                    : displayValue > 0
-                      ? "border-status-critical-border bg-status-critical-bg text-status-critical-text"
-                      : "border-border-system bg-background text-text-muted";
-
-                  return (
-                    <button
-                      key={row.label}
-                      type="button"
-                      onClick={() =>
-                        openDashboardSection(row.href.replace("#", ""))
-                      }
-                      className="rounded-sm border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover hover:bg-card"
+                  <span>
+                    <span
+                      className={`text-sm font-black ${
+                        item.tone === "critical"
+                          ? "text-red-950"
+                          : item.tone === "attention"
+                            ? "text-amber-950"
+                            : "text-slate-950"
+                      }`}
                     >
-                      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
-                        {row.owner}
-                      </span>
-                      <span className="mt-2 block text-sm font-bold text-foreground">
-                        {row.label}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-text-muted">
-                        {row.detail}
-                      </span>
-                      <span
-                        className={`mt-3 inline-flex rounded-full border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${rowToneClass}`}
-                      >
-                        {isRecovery ? "+" : displayValue > 0 ? "-" : ""}
-                        {formatCurrency(displayValue, 0)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                      {item.title}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-600">
+                      {item.detail}
+                    </span>
+                  </span>
+                  <span className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm">
+                    Review
+                  </span>
+                </button>
+              ))}
             </div>
           </section>
 
-          <section
-            className={`grid gap-4 ${
-              ownerDetailExpanded ? "xl:grid-cols-[1.05fr_0.95fr]" : ""
-            }`}
-          >
-            <div className="rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/20">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                    Attention Queue
-                  </p>
-                  <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
-                    What needs your attention
-                  </h2>
-                </div>
-                <span className="rounded-full border border-accent-muted-border bg-accent-muted-bg px-3 py-1 font-mono text-[10px] font-bold text-accent">
-                  {visibleOwnerAttentionItems.length.toLocaleString()} open
-                </span>
-              </div>
-              <div className="mt-4 divide-y divide-border-system border-y border-border-system">
-                {visibleOwnerAttentionItems.map((item) => (
-                  <button
-                    key={`${item.label}-${item.title}`}
-                    type="button"
-                    onClick={() =>
-                      openDashboardSection(item.sectionId, item.targetRole)
-                    }
-                    className="grid w-full gap-3 px-0 py-4 text-left transition hover:bg-background sm:grid-cols-[1fr_auto] sm:items-center"
-                  >
-                    <span>
-                      <span
-                        className={`inline-flex rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
-                          inlineSignalToneStyles[item.tone]
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                      <span className="mt-2 block text-sm font-semibold text-foreground">
-                        {item.title}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-text-muted">
-                        {item.detail}
-                      </span>
-                    </span>
-                    <span className="grid justify-items-start gap-2 sm:justify-items-end">
-                      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
-                        {item.valueLabel}
-                      </span>
-                      <span className="break-words font-mono text-xs font-semibold text-foreground sm:whitespace-nowrap">
-                        {item.value}
-                      </span>
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${inlineSignalToneStyles[item.tone]}`}
-                      >
-                        {item.status}
-                      </span>
-                      <span className="text-[10px] font-bold text-accent">
-                        Open details
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div
-              className={`rounded-sm border border-border-system bg-card p-5 shadow-2xl shadow-black/20 ${
-                ownerDetailExpanded ? "" : "hidden"
-              }`}
-            >
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Inventory By Location
-              </p>
-              <h2 className="mt-1 font-serif text-2xl font-normal text-foreground">
-                Stock value and exceptions
-              </h2>
-              <p className="mt-2 text-xs leading-5 text-text-muted">
-                Stock value shows inventory on hand. Exceptions identify
-                negative or low-stock quantities that need action.
-              </p>
-              <div className="mt-4 divide-y divide-border-system border-y border-border-system">
-                {ownerLocationRows.map((location) => (
-                  <div
-                    key={location.location}
-                    className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {location.location}
-                        </p>
-                        <p className="mt-1 text-sm text-text-muted">
-                          {location.detail}
-                        </p>
-                      </div>
-                      <div className="grid justify-items-start gap-1 sm:max-w-52 sm:justify-items-end sm:text-right">
-                        <span
-                          className={`${inlineSignalClass} ${
-                            inlineSignalToneStyles[location.tone]
-                          }`}
-                        >
-                          {location.status}
-                        </span>
-                        <p className="text-xs leading-5 text-text-muted">
-                          {location.statusDetail}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="sm:text-right">
-                      <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-text-ghost">
-                        Stock value
-                      </p>
-                      <p className="mt-1 break-words font-mono text-sm font-semibold text-foreground sm:whitespace-nowrap">
-                        {formatCurrency(location.stockValue, 0)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <div className="rounded-sm border border-border-system bg-card px-4 py-3 shadow-2xl shadow-black/20 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <section className="grid gap-4 xl:grid-cols-2">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Executive drilldown
-              </p>
-              <p className="mt-1 text-sm text-text-muted">
-                Trends, location stock exposure, day-close controls, menu
-                profit, supplier cost movement, approvals, and recent activity.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setOwnerDetailExpanded((currentValue) => !currentValue)
-              }
-              className="mt-3 h-10 rounded-sm border border-accent-muted-border bg-accent-muted-bg px-4 text-xs font-black uppercase tracking-wider text-accent transition hover:border-accent sm:mt-0"
-            >
-              {ownerDetailExpanded ? "Show less" : "See more +"}
-            </button>
-          </div>
-
-          {ownerDetailExpanded ? (
-            <>
-              <section className="grid gap-3 sm:grid-cols-3">
-                {ownerSecondaryMetricCards.map((metric) => (
-                  <article
-                    key={metric.label}
-                    className={`relative rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/20 before:absolute before:inset-y-0 before:left-0 before:w-0.5 ${
-                      metric.tone === "healthy"
-                        ? "before:bg-accent"
-                        : metric.tone === "attention"
-                          ? "before:bg-status-attention-text"
-                          : metric.tone === "critical"
-                            ? "before:bg-status-critical-text"
-                            : "before:bg-status-info-text"
+              <h2 className="text-base font-black text-slate-950">
+                Margin by location
+              </h2>
+              <div className="mt-3 grid gap-2">
+                {ownerLocationRows.map((location) => (
+                  <button
+                    key={location.location}
+                    type="button"
+                    onClick={() => openDashboardSection("inventory", "inventory_manager")}
+                    className={`grid gap-2 rounded-xl border px-4 py-3 text-left shadow-sm sm:grid-cols-[1fr_auto] sm:items-center ${
+                      location.tone === "critical"
+                        ? "border-red-100 bg-red-50"
+                        : location.tone === "attention"
+                          ? "border-amber-100 bg-amber-50"
+                          : "border-slate-100 bg-white"
                     }`}
                   >
-                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                      {metric.label}
-                    </p>
-                    <p className="mt-2 break-words font-mono text-lg font-semibold leading-tight text-foreground">
-                      {metric.value}
-                    </p>
-                    <p className="mt-2 text-[11px] leading-4 text-text-muted">
-                      {metric.detail}
-                    </p>
-                  </article>
-                ))}
-              </section>
-
-          <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                    7-Day Revenue
-                  </p>
-                  <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                    Sales trend
-                  </h2>
-                </div>
-                <span className="font-mono text-sm font-semibold text-accent">
-                  {formatCurrency(
-                    ownerRevenuePoints.reduce(
-                      (total, point) => total + point.revenue,
-                      0,
-                    ),
-                    0,
-                  )}
-                </span>
-              </div>
-              <div className="mt-6 flex h-56 items-end gap-2 rounded-sm border border-border-system bg-background p-4">
-                {ownerRevenuePoints.map((point) => (
-                  <div
-                    key={`${point.dateKey}-${point.label}`}
-                    className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"
-                  >
-                    <div
-                      className="w-full rounded-sm bg-accent transition"
-                      style={{
-                        height: `${Math.max(
-                          8,
-                          (point.revenue / ownerMaxRevenue) * 100,
-                        )}%`,
-                      }}
-                      title={`${point.label}: ${formatCurrency(point.revenue)}`}
-                    />
-                    <span className="max-w-full truncate font-mono text-[10px] font-bold uppercase tracking-wider text-text-ghost">
-                      {point.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-sm border border-border-system bg-background p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                      Margin loss / recovery
-                    </p>
-                    <p className="mt-1 text-sm text-text-muted">
-                      Daily gross profit compared with the{" "}
-                      {targetMenuMarginPct}% target margin.
-                    </p>
-                  </div>
-                  <div className="text-right font-mono text-[10px] font-bold uppercase tracking-widest">
-                    <p className="text-status-critical-text">
-                      Loss {formatCurrency(ownerMarginLossTotal, 0)}
-                    </p>
-                    <p className="mt-1 text-accent">
-                      Recovery {formatCurrency(ownerMarginRecoveryTotal, 0)}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-2">
-                  {ownerRevenuePoints.map((point) => {
-                    const lossWidth =
-                      (point.marginLoss / ownerMaxMarginMovement) * 100;
-                    const recoveryWidth =
-                      (point.marginRecovery / ownerMaxMarginMovement) * 100;
-
-                    return (
-                      <div
-                        key={`margin-${point.dateKey || point.label}`}
-                        className="grid gap-2 sm:grid-cols-[72px_1fr_90px]"
-                      >
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-text-ghost">
-                          {point.label}
-                        </span>
-                        <div className="grid min-h-8 gap-1">
-                          <div className="h-3 rounded-sm bg-status-critical-bg">
-                            <div
-                              className="h-full rounded-sm bg-status-critical-text"
-                              style={{
-                                width: `${
-                                  point.marginLoss > 0 ? Math.max(2, lossWidth) : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                          <div className="h-3 rounded-sm bg-accent-muted-bg">
-                            <div
-                              className="h-full rounded-sm bg-accent"
-                              style={{
-                                width: `${
-                                  point.marginRecovery > 0
-                                    ? Math.max(2, recoveryWidth)
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <span
-                          className={`font-mono text-[10px] font-bold uppercase tracking-wider sm:text-right ${
-                            point.marginLoss > point.marginRecovery
-                              ? "text-status-critical-text"
-                              : point.marginRecovery > 0
-                                ? "text-accent"
-                                : "text-text-ghost"
-                          }`}
-                        >
-                          {point.marginLoss > point.marginRecovery
-                            ? formatCurrency(point.marginLoss, 0)
-                            : point.marginRecovery > 0
-                              ? formatCurrency(point.marginRecovery, 0)
-                              : "On target"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Day Close
-              </p>
-              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                Operating control list
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {dayCloseChecks.slice(0, 5).map((check) => (
-                  <button
-                    key={check.label}
-                    type="button"
-                    onClick={() => {
-                      openDashboardSection(
-                        check.href.replace("#", ""),
-                        check.ownerRole,
-                        "day-close-checklist",
-                      );
-                    }}
-                    className="flex items-start justify-between gap-3 rounded-sm border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover"
-                  >
                     <span>
-                      <span className="font-semibold text-foreground">
-                        {check.label}
+                      <span className="block text-sm font-semibold text-slate-950">
+                        {location.location}
                       </span>
-                      <span className="mt-1 block text-sm leading-6 text-text-muted">
-                        {check.detail}
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {location.detail}
                       </span>
                     </span>
                     <span
-                      className={`${inlineSignalClass} ${
-                        registerStatusStyles[check.status]
+                      className={`text-sm font-black ${
+                        location.tone === "critical"
+                          ? "text-red-800"
+                          : location.tone === "attention"
+                            ? "text-amber-800"
+                            : "text-emerald-800"
                       }`}
                     >
-                      {registerStatusLabels[check.status]}
+                      {location.tone === "healthy"
+                        ? "Optimal"
+                        : location.status}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
+
+            <div>
+              <h2 className="text-base font-black text-slate-950">
+                Revenue, last 7 days
+              </h2>
+              <div className="mt-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="flex h-28 items-end gap-2">
+                  {ownerRevenuePoints.map((point) => (
+                    <div
+                      key={`${point.dateKey}-${point.label}`}
+                      className="flex min-w-0 flex-1 flex-col items-center gap-2"
+                    >
+                      <div
+                        className="w-full rounded-t bg-blue-500"
+                        style={{
+                          height: `${Math.max(
+                            8,
+                            (point.revenue / ownerMaxRevenue) * 100,
+                          )}%`,
+                        }}
+                        title={`${point.label}: ${formatCurrency(point.revenue)}`}
+                      />
+                      <span className="max-w-full truncate text-[10px] font-bold text-slate-400">
+                        {point.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-2">
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Menu Profitability
-              </p>
-              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                Dishes making money
+          <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-black text-slate-950">
+                Day-close checklist
               </h2>
-              <div className="mt-5 grid gap-3">
-                {ownerMenuRows.length > 0 ? (
-                  ownerMenuRows.map((item) => (
-                    <div
-                      key={item.name}
-                      className="grid gap-3 rounded-sm border border-border-system bg-background p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-                    >
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {item.name}
-                        </p>
-                        <p className="mt-1 text-sm text-text-muted">
-                          {item.soldQuantity.toLocaleString(undefined, {
-                            maximumFractionDigits: 1,
-                          })}{" "}
-                          sold / {formatCurrency(item.revenue, 0)} revenue
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                        <span className="font-mono text-sm font-semibold text-foreground">
-                          {item.marginPct === null
-                            ? "N/A"
-                            : `${item.marginPct.toLocaleString(undefined, {
-                                maximumFractionDigits: 1,
-                              })}%`}
-                        </span>
-                        <span
-                          className={`${inlineSignalClass} ${
-                            inlineSignalToneStyles[item.tone]
-                          }`}
-                        >
-                          {item.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
-                    Record menu sales to see dish-level profitability.
-                  </p>
-                )}
+              <span className="text-sm font-medium text-slate-500">
+                {dayCloseCompletedCount} of {dayCloseChecks.length} done
+              </span>
+            </div>
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-emerald-600"
+                style={{
+                  width: `${
+                    (dayCloseCompletedCount /
+                      Math.max(dayCloseChecks.length, 1)) *
+                    100
+                  }%`,
+                }}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {dayCloseChecks.slice(0, 5).map((check) => (
+                <button
+                  key={check.key}
+                  type="button"
+                  onClick={() =>
+                    openDashboardSection(
+                      check.href.replace("#", ""),
+                      check.ownerRole,
+                      "day-close-checklist",
+                    )
+                  }
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                    check.passed
+                      ? "bg-emerald-50 text-emerald-800"
+                      : check.status === "exception"
+                        ? "bg-red-50 text-red-800"
+                        : "bg-amber-50 text-amber-800"
+                  }`}
+                >
+                  {check.passed ? "✓ " : ""}
+                  {check.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-4">
+            {[
+              { label: "Recipes", section: "pricing", role: "finance_manager" as AppRole },
+              { label: "Inventory", section: "inventory", role: "inventory_manager" as AppRole },
+              { label: "Waste", section: "waste", role: "inventory_manager" as AppRole },
+              { label: "Reports", section: "finance-brief", role: "finance_manager" as AppRole },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => openDashboardSection(item.section, item.role)}
+                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:shadow-md"
+              >
+                {item.label}
+              </button>
+            ))}
+          </section>
+
+          <section className="grid gap-7">
+            <div>
+              <h2 className="text-base font-black text-slate-950">
+                Menu profitability
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Which dishes are actually making money this week.
+              </p>
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-white text-xs uppercase text-slate-400">
+                      <tr>
+                        <th className="px-4 py-3 font-black">Dish</th>
+                        <th className="px-4 py-3 font-black">Sold</th>
+                        <th className="px-4 py-3 font-black">Revenue</th>
+                        <th className="px-4 py-3 font-black">Margin</th>
+                        <th className="px-4 py-3 font-black">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ownerMenuRows.map((item) => (
+                        <tr key={item.name} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-semibold text-slate-950">
+                            {item.name}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {item.soldQuantity.toLocaleString(undefined, {
+                              maximumFractionDigits: 1,
+                            })}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-950">
+                            {formatCurrency(item.revenue, 0)}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-950">
+                            {item.marginPct === null
+                              ? "N/A"
+                              : `${item.marginPct.toLocaleString(undefined, {
+                                  maximumFractionDigits: 1,
+                                })}%`}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`rounded-lg px-2.5 py-1 text-xs font-black ${
+                                item.tone === "critical"
+                                  ? "bg-red-50 text-red-800"
+                                  : item.tone === "attention"
+                                    ? "bg-amber-50 text-amber-800"
+                                    : "bg-emerald-50 text-emerald-800"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Waste This Week
-              </p>
-              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                Where loss is coming from
+            <div>
+              <h2 className="text-base font-black text-slate-950">
+                Waste this week
               </h2>
-              <div className="mt-5 grid gap-3">
+              <p className="mt-1 text-sm text-slate-500">
+                Broken down by reason, so you know what to fix.
+              </p>
+              <div className="mt-4 grid gap-2">
                 {wasteByReason.length > 0 ? (
                   wasteByReason.slice(0, 4).map((reason) => (
-                    <div
+                    <button
                       key={reason.name}
-                      className="rounded-sm border border-border-system bg-background p-4"
+                      type="button"
+                      onClick={() => openDashboardSection("waste", "inventory_manager")}
+                      className="grid rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm sm:grid-cols-[1fr_auto] sm:items-center"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold capitalize text-foreground">
-                            {reason.name.replaceAll("_", " ")}
-                          </p>
-                          <p className="mt-1 text-sm text-text-muted">
-                            {reason.count.toLocaleString()} event
-                            {reason.count === 1 ? "" : "s"} /{" "}
-                            {reason.quantity.toLocaleString(undefined, {
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            units
-                          </p>
-                        </div>
-                        <span className="font-mono text-sm font-semibold text-status-attention-text">
-                          {formatCurrency(reason.cost)}
-                        </span>
-                      </div>
-                    </div>
+                      <span className="font-semibold capitalize text-slate-950">
+                        {reason.name.replaceAll("_", " ")}
+                      </span>
+                      <span className="font-mono font-black text-red-800">
+                        {formatCurrency(reason.cost, 0)}
+                      </span>
+                    </button>
                   ))
                 ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
+                  <p className="rounded-xl border border-slate-100 bg-white p-4 text-sm text-slate-500">
                     No waste cost is visible for this period.
                   </p>
                 )}
               </div>
             </div>
-          </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Recent Activity
-              </p>
-              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                What changed
+            <div>
+              <h2 className="text-base font-black text-slate-950">
+                Ingredient price changes
               </h2>
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {ownerPriceRows.length > 0 ? (
-                  ownerPriceRows.slice(0, 2).map((row) => (
-                    <button
-                      key={`price-${row.id}`}
-                      type="button"
-                      onClick={() => openDashboardSection("costing", "finance_manager")}
-                      className="rounded-sm border border-status-attention-border bg-status-attention-bg/50 p-4 text-left transition hover:border-status-attention-text"
-                    >
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-status-attention-text">
-                        Cost movement
-                      </span>
-                      <span className="mt-2 flex items-start justify-between gap-3">
-                        <span className="min-w-0">
-                          <span className="block truncate font-semibold text-foreground">
-                            {row.itemName}
-                          </span>
-                          <span className="mt-1 block text-sm text-text-muted">
-                            {row.affectedRecipeCount.toLocaleString()} recipe
-                            {row.affectedRecipeCount === 1 ? "" : "s"} affected
-                          </span>
-                        </span>
-                        <span
-                          className={`${inlineSignalClass} ${
-                            inlineSignalToneStyles[row.tone]
-                          }`}
-                        >
-                          {row.change}
-                        </span>
-                      </span>
-                      <span className="mt-3 block font-mono text-sm font-semibold text-foreground">
-                        {row.impact} on hand
-                      </span>
-                    </button>
-                  ))
-                ) : null}
-                {ownerRecentActivity.length > 0 ? (
-                  ownerRecentActivity.map((event) => {
-                    const eventToneClass =
-                      event.tone === "positive"
-                        ? "border-accent-muted-border bg-accent-muted-bg text-accent"
-                        : event.tone === "warning"
-                          ? "border-status-critical-border bg-status-critical-bg text-status-critical-text"
-                          : "border-status-info-border bg-status-info-bg text-status-info-text";
-                    const eventToneLabel =
-                      event.tone === "positive"
-                        ? "Good"
-                        : event.tone === "warning"
-                          ? "Bad"
-                          : "Neutral";
-                    const eventValueClass =
-                      event.tone === "positive"
-                        ? "text-accent"
-                        : event.tone === "warning"
-                          ? "text-status-critical-text"
-                          : "text-foreground";
+              <p className="mt-1 text-sm text-slate-500">
+                What suppliers have changed recently, and what it affects.
+              </p>
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-white text-xs uppercase text-slate-400">
+                      <tr>
+                        <th className="px-4 py-3 font-black">Ingredient</th>
+                        <th className="px-4 py-3 font-black">Change</th>
+                        <th className="px-4 py-3 font-black">Affects</th>
+                        <th className="px-4 py-3 font-black">Impact</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ownerPriceRows.length > 0 ? (
+                        ownerPriceRows.map((row) => (
+                          <tr key={row.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 font-semibold text-slate-950">
+                              {row.itemName}
+                            </td>
+                            <td
+                              className={`px-4 py-3 font-mono font-black ${
+                                row.tone === "healthy"
+                                  ? "text-emerald-700"
+                                  : row.tone === "attention"
+                                    ? "text-red-800"
+                                    : "text-slate-500"
+                              }`}
+                            >
+                              {row.change}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {row.affectedRecipeCount.toLocaleString()} recipe
+                              {row.affectedRecipeCount === 1 ? "" : "s"}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-slate-950">
+                              {row.impact}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="px-4 py-5 text-sm text-slate-500"
+                          >
+                            No supplier price movement is visible for this period.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
 
-                    return (
+            <section className="grid gap-7 xl:grid-cols-2">
+              <div>
+                <h2 className="text-base font-black text-slate-950">
+                  Approvals waiting on you
+                </h2>
+                <div className="mt-4 grid gap-2">
+                  {ownerApprovalRows.length > 0 ? (
+                    ownerApprovalRows.map((row) => (
+                      <button
+                        key={row.id}
+                        type="button"
+                        onClick={() =>
+                          openDashboardSection("approvals", "inventory_manager")
+                        }
+                        className="grid rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-3"
+                      >
+                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-black text-amber-800">
+                          {row.label}
+                        </span>
+                        <span className="font-semibold text-slate-950">
+                          {row.title} · {row.detail}
+                        </span>
+                        <span className="text-xs text-slate-500">{row.status}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="rounded-xl border border-slate-100 bg-white p-4 text-sm text-slate-500">
+                      No approvals are waiting right now.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-base font-black text-slate-950">
+                  Recent activity
+                </h2>
+                <div className="mt-4 grid gap-2">
+                  {ownerRecentActivity.length > 0 ? (
+                    ownerRecentActivity.slice(0, 5).map((event) => (
                       <div
                         key={event.id}
-                        className="rounded-sm border border-border-system bg-background p-4"
+                        className="grid rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm sm:grid-cols-[1fr_auto] sm:items-center"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-foreground">
-                              {event.title}
-                            </p>
-                            <p className="mt-1 text-sm text-text-muted">
-                              {event.type} / {event.detail}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-start gap-2 sm:items-end">
-                            <span
-                              className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${eventToneClass}`}
-                            >
-                              {eventToneLabel}
-                            </span>
-                            <span
-                              className={`font-mono text-sm font-semibold ${eventValueClass}`}
-                            >
-                              {event.value}
-                            </span>
-                          </div>
-                        </div>
+                        <span className="min-w-0">
+                          <span className="font-black text-slate-950">
+                            {event.type}
+                          </span>
+                          <span className="text-slate-500"> · {event.title}</span>
+                        </span>
+                        <span
+                          className={`font-mono font-black ${
+                            event.tone === "positive"
+                              ? "text-emerald-700"
+                              : event.tone === "warning"
+                                ? "text-red-800"
+                                : "text-slate-600"
+                          }`}
+                        >
+                          {event.value}
+                        </span>
                       </div>
-                    );
-                  })
-                ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted md:col-span-2">
-                    No operating activity is visible yet.
-                  </p>
-                )}
+                    ))
+                  ) : (
+                    <p className="rounded-xl border border-slate-100 bg-white p-4 text-sm text-slate-500">
+                      No operating activity is visible yet.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-
-            <div className="rounded-sm border border-border-system bg-card p-4 shadow-2xl shadow-black/25 sm:p-6">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                Approvals Waiting
-              </p>
-              <h2 className="mt-2 font-serif text-3xl font-normal text-foreground">
-                Pending sign-off
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {ownerApprovalRows.length > 0 ? (
-                  ownerApprovalRows.map((row) => (
-                    <button
-                      key={row.id}
-                      type="button"
-                      onClick={() =>
-                        openDashboardSection(
-                          "approvals",
-                          "inventory_manager",
-                        )
-                      }
-                      className="rounded-sm border border-border-system bg-background p-4 text-left transition hover:border-border-system-hover"
-                    >
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent">
-                        {row.label}
-                      </span>
-                      <span className="mt-2 block font-semibold text-foreground">
-                        {row.title}
-                      </span>
-                      <span className="mt-1 block text-sm text-text-muted">
-                        {row.detail} / {row.status}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="rounded-sm border border-border-system bg-background p-4 text-sm text-text-muted">
-                    No approvals are waiting right now.
-                  </p>
-                )}
-              </div>
-            </div>
+            </section>
           </section>
-            </>
-          ) : null}
         </div>
       ) : null}
 
