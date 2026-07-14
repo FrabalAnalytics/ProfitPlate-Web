@@ -285,7 +285,8 @@ type OperationRegisterActivityState =
 
 
 type NoticeTone = "success" | "error" | "info";
-type DateFilter = "today" | "7d" | "30d" | "all";
+type PresetDateFilter = "today" | "7d" | "30d" | "all";
+type DateFilter = PresetDateFilter | "custom";
 type PurchaseOrderQueueFilter = "open" | "partial" | "completed" | "all";
 type MenuProfitabilityFilter =
   | "all"
@@ -410,7 +411,20 @@ const dateFilterLabels: Record<DateFilter, string> = {
   "7d": "7 days",
   "30d": "30 days",
   all: "All",
+  custom: "Custom",
 };
+
+function formatDateInputDisplay(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 const inlineSignalClass =
   "inline-flex max-w-full align-baseline rounded-sm border px-2 py-0.5 font-mono text-sm font-bold leading-6 whitespace-normal break-words";
@@ -3665,6 +3679,8 @@ function WorkspaceDashboard({
   const [menuProfitabilityFilter, setMenuProfitabilityFilter] =
     useState<MenuProfitabilityFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("30d");
+  const [dashboardStartDate, setDashboardStartDate] = useState("");
+  const [dashboardEndDate, setDashboardEndDate] = useState("");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
   const [inventorySearch, setInventorySearch] = useState("");
@@ -3847,23 +3863,74 @@ function WorkspaceDashboard({
       cancelled = true;
     };
   }, [organization.id, allPurchaseOrders]);
+  const dashboardCustomRangeActive =
+    dateFilter === "custom" && Boolean(dashboardStartDate || dashboardEndDate);
+  const dashboardPeriodStartMs =
+    dateFilter === "custom"
+      ? dashboardStartDate
+        ? new Date(`${dashboardStartDate}T00:00:00`).getTime()
+        : Number.NEGATIVE_INFINITY
+      : dateFilter === "all"
+        ? Number.NEGATIVE_INFINITY
+        : getDateFilterStart(dateFilter);
+  const dashboardPeriodEndMs =
+    dateFilter === "custom" && dashboardEndDate
+      ? new Date(`${dashboardEndDate}T23:59:59.999`).getTime()
+      : Number.POSITIVE_INFINITY;
+  const isWithinSelectedDatePeriod = (value: string) => {
+    if (dateFilter !== "custom") {
+      return isWithinDateFilter(value, dateFilter);
+    }
+
+    if (!dashboardCustomRangeActive) {
+      return true;
+    }
+
+    const dateMs = getDateMs(value);
+
+    return (
+      dateMs > 0 &&
+      dateMs >= dashboardPeriodStartMs &&
+      dateMs <= dashboardPeriodEndMs
+    );
+  };
+  const selectedPeriodLabel =
+    dateFilter === "custom"
+      ? dashboardStartDate && dashboardEndDate
+        ? dashboardStartDate === dashboardEndDate
+          ? formatDateInputDisplay(dashboardStartDate)
+          : `${formatDateInputDisplay(dashboardStartDate)} - ${formatDateInputDisplay(
+              dashboardEndDate,
+            )}`
+        : dashboardStartDate
+          ? `From ${formatDateInputDisplay(dashboardStartDate)}`
+          : dashboardEndDate
+            ? `Until ${formatDateInputDisplay(dashboardEndDate)}`
+            : "Custom period"
+      : dateFilter === "today"
+        ? "today"
+        : dateFilter === "7d"
+          ? "last 7 days"
+          : dateFilter === "30d"
+            ? "last 30 days"
+            : "all time";
   const costEvents = allCostEvents.filter((event) =>
-    isWithinDateFilter(event.created_at, dateFilter),
+    isWithinSelectedDatePeriod(event.created_at),
   );
   const productionHistory = allProductionHistory.filter((row) =>
-    isWithinDateFilter(row.created_at, dateFilter),
+    isWithinSelectedDatePeriod(row.created_at),
   );
   const stockVarianceHistory = allStockVarianceHistory.filter((row) =>
-    isWithinDateFilter(row.created_at, dateFilter),
+    isWithinSelectedDatePeriod(row.created_at),
   );
   const wasteHistory = allWasteHistory.filter((row) =>
-    isWithinDateFilter(row.created_at, dateFilter),
+    isWithinSelectedDatePeriod(row.created_at),
   );
   const menuSaleHistory = allMenuSaleHistory.filter((row) =>
-    isWithinDateFilter(row.operating_date || row.created_at, dateFilter),
+    isWithinSelectedDatePeriod(row.operating_date || row.created_at),
   );
   const purchaseOrders = allPurchaseOrders.filter((order) =>
-    isWithinDateFilter(order.created_at, dateFilter),
+    isWithinSelectedDatePeriod(order.created_at),
   );
   const pendingApprovalRequests = approvalRequests.filter(
     (request) =>
@@ -4252,14 +4319,14 @@ function WorkspaceDashboard({
     activeInventoryItems.map((item) => [extractUuid(item.id), item]),
   );
   const stockMovementPeriodStartMs =
-    dateFilter === "all" ? 0 : getDateFilterStart(dateFilter);
+    dateFilter === "all" ? 0 : Math.max(0, dashboardPeriodStartMs);
   const stockMovementLedger = allStockMovementLedger.filter((movement) => {
     const movementDateMs = getDateMs(movement.created_at);
 
     return (
       movement.inventory_item_id &&
       activeInventoryItemsById.has(extractUuid(movement.inventory_item_id)) &&
-      (dateFilter === "all" || movementDateMs >= stockMovementPeriodStartMs)
+      isWithinSelectedDatePeriod(movement.created_at)
     );
   });
   const allStockMovementByItemId = allStockMovementLedger.reduce(
@@ -5082,7 +5149,7 @@ function WorkspaceDashboard({
       ? (totalSalesGrossProfit / totalSalesRevenue) * 100
       : null;
   const visibleAvtSummary = avtSummary.filter((row) =>
-    isWithinDateFilter(row.operating_date, dateFilter),
+    isWithinSelectedDatePeriod(row.operating_date),
   );
   const avtReadyCount = visibleAvtSummary.filter(
     (row) => row.status === "ready",
@@ -6193,6 +6260,8 @@ function WorkspaceDashboard({
         ? "the selected 7-day operating window"
         : dateFilter === "30d"
           ? "the selected 30-day operating window"
+          : dateFilter === "custom"
+            ? `the selected ${selectedPeriodLabel} operating window`
           : "all recorded operating activity";
   const primaryCostCascadeAlert = largestPriceIncreaseMover
     ? (() => {
@@ -6312,9 +6381,7 @@ function WorkspaceDashboard({
   const reportDateLabel =
     reportStartDate || reportEndDate
       ? `${reportStartDate || "start"}-to-${reportEndDate || "today"}`
-      : dateFilter === "all"
-        ? "all"
-        : dateFilter;
+      : selectedPeriodLabel.toLowerCase().replaceAll(" ", "-");
   const reportRangeActive = Boolean(reportStartDate || reportEndDate);
   const getReportRowDateMs = (row: Record<string, unknown>) => {
     const candidate =
@@ -10939,15 +11006,20 @@ function WorkspaceDashboard({
           Operating period
           </p>
           <p className="mt-1 text-sm font-semibold text-foreground">
-            {dateFilterLabels[dateFilter]} activity
+            {selectedPeriodLabel} activity
           </p>
         </div>
+        <div className="grid gap-2 sm:grid-cols-[auto_auto] sm:items-end xl:grid-cols-[auto_auto_auto]">
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          {(["today", "7d", "30d", "all"] as DateFilter[]).map((filter) => (
+          {(["today", "7d", "30d", "all"] as PresetDateFilter[]).map((filter) => (
             <button
               key={filter}
               type="button"
-              onClick={() => setDateFilter(filter)}
+              onClick={() => {
+                setDateFilter(filter);
+                setDashboardStartDate("");
+                setDashboardEndDate("");
+              }}
               className={`h-9 rounded-full border px-3 text-xs font-bold transition ${
                 dateFilter === filter
                   ? "border-accent-muted-border bg-accent-muted-bg text-accent"
@@ -10957,6 +11029,46 @@ function WorkspaceDashboard({
               {dateFilterLabels[filter]}
             </button>
           ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:min-w-[310px]">
+          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+            From
+            <input
+              type="date"
+              value={dashboardStartDate}
+              onChange={(event) => {
+                setDashboardStartDate(event.target.value);
+                setDateFilter("custom");
+              }}
+              className="h-9 rounded-sm border border-border-system bg-card px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            />
+          </label>
+          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
+            To
+            <input
+              type="date"
+              value={dashboardEndDate}
+              onChange={(event) => {
+                setDashboardEndDate(event.target.value);
+                setDateFilter("custom");
+              }}
+              className="h-9 rounded-sm border border-border-system bg-card px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            />
+          </label>
+        </div>
+        {dateFilter === "custom" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setDateFilter("30d");
+              setDashboardStartDate("");
+              setDashboardEndDate("");
+            }}
+            className="h-9 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-text-muted transition hover:border-border-system-hover hover:text-foreground"
+          >
+            Clear dates
+          </button>
+        ) : null}
         </div>
         <details className="group relative">
           <summary className="flex h-9 cursor-pointer list-none items-center rounded-sm border border-border-system bg-card px-4 text-xs font-bold text-text-muted transition hover:border-border-system-hover hover:text-foreground">
@@ -11205,7 +11317,7 @@ function WorkspaceDashboard({
                   Live
                 </span>
                 <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm">
-                  {dateFilterLabels[dateFilter]}
+                  {selectedPeriodLabel}
                 </span>
               </div>
             </div>
@@ -11695,7 +11807,7 @@ function WorkspaceDashboard({
                 Menu profitability
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Which dishes are actually making money this week.
+                Which dishes are actually making money in the selected period.
               </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
@@ -11792,10 +11904,10 @@ function WorkspaceDashboard({
 
             <div id="waste-analysis-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
-                Waste this week
+                Waste, {selectedPeriodLabel}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Broken down by reason, so you know what to fix.
+                Broken down by reason for the selected operating period.
               </p>
               <div className="mt-4 grid gap-2">
                 {wasteByReason.length > 0 ? (
@@ -16014,7 +16126,7 @@ function WorkspaceDashboard({
                 </p>
               </div>
               <span className="w-fit rounded-full border border-border-system bg-card px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-                {dateFilterLabels[dateFilter]}
+                {selectedPeriodLabel}
               </span>
             </div>
 
@@ -16326,7 +16438,7 @@ function WorkspaceDashboard({
                       {selectedMovementAuditRows.length.toLocaleString()} ledger
                       movement
                       {selectedMovementAuditRows.length === 1 ? "" : "s"} in{" "}
-                      {dateFilterLabels[dateFilter]}.
+                      {selectedPeriodLabel}.
                     </p>
                   </div>
                   <button
