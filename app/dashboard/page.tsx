@@ -9455,14 +9455,22 @@ function WorkspaceDashboard({
       items: [
         {
           href: "#inventory",
-          label: "Inventory Position",
+          label: "Inventory value",
           badge: formatCurrency(currentStockValue, 0),
           tone: reorderTodayCount > 0 ? "warning" : "healthy",
           visible: true,
         },
         {
+          href: "#inventory",
+          label: "Stock by location",
+          badge: `${ownerLocationRows.length.toLocaleString()} areas`,
+          tone: negativeStockExceptions.length > 0 ? "critical" : "healthy",
+          visible: true,
+          targetElementId: "inventory-location-summary",
+        },
+        {
           href: "#procurement-intelligence",
-          label: "Procurement Intel",
+          label: "Procurement spend",
           badge:
             todayPurchaseOrderCount > 0
               ? `${todayPurchaseOrderCount.toLocaleString()} POs`
@@ -9475,6 +9483,25 @@ function WorkspaceDashboard({
           visible: true,
         },
         {
+          href: "#procurement-intelligence",
+          label: "Supplier risk",
+          badge:
+            partialPurchaseOrders.length > 0
+              ? `${partialPurchaseOrders.length.toLocaleString()} partial`
+              : "Stable",
+          tone: partialPurchaseOrders.length > 0 ? "warning" : "healthy",
+          visible: true,
+          targetElementId: "supplier-performance-summary",
+        },
+        {
+          href: "#procurement-intelligence",
+          label: "Price inflation",
+          badge: formatCurrency(priceIncreaseImpact, 0),
+          tone: priceIncreaseImpact > 0 ? "warning" : "healthy",
+          visible: true,
+          targetElementId: "ingredient-price-summary",
+        },
+        {
           href: "#waste",
           label: "Waste Analysis",
           badge:
@@ -9483,6 +9510,17 @@ function WorkspaceDashboard({
               : "Clear",
           tone: directWasteImpact > 0 ? "critical" : "healthy",
           visible: true,
+        },
+        {
+          href: "#overview",
+          label: "AvT by location",
+          badge:
+            visibleAvtSummary.length > 0
+              ? formatCurrency(avtVarianceExposure, 0)
+              : "Clear",
+          tone: avtVarianceExposure > 0 ? "warning" : "healthy",
+          visible: true,
+          targetElementId: "avt-location-summary",
         },
         {
           href: "#menu-profitability",
@@ -11147,8 +11185,8 @@ function WorkspaceDashboard({
         </div>
       ) : null}
       {ownerOverviewActive ? (
-        <div className="mx-auto grid max-w-[980px] gap-7 rounded-[18px] bg-[#f4f2ee] p-4 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-7">
-          <section className="grid gap-5 border-b border-slate-200 pb-5">
+        <div className="mx-auto grid max-w-[1080px] gap-6 rounded-[18px] bg-[#f4f2ee] p-4 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-6">
+          <section className="grid gap-4 border-b border-slate-200 pb-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="h-11 w-11 shrink-0 rounded-2xl bg-blue-100" />
@@ -11172,7 +11210,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {[
                 {
                   label: "Revenue",
@@ -11225,8 +11263,8 @@ function WorkspaceDashboard({
                 },
                 {
                   label: "Procurement",
-                  value: formatCurrency(priceIncreaseImpact, 0),
-                  detail: `${todayPurchaseOrderCount.toLocaleString()} PO today · ${partialPurchaseOrders.length.toLocaleString()} partial`,
+                  value: formatCurrency(procurementCommittedSpend, 0),
+                  detail: `${todayPurchaseOrderCount.toLocaleString()} PO today / ${formatCurrency(procurementTaxExposure, 0)} VAT`,
                   tone:
                     priceIncreaseImpact > 0 || partialPurchaseOrders.length > 0
                       ? ("attention" as const)
@@ -11248,31 +11286,33 @@ function WorkspaceDashboard({
               ].map((metric) => (
                 <article
                   key={metric.label}
-                  className={`min-h-[118px] rounded-xl border p-4 shadow-sm ${
+                  className={`grid min-h-[74px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-4 py-3 shadow-sm ${
                     metric.tone === "critical"
                       ? "border-red-100 bg-red-50 text-red-950"
                       : metric.tone === "attention"
                         ? "border-amber-100 bg-amber-50 text-amber-950"
-                        : "border-slate-100 bg-white text-slate-950"
+                      : "border-slate-100 bg-white text-slate-950"
                   }`}
                 >
-                  <p className="text-sm font-medium text-slate-600">
-                    {metric.label}
-                  </p>
-                  <p className="mt-2 break-words font-mono text-2xl font-black leading-none tracking-tight">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold text-slate-500">
+                      {metric.label}
+                    </span>
+                    <span
+                      className={`mt-1 block truncate text-xs font-semibold ${
+                        metric.tone === "critical"
+                          ? "text-red-700"
+                          : metric.tone === "attention"
+                            ? "text-amber-800"
+                            : "text-emerald-800"
+                      }`}
+                    >
+                      {metric.detail}
+                    </span>
+                  </span>
+                  <span className="max-w-[46vw] truncate text-right font-mono text-xl font-black leading-none tracking-tight sm:max-w-none">
                     {metric.value}
-                  </p>
-                  <p
-                    className={`mt-3 text-xs font-semibold ${
-                      metric.tone === "critical"
-                        ? "text-red-700"
-                        : metric.tone === "attention"
-                          ? "text-amber-800"
-                          : "text-emerald-800"
-                    }`}
-                  >
-                    {metric.detail}
-                  </p>
+                  </span>
                 </article>
               ))}
             </div>
@@ -11322,8 +11362,8 @@ function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-2">
-            <div>
+          <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div id="inventory-location-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
                 Inventory position
               </h2>
@@ -11370,7 +11410,7 @@ function WorkspaceDashboard({
               </div>
               <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                  <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                     <tr>
                       <th className="px-4 py-3 font-black">Type</th>
                       <th className="px-4 py-3 text-right font-black">SKUs</th>
@@ -11379,7 +11419,7 @@ function WorkspaceDashboard({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {ownerInventoryTypeRows.slice(0, 4).map((row) => (
-                      <tr key={row.type}>
+                      <tr key={row.type} className="hover:bg-[#faf9f6]">
                         <td className="px-4 py-3 font-semibold capitalize text-slate-950">
                           {row.type}
                           <span className="mt-0.5 block text-xs font-medium text-slate-500">
@@ -11479,7 +11519,7 @@ function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+          <section id="avt-location-summary" className="scroll-mt-24 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
             <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
               <div>
                 <h2 className="text-base font-black text-slate-950">
@@ -11499,7 +11539,7 @@ function WorkspaceDashboard({
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-black">Location</th>
                     <th className="px-4 py-3 text-right font-black">Revenue</th>
@@ -11511,7 +11551,7 @@ function WorkspaceDashboard({
                 <tbody className="divide-y divide-slate-100">
                   {ownerAvtLocationRows.length > 0 ? (
                     ownerAvtLocationRows.slice(0, 5).map((row) => (
-                      <tr key={row.location} className="hover:bg-slate-50">
+                      <tr key={row.location} className="hover:bg-[#faf9f6]">
                         <td className="px-4 py-3 font-semibold text-slate-950">
                           {row.location}
                           <span className="mt-0.5 block text-xs font-medium text-slate-500">
@@ -11585,7 +11625,7 @@ function WorkspaceDashboard({
           </section>
 
           <section className="grid gap-7">
-            <div>
+            <div id="menu-profitability-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
                 Menu profitability
               </h2>
@@ -11595,7 +11635,7 @@ function WorkspaceDashboard({
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-white text-xs uppercase text-slate-400">
+                    <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-black">Dish</th>
                         <th className="px-4 py-3 font-black">Sold</th>
@@ -11606,7 +11646,7 @@ function WorkspaceDashboard({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {ownerMenuRows.map((item) => (
-                        <tr key={item.name} className="hover:bg-slate-50">
+                        <tr key={item.name} className="hover:bg-[#faf9f6]">
                           <td className="px-4 py-3 font-semibold text-slate-950">
                             {item.name}
                           </td>
@@ -11646,7 +11686,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div>
+            <div id="waste-analysis-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
                 Waste this week
               </h2>
@@ -11660,7 +11700,7 @@ function WorkspaceDashboard({
                       key={reason.name}
                       type="button"
                       onClick={() => openDashboardSection("waste")}
-                      className="grid rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm sm:grid-cols-[1fr_auto] sm:items-center"
+                      className="grid rounded-xl border border-slate-100 bg-white px-5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:grid-cols-[1fr_auto] sm:items-center"
                     >
                       <span className="font-semibold capitalize text-slate-950">
                         {reason.name.replaceAll("_", " ")}
@@ -11678,7 +11718,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div>
+            <div id="procurement-intelligence-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
                 Procurement intelligence
               </h2>
@@ -11694,7 +11734,7 @@ function WorkspaceDashboard({
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                      <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Product</th>
                           <th className="px-4 py-3 text-right font-black">Spend</th>
@@ -11705,7 +11745,7 @@ function WorkspaceDashboard({
                       <tbody className="divide-y divide-slate-100">
                         {ownerProcurementProductRows.length > 0 ? (
                           ownerProcurementProductRows.map((row) => (
-                            <tr key={`${row.item}-${row.sku}`}>
+                            <tr key={`${row.item}-${row.sku}`} className="hover:bg-[#faf9f6]">
                               <td className="px-4 py-3 font-semibold text-slate-950">
                                 {row.item}
                                 <span className="mt-0.5 block text-xs font-medium text-slate-500">
@@ -11746,7 +11786,7 @@ function WorkspaceDashboard({
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                <div id="supplier-performance-summary" className="scroll-mt-24 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                   <div className="border-b border-slate-100 px-4 py-3">
                     <p className="text-xs font-black uppercase text-slate-400">
                       Supplier performance
@@ -11754,7 +11794,7 @@ function WorkspaceDashboard({
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                      <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Supplier</th>
                           <th className="px-4 py-3 text-right font-black">Spend</th>
@@ -11765,7 +11805,7 @@ function WorkspaceDashboard({
                       <tbody className="divide-y divide-slate-100">
                         {ownerSupplierRows.length > 0 ? (
                           ownerSupplierRows.map((row) => (
-                            <tr key={row.supplier}>
+                            <tr key={row.supplier} className="hover:bg-[#faf9f6]">
                               <td className="px-4 py-3 font-semibold text-slate-950">
                                 {row.supplier}
                                 <span className="mt-0.5 block text-xs font-medium text-slate-500">
@@ -11814,7 +11854,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div>
+            <div id="ingredient-price-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
                 Ingredient price changes
               </h2>
@@ -11824,7 +11864,7 @@ function WorkspaceDashboard({
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-white text-xs uppercase text-slate-400">
+                    <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-black">Ingredient</th>
                         <th className="px-4 py-3 font-black">Change</th>
@@ -11835,7 +11875,7 @@ function WorkspaceDashboard({
                     <tbody className="divide-y divide-slate-100">
                       {ownerPriceRows.length > 0 ? (
                         ownerPriceRows.map((row) => (
-                          <tr key={row.id} className="hover:bg-slate-50">
+                          <tr key={row.id} className="hover:bg-[#faf9f6]">
                             <td className="px-4 py-3 font-semibold text-slate-950">
                               {row.itemName}
                             </td>
