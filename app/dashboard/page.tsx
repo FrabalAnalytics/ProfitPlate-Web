@@ -191,6 +191,12 @@ type ProductionRunLineInputRow = {
   targetOutputQty: string;
 };
 
+type ProcurementPriceMovement = CostRecalculationEvent & {
+  supplierName?: string | null;
+  purchaseOrderId?: string | null;
+  purchaseOrderLineId?: string | null;
+};
+
 type ProductionPlanRequirement = {
   id: string;
   inventoryItemId: string;
@@ -3095,6 +3101,11 @@ export default function DashboardPage() {
       return;
     }
 
+    const activeProfile = await refreshActiveProfileForOperationalAction();
+    if (!activeProfile) {
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
@@ -5231,12 +5242,38 @@ function WorkspaceDashboard({
     (total, row) => total + Math.max(row.hard_currency_impact, 0),
     0,
   );
-  const directWasteImpact = wasteHistory.reduce(
+  const productionGapWasteRows: WasteHistoryRow[] = productionHistory
+    .filter((row) => Number(row.output_variance_qty ?? 0) > 0)
+    .map((row) => {
+      const wasteCost = Math.max(Number(row.naira_loss ?? 0), 0);
+
+      return {
+        waste_event_id: `production-gap-${row.production_run_id}-${row.ingredient_name}`,
+        created_at: row.created_at,
+        ingredient_name: row.recipe_name,
+        quantity: Number(row.output_variance_qty ?? 0),
+        uom: row.output_uom,
+        unit_cost:
+          Number(row.output_variance_qty ?? 0) > 0
+            ? wasteCost / Number(row.output_variance_qty ?? 1)
+            : 0,
+        waste_cost: wasteCost,
+        waste_reason: "production_gap",
+        waste_stage: "production",
+        notes: `${row.ingredient_name} usage should have produced ${Number(
+          row.expected_output_from_actual_qty ?? 0,
+        ).toLocaleString(undefined, {
+          maximumFractionDigits: 3,
+        })} ${row.output_uom ?? "unit"}.`,
+      };
+    });
+  const wasteExposureRows = [...wasteHistory, ...productionGapWasteRows];
+  const directWasteImpact = wasteExposureRows.reduce(
     (total, row) => total + Math.max(row.waste_cost, 0),
     0,
   );
   const wasteByReason = Array.from(
-    wasteHistory
+    wasteExposureRows
       .reduce(
         (reasons, row) => {
           const key = row.waste_reason || "other";
@@ -5265,7 +5302,7 @@ function WorkspaceDashboard({
       .values(),
   ).sort((leftReason, rightReason) => rightReason.cost - leftReason.cost);
   const wasteByStage = Array.from(
-    wasteHistory
+    wasteExposureRows
       .reduce(
         (stages, row) => {
           const key = row.waste_stage || "unknown";
@@ -5293,7 +5330,7 @@ function WorkspaceDashboard({
       )
       .values(),
   ).sort((leftStage, rightStage) => rightStage.cost - leftStage.cost);
-  const ingredientPriceMovements = costEvents
+  const costEventPriceMovements = costEvents
     .map((event) => {
       const inventoryItemId = extractUuid(event.inventory_item_id);
       const item = activeInventoryItemsById.get(inventoryItemId);
@@ -5331,6 +5368,78 @@ function WorkspaceDashboard({
         !event.isLikelyUnitCostCorrection &&
         event.oldCost !== event.newCost,
     );
+  const purchaseOrderPriceMovementEvents = Array.from(
+    purchaseOrderLines
+      .filter((line) => extractUuid(line.inventory_item_id))
+      .reduce((linesByItem, line) => {
+        const itemId = extractUuid(line.inventory_item_id);
+        const currentLines = linesByItem.get(itemId) ?? [];
+        currentLines.push(line);
+        linesByItem.set(itemId, currentLines);
+        return linesByItem;
+      }, new Map<string, PurchaseOrderLine[]>())
+      .entries(),
+  ).flatMap(([inventoryItemId, lines]) => {
+    const sortedLines = [...lines].sort(
+      (leftLine, rightLine) =>
+        getDateMs(leftLine.created_at) - getDateMs(rightLine.created_at),
+    );
+
+    return sortedLines.slice(1).flatMap((line, index) => {
+      const previousLine = sortedLines[index];
+      const oldCost = Number(previousLine?.landed_unit_cost ?? 0);
+      const newCost = Number(line.landed_unit_cost ?? 0);
+
+      if (oldCost <= 0 || newCost <= 0 || oldCost === newCost) {
+        return [];
+      }
+
+      const order = allPurchaseOrders.find(
+        (purchaseOrder) => purchaseOrder.id === line.purchase_order_id,
+      );
+
+      return [
+        {
+          id: `po-price-${line.id}`,
+          organization_id: organization.id,
+          inventory_item_id: inventoryItemId,
+          recipe_id: null,
+          old_cost: oldCost,
+          new_cost: newCost,
+          reason: "purchase_order_price_change",
+          created_at: line.created_at,
+          supplierName: order?.supplier_name ?? null,
+          purchaseOrderId: line.purchase_order_id,
+          purchaseOrderLineId: line.id,
+        } satisfies ProcurementPriceMovement,
+      ];
+    });
+  });
+  const ingredientPriceMovements = [
+    ...costEventPriceMovements,
+    ...purchaseOrderPriceMovementEvents.map((event) => {
+      const inventoryItemId = extractUuid(event.inventory_item_id);
+      const item = activeInventoryItemsById.get(inventoryItemId);
+      const oldCost = Number(event.old_cost ?? 0);
+      const newCost = Number(event.new_cost ?? 0);
+      const costDelta = newCost - oldCost;
+      const changePct = oldCost > 0 ? (costDelta / oldCost) * 100 : null;
+      const onHandQty = Number(item?.on_hand_qty ?? 0);
+
+      return {
+        ...event,
+        item,
+        inventoryItemId,
+        oldCost,
+        newCost,
+        costDelta,
+        changePct,
+        isLikelyUnitCostCorrection: false,
+        onHandQty,
+        onHandImpact: costDelta * onHandQty,
+      };
+    }).filter((event) => event.item && event.item.cost_type === "purchased"),
+  ].sort((leftEvent, rightEvent) => getDateMs(rightEvent.created_at) - getDateMs(leftEvent.created_at));
   const priceIncreaseMovements = ingredientPriceMovements.filter(
     (event) => event.costDelta > 0,
   );
@@ -6023,7 +6132,7 @@ function WorkspaceDashboard({
       ).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
       sortImpact: Number(row.hard_currency_impact ?? 0),
     }));
-  const wasteEventExceptions = wasteHistory
+  const wasteEventExceptions = wasteExposureRows
     .filter((row) => Number(row.waste_cost ?? 0) > 0)
     .slice(0, 8)
     .map<ExceptionItem>((row) => ({
@@ -6108,7 +6217,7 @@ function WorkspaceDashboard({
     ...ingredientPriceMovements.map((event) => getDateMs(event.created_at)),
     ...productionHistory.map((row) => getDateMs(row.created_at)),
     ...stockVarianceHistory.map((row) => getDateMs(row.created_at)),
-    ...wasteHistory.map((row) => getDateMs(row.created_at)),
+    ...wasteExposureRows.map((row) => getDateMs(row.created_at)),
   );
   const latestActivityKey = latestActivityMs
     ? getDateKey(new Date(latestActivityMs).toISOString())
@@ -6122,7 +6231,7 @@ function WorkspaceDashboard({
         ...ingredientPriceMovements.map((event) => getDateKey(event.created_at)),
         ...productionHistory.map((row) => getDateKey(row.created_at)),
         ...stockVarianceHistory.map((row) => getDateKey(row.created_at)),
-        ...wasteHistory.map((row) => getDateKey(row.created_at)),
+        ...wasteExposureRows.map((row) => getDateKey(row.created_at)),
       ].filter(Boolean),
     ),
   ).sort((leftKey, rightKey) => {
@@ -6143,7 +6252,7 @@ function WorkspaceDashboard({
   const latestDayStockVarianceRows = stockVarianceHistory.filter(
     (row) => getDateKey(row.created_at) === latestActivityKey,
   );
-  const latestDayWasteRows = wasteHistory.filter(
+  const latestDayWasteRows = wasteExposureRows.filter(
     (row) => getDateKey(row.created_at) === latestActivityKey,
   );
   const latestDayPriceMovements = ingredientPriceMovements.filter(
@@ -6153,7 +6262,7 @@ function WorkspaceDashboard({
     (sale) =>
       getDateKey(sale.operating_date || sale.created_at) === previousActivityKey,
   );
-  const previousDayWasteRows = wasteHistory.filter(
+  const previousDayWasteRows = wasteExposureRows.filter(
     (row) => getDateKey(row.created_at) === previousActivityKey,
   );
   const latestDayProductionRunCount = new Set(
@@ -6222,7 +6331,7 @@ function WorkspaceDashboard({
         (sale) =>
           getDateKey(sale.operating_date || sale.created_at) === dateKey,
       );
-      const dayWasteRows = wasteHistory.filter(
+      const dayWasteRows = wasteExposureRows.filter(
         (row) => getDateKey(row.created_at) === dateKey,
       );
       const dayPriceMovements = ingredientPriceMovements.filter(
@@ -6325,9 +6434,9 @@ function WorkspaceDashboard({
       owner: "Operations",
       value: -directWasteImpact,
       detail:
-        wasteHistory.length > 0
-          ? `${wasteHistory.length.toLocaleString()} waste event${
-              wasteHistory.length === 1 ? "" : "s"
+        wasteExposureRows.length > 0
+          ? `${wasteExposureRows.length.toLocaleString()} waste event${
+              wasteExposureRows.length === 1 ? "" : "s"
             } logged in ${operatingScopeLabel}`
           : "No direct waste loss captured",
       href: "#waste",
@@ -6552,7 +6661,38 @@ function WorkspaceDashboard({
   const stockVarianceReportSource = reportRangeActive
     ? allStockVarianceHistory
     : stockVarianceHistory;
-  const wasteReportSource = reportRangeActive ? allWasteHistory : wasteHistory;
+  const reportRangeProductionGapWasteRows = filterRowsForReportRange(
+    productionReportSource as unknown as Array<Record<string, unknown>>,
+  )
+    .map((row) => row as unknown as ProductionHistoryRow)
+    .filter((row) => Number(row.output_variance_qty ?? 0) > 0)
+    .map((row) => {
+      const wasteCost = Math.max(Number(row.naira_loss ?? 0), 0);
+
+      return {
+        waste_event_id: `production-gap-${row.production_run_id}-${row.ingredient_name}`,
+        created_at: row.created_at,
+        ingredient_name: row.recipe_name,
+        quantity: Number(row.output_variance_qty ?? 0),
+        uom: row.output_uom,
+        unit_cost:
+          Number(row.output_variance_qty ?? 0) > 0
+            ? wasteCost / Number(row.output_variance_qty ?? 1)
+            : 0,
+        waste_cost: wasteCost,
+        waste_reason: "production_gap",
+        waste_stage: "production",
+        notes: `${row.ingredient_name} production gap`,
+      } satisfies WasteHistoryRow;
+    });
+  const wasteReportSource = reportRangeActive
+    ? [
+        ...filterRowsForReportRange(
+          allWasteHistory as unknown as Array<Record<string, unknown>>,
+        ).map((row) => row as unknown as WasteHistoryRow),
+        ...reportRangeProductionGapWasteRows,
+      ]
+    : wasteExposureRows;
   const menuSaleReportSource = reportRangeActive
     ? allMenuSaleHistory
     : menuSaleHistory;
@@ -7986,7 +8126,7 @@ function WorkspaceDashboard({
           ? ("warning" as const)
           : ("neutral" as const),
     })),
-    ...wasteHistory.map((row) => ({
+    ...wasteExposureRows.map((row) => ({
       id: `waste-${row.waste_event_id}`,
       timestamp: row.created_at,
       type: "Waste",
@@ -12879,9 +13019,9 @@ function WorkspaceDashboard({
                   ) : request.request_type === "inventory_requisition" &&
                     request.status === "accepted" ? (
                     <p className="max-w-sm rounded-sm border border-status-info-border bg-status-info-bg px-3 py-2 text-sm font-semibold text-status-info-text">
-                      {currentUserIssuedRequisition(request)
-                        ? "Dispatch is awaiting receiver acknowledgement. A different user in the receiving department must acknowledge or reject receipt."
-                        : "Store has dispatched this request. Acknowledge receipt to post the source and destination stock movement, or reject if the physical delivery is wrong."}
+                      Store has dispatched this request. The receiving department can
+                      acknowledge receipt to post stock movement, or reject it if the
+                      physical delivery is wrong.
                     </p>
                   ) : request.request_type === "stock_count_approval" &&
                     !canApproveFinanceStockControl ? (
@@ -12923,10 +13063,7 @@ function WorkspaceDashboard({
                       <>
                         <button
                           type="button"
-                          disabled={
-                            !canRecordOperations ||
-                            currentUserIssuedRequisition(request)
-                          }
+                          disabled={!canRecordOperations}
                           onClick={() => handleAcknowledgeRequisitionRequest(request)}
                           className="h-10 rounded-sm bg-accent px-4 text-sm font-semibold text-background transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -12934,10 +13071,7 @@ function WorkspaceDashboard({
                         </button>
                         <button
                           type="button"
-                          disabled={
-                            !canRecordOperations ||
-                            currentUserIssuedRequisition(request)
-                          }
+                          disabled={!canRecordOperations}
                           onClick={() =>
                             handleRejectRequisitionReceiptRequest(request)
                           }
@@ -17153,9 +17287,9 @@ function WorkspaceDashboard({
                       ) : null}
                       {request.status === "accepted" &&
                       currentUserIssuedRequisition(request) ? (
-                        <p className="rounded-sm border border-status-attention-border bg-status-attention-bg px-3 py-2 text-xs font-semibold text-status-attention-text">
-                          You dispatched this request. A different receiving
-                          user must acknowledge or reject receipt.
+                        <p className="rounded-sm border border-status-info-border bg-status-info-bg px-3 py-2 text-xs font-semibold text-status-info-text">
+                          Receiving department roles can acknowledge or reject
+                          this handoff after physical delivery is checked.
                         </p>
                       ) : null}
                       <div className="flex flex-wrap gap-2">
@@ -17184,10 +17318,7 @@ function WorkspaceDashboard({
                           <>
                             <button
                               type="button"
-                              disabled={
-                                !canRecordOperations ||
-                                currentUserIssuedRequisition(request)
-                              }
+                              disabled={!canRecordOperations}
                               onClick={() =>
                                 handleAcknowledgeRequisitionRequest(request)
                               }
@@ -17197,10 +17328,7 @@ function WorkspaceDashboard({
                             </button>
                             <button
                               type="button"
-                              disabled={
-                                !canRecordOperations ||
-                                currentUserIssuedRequisition(request)
-                              }
+                              disabled={!canRecordOperations}
                               onClick={() =>
                                 handleRejectRequisitionReceiptRequest(request)
                               }
@@ -17472,19 +17600,10 @@ function WorkspaceDashboard({
                           step="any"
                           placeholder="On hand"
                           value={row.stockOnHandQty}
-                          onChange={(event) =>
-                            setPurchaseReceiptRows((currentRows) =>
-                              currentRows.map((currentRow) =>
-                                currentRow.id === row.id
-                                  ? {
-                                      ...currentRow,
-                                      stockOnHandQty: event.target.value,
-                                    }
-                                  : currentRow,
-                              ),
-                            )
-                          }
-                          className={`${formControlClass} min-w-0 font-mono tabular-nums`}
+                          readOnly
+                          aria-readonly="true"
+                          title="Stock on hand is system-calculated and updates only after Inventory confirms receipt."
+                          className={`${formControlClass} min-w-0 cursor-not-allowed bg-background font-mono tabular-nums text-text-muted`}
                         />
                         <span className="shrink-0 text-xs font-semibold normal-case tracking-normal text-text-muted">
                           {selectedPurchaseUom}
@@ -18658,8 +18777,8 @@ function WorkspaceDashboard({
             </h2>
           </div>
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-text-ghost">
-            {wasteHistory.length.toLocaleString()} event
-            {wasteHistory.length === 1 ? "" : "s"} logged
+            {wasteExposureRows.length.toLocaleString()} exposure
+            {wasteExposureRows.length === 1 ? "" : "s"} logged
           </p>
         </div>
 
@@ -18678,7 +18797,7 @@ function WorkspaceDashboard({
           />
           <MetricPill
             label="Events"
-            value={wasteHistory.length.toLocaleString()}
+            value={wasteExposureRows.length.toLocaleString()}
           />
           <MetricPill
             label="Top reason"
@@ -18875,8 +18994,8 @@ function WorkspaceDashboard({
                 <span>Notes</span>
               </div>
 
-              {wasteHistory.length > 0 ? (
-                wasteHistory.slice(0, 18).map((row) => (
+              {wasteExposureRows.length > 0 ? (
+                wasteExposureRows.slice(0, 18).map((row) => (
                   <div
                     key={row.waste_event_id}
                     className="grid gap-3 border-t border-border-system px-5 py-4 text-sm text-text-muted lg:grid-cols-[0.85fr_1fr_0.55fr_0.75fr_0.65fr_0.65fr_1fr] lg:items-center"
