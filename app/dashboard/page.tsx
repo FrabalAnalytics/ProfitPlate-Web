@@ -3697,6 +3697,19 @@ function WorkspaceDashboard({
   const [openNavGroups, setOpenNavGroups] = useState<Record<string, boolean>>(
     {},
   );
+  const resetDashboardDateFilter = () => {
+    setDateFilter("30d");
+    setDashboardStartDate("");
+    setDashboardEndDate("");
+  };
+  const updateDashboardStartDate = (value: string) => {
+    setDashboardStartDate(value);
+    setDateFilter(value || dashboardEndDate ? "custom" : "30d");
+  };
+  const updateDashboardEndDate = (value: string) => {
+    setDashboardEndDate(value);
+    setDateFilter(dashboardStartDate || value ? "custom" : "30d");
+  };
   const [editingLocationId, setEditingLocationId] = useState("");
   const [editingSupplierId, setEditingSupplierId] = useState("");
   const [componentInputRows, setComponentInputRows] = useState<
@@ -3865,25 +3878,26 @@ function WorkspaceDashboard({
   }, [organization.id, allPurchaseOrders]);
   const dashboardCustomRangeActive =
     dateFilter === "custom" && Boolean(dashboardStartDate || dashboardEndDate);
+  const effectiveDateFilter: DateFilter = dashboardCustomRangeActive
+    ? "custom"
+    : dateFilter === "custom"
+      ? "30d"
+      : dateFilter;
   const dashboardPeriodStartMs =
-    dateFilter === "custom"
+    effectiveDateFilter === "custom"
       ? dashboardStartDate
         ? new Date(`${dashboardStartDate}T00:00:00`).getTime()
         : Number.NEGATIVE_INFINITY
-      : dateFilter === "all"
+      : effectiveDateFilter === "all"
         ? Number.NEGATIVE_INFINITY
-        : getDateFilterStart(dateFilter);
+        : getDateFilterStart(effectiveDateFilter);
   const dashboardPeriodEndMs =
-    dateFilter === "custom" && dashboardEndDate
+    effectiveDateFilter === "custom" && dashboardEndDate
       ? new Date(`${dashboardEndDate}T23:59:59.999`).getTime()
       : Number.POSITIVE_INFINITY;
   const isWithinSelectedDatePeriod = (value: string) => {
-    if (dateFilter !== "custom") {
-      return isWithinDateFilter(value, dateFilter);
-    }
-
-    if (!dashboardCustomRangeActive) {
-      return true;
+    if (effectiveDateFilter !== "custom") {
+      return isWithinDateFilter(value, effectiveDateFilter);
     }
 
     const dateMs = getDateMs(value);
@@ -3895,7 +3909,7 @@ function WorkspaceDashboard({
     );
   };
   const selectedPeriodLabel =
-    dateFilter === "custom"
+    effectiveDateFilter === "custom"
       ? dashboardStartDate && dashboardEndDate
         ? dashboardStartDate === dashboardEndDate
           ? formatDateInputDisplay(dashboardStartDate)
@@ -3907,11 +3921,11 @@ function WorkspaceDashboard({
           : dashboardEndDate
             ? `Until ${formatDateInputDisplay(dashboardEndDate)}`
             : "Custom period"
-      : dateFilter === "today"
+      : effectiveDateFilter === "today"
         ? "today"
-        : dateFilter === "7d"
+        : effectiveDateFilter === "7d"
           ? "last 7 days"
-          : dateFilter === "30d"
+          : effectiveDateFilter === "30d"
             ? "last 30 days"
             : "all time";
   const costEvents = allCostEvents.filter((event) =>
@@ -4319,7 +4333,7 @@ function WorkspaceDashboard({
     activeInventoryItems.map((item) => [extractUuid(item.id), item]),
   );
   const stockMovementPeriodStartMs =
-    dateFilter === "all" ? 0 : Math.max(0, dashboardPeriodStartMs);
+    effectiveDateFilter === "all" ? 0 : Math.max(0, dashboardPeriodStartMs);
   const stockMovementLedger = allStockMovementLedger.filter((movement) => {
     const movementDateMs = getDateMs(movement.created_at);
 
@@ -4393,12 +4407,12 @@ function WorkspaceDashboard({
       const movementAfterPeriodStart = allItemMovements
         .filter(
           (movement) =>
-            dateFilter === "all" ||
+            effectiveDateFilter === "all" ||
             getDateMs(movement.created_at) >= stockMovementPeriodStartMs,
         )
         .reduce((total, movement) => total + movement.movement_qty, 0);
       const openingQty =
-        dateFilter === "all"
+        effectiveDateFilter === "all"
           ? Number(item.on_hand_qty ?? 0) -
             allItemMovements.reduce(
               (total, movement) => total + movement.movement_qty,
@@ -6254,13 +6268,13 @@ function WorkspaceDashboard({
       };
     });
   const operatingScopeLabel =
-    dateFilter === "today"
+    effectiveDateFilter === "today"
       ? "today's operating activity"
-      : dateFilter === "7d"
+      : effectiveDateFilter === "7d"
         ? "the selected 7-day operating window"
-        : dateFilter === "30d"
+        : effectiveDateFilter === "30d"
           ? "the selected 30-day operating window"
-          : dateFilter === "custom"
+          : effectiveDateFilter === "custom"
             ? `the selected ${selectedPeriodLabel} operating window`
           : "all recorded operating activity";
   const primaryCostCascadeAlert = largestPriceIncreaseMover
@@ -7332,7 +7346,7 @@ function WorkspaceDashboard({
     ),
   );
   const latestOperatingDayLabel =
-    dateFilter === "today"
+    effectiveDateFilter === "today"
       ? "Current operating day"
       : "Latest operating day in selected period";
   const strategicIndexes = [
@@ -11036,10 +11050,7 @@ function WorkspaceDashboard({
             <input
               type="date"
               value={dashboardStartDate}
-              onChange={(event) => {
-                setDashboardStartDate(event.target.value);
-                setDateFilter("custom");
-              }}
+              onChange={(event) => updateDashboardStartDate(event.target.value)}
               className="h-9 rounded-sm border border-border-system bg-card px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
           </label>
@@ -11048,10 +11059,7 @@ function WorkspaceDashboard({
             <input
               type="date"
               value={dashboardEndDate}
-              onChange={(event) => {
-                setDashboardEndDate(event.target.value);
-                setDateFilter("custom");
-              }}
+              onChange={(event) => updateDashboardEndDate(event.target.value)}
               className="h-9 rounded-sm border border-border-system bg-card px-2 text-xs font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
           </label>
@@ -11059,11 +11067,7 @@ function WorkspaceDashboard({
         {dateFilter === "custom" ? (
           <button
             type="button"
-            onClick={() => {
-              setDateFilter("30d");
-              setDashboardStartDate("");
-              setDashboardEndDate("");
-            }}
+            onClick={resetDashboardDateFilter}
             className="h-9 rounded-sm border border-border-system bg-card px-3 text-xs font-bold uppercase tracking-wider text-text-muted transition hover:border-border-system-hover hover:text-foreground"
           >
             Clear dates
