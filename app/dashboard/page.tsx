@@ -10975,7 +10975,7 @@ function WorkspaceDashboard({
                   key={`${item.label}-${item.title}`}
                   type="button"
                   onClick={() =>
-                    openDashboardSection(item.sectionId, item.targetRole)
+                    openDashboardSection(item.sectionId)
                   }
                   className={`grid gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:grid-cols-[1fr_auto] sm:items-center ${
                     item.tone === "critical"
@@ -11019,7 +11019,7 @@ function WorkspaceDashboard({
                   <button
                     key={location.location}
                     type="button"
-                    onClick={() => openDashboardSection("inventory", "inventory_manager")}
+                    onClick={() => openDashboardSection("inventory")}
                     className={`grid gap-2 rounded-xl border px-4 py-3 text-left shadow-sm sm:grid-cols-[1fr_auto] sm:items-center ${
                       location.tone === "critical"
                         ? "border-red-100 bg-red-50"
@@ -11143,7 +11143,7 @@ function WorkspaceDashboard({
               <button
                 key={item.label}
                 type="button"
-                onClick={() => openDashboardSection(item.section, item.role)}
+                onClick={() => openDashboardSection(item.section)}
                 className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:shadow-md"
               >
                 {item.label}
@@ -11226,7 +11226,7 @@ function WorkspaceDashboard({
                     <button
                       key={reason.name}
                       type="button"
-                      onClick={() => openDashboardSection("waste", "inventory_manager")}
+                      onClick={() => openDashboardSection("waste")}
                       className="grid rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm sm:grid-cols-[1fr_auto] sm:items-center"
                     >
                       <span className="font-semibold capitalize text-slate-950">
@@ -11318,7 +11318,7 @@ function WorkspaceDashboard({
                         key={row.id}
                         type="button"
                         onClick={() =>
-                          openDashboardSection("approvals", "inventory_manager")
+                          openDashboardSection("approvals")
                         }
                         className="grid rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-3"
                       >

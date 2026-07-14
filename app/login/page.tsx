@@ -19,6 +19,14 @@ export default function LoginPage() {
   useEffect(() => {
     router.prefetch("/dashboard");
 
+    async function redirectAuthenticatedUser() {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        router.replace("/dashboard");
+      }
+    }
+
     async function checkSupabaseConnection() {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -53,6 +61,7 @@ export default function LoginPage() {
       }
     }
 
+    redirectAuthenticatedUser();
     checkSupabaseConnection();
   }, [router]);
 
@@ -77,7 +86,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.replace("/dashboard");
   }
 
   const connectionReady = connectionStatus === "Supabase connection ready.";
