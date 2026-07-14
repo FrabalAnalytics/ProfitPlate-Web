@@ -172,6 +172,11 @@ body {
 
 .dashboard-readable .executive-table thead th {
   border-bottom: 0;
+  color: #8a9ab3;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .dashboard-readable .executive-table tbody tr {
@@ -181,6 +186,22 @@ body {
 .dashboard-readable .executive-table tbody td {
   border-top: 1px solid rgba(203, 213, 225, 0.75);
   border-bottom: 1px solid rgba(203, 213, 225, 0.75);
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.45;
+  padding-bottom: 14px;
+  padding-top: 14px;
+}
+
+.dashboard-readable .executive-table tbody td:first-child {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.dashboard-readable .executive-table .font-mono {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .dashboard-readable .executive-table tbody td:first-child {
