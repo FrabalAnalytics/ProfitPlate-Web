@@ -398,8 +398,11 @@ function downloadCsvReport(
 
   link.href = url;
   link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 const dateFilterLabels: Record<DateFilter, string> = {
@@ -1756,7 +1759,33 @@ export default function DashboardPage() {
       return;
     }
 
-    const receivingUserRole = normalizeRole(profile?.role);
+    const latestUserResult = await supabase.auth.getUser();
+    const latestUser = latestUserResult.data.user;
+
+    if (!latestUser) {
+      router.replace("/login");
+      return;
+    }
+
+    let latestProfile = profile;
+
+    if (extractUuid(profile?.id) !== extractUuid(latestUser.id)) {
+      const { data: refreshedProfile } = await supabase
+        .from("profiles")
+        .select("id, organization_id, full_name, role")
+        .eq("id", latestUser.id)
+        .maybeSingle();
+
+      if (refreshedProfile) {
+        latestProfile = {
+          ...(refreshedProfile as Omit<Profile, "role"> & { role: unknown }),
+          role: normalizeRole((refreshedProfile as { role: unknown }).role),
+        };
+        setProfile(latestProfile);
+      }
+    }
+
+    const receivingUserRole = normalizeRole(latestProfile?.role);
 
     if (
       ![
@@ -8705,6 +8734,45 @@ function WorkspaceDashboard({
             tone: "info" as const,
           },
         ];
+  const ownerInventoryTypeRows = Array.from(
+    inventoryValuationItems
+      .reduce(
+        (typesByName, item) => {
+          const key = String(item.item_type ?? item.cost_type ?? "unclassified")
+            .replaceAll("_", " ")
+            .trim();
+          const quantity = Math.max(Number(item.on_hand_qty ?? 0), 0);
+          const stockValue =
+            quantity * Number(item.current_cost_per_base_uom ?? 0);
+          const existingType = typesByName.get(key);
+
+          if (existingType) {
+            existingType.skuCount += 1;
+            existingType.highValueCount += item.is_high_value ? 1 : 0;
+            existingType.stockValue += stockValue;
+          } else {
+            typesByName.set(key, {
+              type: key || "Unclassified",
+              skuCount: 1,
+              highValueCount: item.is_high_value ? 1 : 0,
+              stockValue,
+            });
+          }
+
+          return typesByName;
+        },
+        new Map<
+          string,
+          {
+            type: string;
+            skuCount: number;
+            highValueCount: number;
+            stockValue: number;
+          }
+        >(),
+      )
+      .values(),
+  ).sort((first, second) => second.stockValue - first.stockValue);
   const ownerRevenuePoints =
     financialTrendPoints.length > 0
       ? financialTrendPoints.slice(-7)
@@ -9298,9 +9366,99 @@ function WorkspaceDashboard({
       items: group.items.filter((item) => item.visible),
     }))
     .filter((group) => group.items.length > 0);
+  const ownerWorkflowNavGroups: WorkflowNavGroup[] = [
+    {
+      label: "Executive View",
+      defaultOpen: true,
+      items: [
+        {
+          href: "#overview",
+          label: "Margin & AvT",
+          badge:
+            totalSalesMarginPct === null
+              ? `${marginHealthScore}%`
+              : `${totalSalesMarginPct.toLocaleString(undefined, {
+                  maximumFractionDigits: 1,
+                })}%`,
+          tone:
+            totalSalesMarginPct === null ||
+            totalSalesMarginPct >= targetMenuMarginPct
+              ? "healthy"
+              : "warning",
+          visible: true,
+        },
+        {
+          href: "#day",
+          label: "Day Close",
+          badge:
+            compliancePendingCount > 0
+              ? `${compliancePendingCount.toLocaleString()} open`
+              : "Complete",
+          tone:
+            complianceExceptionCount > 0
+              ? "critical"
+              : compliancePendingCount > 0
+                ? "warning"
+                : "healthy",
+          visible: true,
+        },
+      ],
+    },
+    {
+      label: "Management Tables",
+      defaultOpen: true,
+      items: [
+        {
+          href: "#inventory",
+          label: "Inventory Position",
+          badge: formatCurrency(currentStockValue, 0),
+          tone: reorderTodayCount > 0 ? "warning" : "healthy",
+          visible: true,
+        },
+        {
+          href: "#procurement-intelligence",
+          label: "Procurement Intel",
+          badge:
+            todayPurchaseOrderCount > 0
+              ? `${todayPurchaseOrderCount.toLocaleString()} POs`
+              : "Review",
+          tone:
+            priceIncreaseImpact > 0 ||
+            partialPurchaseOrders.length > 0
+              ? "warning"
+              : "healthy",
+          visible: true,
+        },
+        {
+          href: "#waste",
+          label: "Waste Analysis",
+          badge:
+            directWasteImpact > 0
+              ? formatCurrency(directWasteImpact, 0)
+              : "Clear",
+          tone: directWasteImpact > 0 ? "critical" : "healthy",
+          visible: true,
+        },
+        {
+          href: "#menu-profitability",
+          label: "Menu Profitability",
+          badge: `${menuProfitabilityTotals.total.toLocaleString()} items`,
+          tone:
+            menuProfitabilityTotals.marginRisk > 0 ||
+            menuProfitabilityTotals.missingSetup > 0
+              ? "warning"
+              : "healthy",
+          visible: true,
+        },
+      ],
+    },
+  ];
+  const activeWorkflowNavGroups = isOwnerFocus
+    ? ownerWorkflowNavGroups
+    : workflowNavGroups;
   const visibleSectionIds = Array.from(
     new Set(
-      workflowNavGroups.flatMap((group) =>
+      activeWorkflowNavGroups.flatMap((group) =>
         group.items.map((item) => item.href.replace("#", "")),
       ),
     ),
@@ -9315,11 +9473,11 @@ function WorkspaceDashboard({
     !ownerOverviewActive && selectedVisibleSection === sectionId;
   const activeNavGroupLabel = ownerOverviewActive
     ? ""
-    : workflowNavGroups.find((group) =>
+    : activeWorkflowNavGroups.find((group) =>
         group.items.some(
           (item) => item.href.replace("#", "") === selectedVisibleSection,
         ),
-      )?.label ?? workflowNavGroups[0]?.label ?? "";
+      )?.label ?? activeWorkflowNavGroups[0]?.label ?? "";
   const showRequisitionWorkspace =
     showProcurementSection && isSectionActive("requisitions");
   const showPurchaseOrderWorkspace =
@@ -9343,7 +9501,7 @@ function WorkspaceDashboard({
 
     setSelectedDashboardSection(sectionId);
     setSelectedDashboardTargetId(targetElementId ?? sectionId);
-    const targetNavGroup = workflowNavGroups.find((group) =>
+    const targetNavGroup = activeWorkflowNavGroups.find((group) =>
       group.items.some(
         (item) => item.href.replace("#", "") === sectionId,
       ),
@@ -9748,6 +9906,103 @@ function WorkspaceDashboard({
     price_variance_value: row.price_variance_value,
     status: row.status,
   }));
+  const ownerProcurementProductRows = Array.from(
+    procurementLineEvents
+      .reduce(
+        (productsById, row) => {
+          const key = row.itemId || row.item?.name || "unknown";
+          const existingProduct = productsById.get(key);
+          const varianceRow = procurementPriceVarianceRows.find(
+            (candidate) => candidate.line.id === row.line.id,
+          );
+
+          if (existingProduct) {
+            existingProduct.qty += row.orderedQty;
+            existingProduct.spend += row.orderedValue;
+            existingProduct.tax += row.taxAmount;
+            existingProduct.priceVariance += varianceRow?.varianceValue ?? 0;
+            existingProduct.lastSupplier = row.supplierName;
+            existingProduct.lastUnitCost = row.unitCost;
+          } else {
+            productsById.set(key, {
+              item: row.item?.name ?? "Unknown SKU",
+              sku: row.item?.sku ?? "",
+              qty: row.orderedQty,
+              spend: row.orderedValue,
+              tax: row.taxAmount,
+              priceVariance: varianceRow?.varianceValue ?? 0,
+              lastSupplier: row.supplierName,
+              lastUnitCost: row.unitCost,
+            });
+          }
+
+          return productsById;
+        },
+        new Map<
+          string,
+          {
+            item: string;
+            sku: string;
+            qty: number;
+            spend: number;
+            tax: number;
+            priceVariance: number;
+            lastSupplier: string;
+            lastUnitCost: number;
+          }
+        >(),
+      )
+      .values(),
+  )
+    .sort((first, second) => second.spend - first.spend)
+    .slice(0, 6);
+  const ownerSupplierRows = supplierIntelligenceRows.slice(0, 5);
+  const ownerAvtLocationRows = Array.from(
+    visibleAvtSummary
+      .reduce(
+        (locationsByName, row) => {
+          const key = row.location_name || "Unassigned";
+          const existingLocation = locationsByName.get(key);
+
+          if (existingLocation) {
+            existingLocation.revenue += row.revenue;
+            existingLocation.variance += row.total_variance_cost;
+            existingLocation.confidenceTotal += Number(row.confidence_score ?? 0);
+            existingLocation.periodCount += 1;
+            existingLocation.reviewCount += row.status === "ready" ? 0 : 1;
+          } else {
+            locationsByName.set(key, {
+              location: key,
+              revenue: row.revenue,
+              variance: row.total_variance_cost,
+              confidenceTotal: Number(row.confidence_score ?? 0),
+              periodCount: 1,
+              reviewCount: row.status === "ready" ? 0 : 1,
+            });
+          }
+
+          return locationsByName;
+        },
+        new Map<
+          string,
+          {
+            location: string;
+            revenue: number;
+            variance: number;
+            confidenceTotal: number;
+            periodCount: number;
+            reviewCount: number;
+          }
+        >(),
+      )
+      .values(),
+  )
+    .map((row) => ({
+      ...row,
+      confidence:
+        row.periodCount > 0 ? row.confidenceTotal / row.periodCount : 0,
+    }))
+    .sort((first, second) => second.variance - first.variance);
   const goodsReceiptReportRows = purchaseReceipts.flatMap((receipt) => {
     const order = purchaseOrderReportSummaries.find(
       (candidate) => candidate.id === receipt.purchase_order_id,
@@ -10526,7 +10781,7 @@ function WorkspaceDashboard({
               </button>
             </div>
           ) : null}
-          {workflowNavGroups.map((group) => (
+          {activeWorkflowNavGroups.map((group) => (
             <div
               key={group.label}
               className="rounded-sm border border-border-system bg-background p-2 xl:border-0 xl:bg-transparent xl:p-0"
@@ -10872,7 +11127,7 @@ function WorkspaceDashboard({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
               {[
                 {
                   label: "Revenue",
@@ -10909,6 +11164,19 @@ function WorkspaceDashboard({
                     latestDayMarginPct < targetMenuMarginPct
                       ? ("attention" as const)
                       : ("healthy" as const),
+                },
+                {
+                  label: "Inventory",
+                  value: formatCurrency(currentStockValue, 0),
+                  detail: `${inventoryValuationItems.length.toLocaleString()} SKU${
+                    inventoryValuationItems.length === 1 ? "" : "s"
+                  } valued`,
+                  tone:
+                    negativeStockExceptions.length > 0
+                      ? ("critical" as const)
+                      : reorderTodayCount > 0
+                        ? ("attention" as const)
+                        : ("healthy" as const),
                 },
                 {
                   label: "Procurement",
@@ -11012,8 +11280,11 @@ function WorkspaceDashboard({
           <section className="grid gap-4 xl:grid-cols-2">
             <div>
               <h2 className="text-base font-black text-slate-950">
-                Margin by location
+                Inventory position
               </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Closing stock value by storage location and SKU type.
+              </p>
               <div className="mt-3 grid gap-2">
                 {ownerLocationRows.map((location) => (
                   <button
@@ -11051,6 +11322,36 @@ function WorkspaceDashboard({
                     </span>
                   </button>
                 ))}
+              </div>
+              <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="px-4 py-3 font-black">Type</th>
+                      <th className="px-4 py-3 text-right font-black">SKUs</th>
+                      <th className="px-4 py-3 text-right font-black">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {ownerInventoryTypeRows.slice(0, 4).map((row) => (
+                      <tr key={row.type}>
+                        <td className="px-4 py-3 font-semibold capitalize text-slate-950">
+                          {row.type}
+                          <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                            {row.highValueCount.toLocaleString()} high-value SKU
+                            {row.highValueCount === 1 ? "" : "s"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">
+                          {row.skuCount.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-black text-slate-950">
+                          {formatCurrency(row.stockValue, 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -11114,7 +11415,7 @@ function WorkspaceDashboard({
                   onClick={() =>
                     openDashboardSection(
                       check.href.replace("#", ""),
-                      check.ownerRole,
+                      undefined,
                       "day-close-checklist",
                     )
                   }
@@ -11133,12 +11434,99 @@ function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-4">
+          <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+            <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div>
+                <h2 className="text-base font-black text-slate-950">
+                  AvT by storage location
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Variance exposure is only reliable when POS, counts, waste, and production confirmations are complete.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openDashboardSection("overview")}
+                className="h-9 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm"
+              >
+                Review AvT
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-black">Location</th>
+                    <th className="px-4 py-3 text-right font-black">Revenue</th>
+                    <th className="px-4 py-3 text-right font-black">Variance</th>
+                    <th className="px-4 py-3 text-right font-black">Confidence</th>
+                    <th className="px-4 py-3 text-right font-black">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ownerAvtLocationRows.length > 0 ? (
+                    ownerAvtLocationRows.slice(0, 5).map((row) => (
+                      <tr key={row.location} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-950">
+                          {row.location}
+                          <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                            {row.periodCount.toLocaleString()} period
+                            {row.periodCount === 1 ? "" : "s"} checked
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-950">
+                          {formatCurrency(row.revenue, 0)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right font-mono font-black ${
+                            row.variance > 0.01
+                              ? "text-red-800"
+                              : "text-emerald-700"
+                          }`}
+                        >
+                          {formatCurrency(row.variance, 0)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">
+                          {row.confidence.toLocaleString(undefined, {
+                            maximumFractionDigits: 0,
+                          })}
+                          %
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={`rounded-lg px-2.5 py-1 text-xs font-black ${
+                              row.reviewCount > 0
+                                ? "bg-amber-50 text-amber-800"
+                                : "bg-emerald-50 text-emerald-800"
+                            }`}
+                          >
+                            {row.reviewCount > 0 ? "Review" : "Ready"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 py-5 text-sm text-slate-500"
+                      >
+                        No AvT summary is visible for the selected period.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-5">
             {[
-              { label: "Recipes", section: "pricing", role: "finance_manager" as AppRole },
-              { label: "Inventory", section: "inventory", role: "inventory_manager" as AppRole },
-              { label: "Waste", section: "waste", role: "inventory_manager" as AppRole },
-              { label: "Reports", section: "finance-brief", role: "finance_manager" as AppRole },
+              { label: "Inventory Position", section: "inventory" },
+              { label: "Procurement Intel", section: "procurement-intelligence" },
+              { label: "Waste Analysis", section: "waste" },
+              { label: "Menu Profitability", section: "menu-profitability" },
+              { label: "AvT Locations", section: "overview" },
             ].map((item) => (
               <button
                 key={item.label}
@@ -11242,6 +11630,142 @@ function WorkspaceDashboard({
                     No waste cost is visible for this period.
                   </p>
                 )}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-base font-black text-slate-950">
+                Procurement intelligence
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Spend, supplier reliability, VAT, and price movement from recent purchase orders.
+              </p>
+              <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="text-xs font-black uppercase text-slate-400">
+                      Product spend
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                        <tr>
+                          <th className="px-4 py-3 font-black">Product</th>
+                          <th className="px-4 py-3 text-right font-black">Spend</th>
+                          <th className="px-4 py-3 text-right font-black">VAT</th>
+                          <th className="px-4 py-3 text-right font-black">Inflation</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {ownerProcurementProductRows.length > 0 ? (
+                          ownerProcurementProductRows.map((row) => (
+                            <tr key={`${row.item}-${row.sku}`}>
+                              <td className="px-4 py-3 font-semibold text-slate-950">
+                                {row.item}
+                                <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                                  {row.lastSupplier} / {formatCurrency(row.lastUnitCost, 2)} unit
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                {formatCurrency(row.spend, 0)}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-700">
+                                {formatCurrency(row.tax, 0)}
+                              </td>
+                              <td
+                                className={`px-4 py-3 text-right font-mono font-black ${
+                                  row.priceVariance > 0.01
+                                    ? "text-red-800"
+                                    : row.priceVariance < -0.01
+                                      ? "text-emerald-700"
+                                      : "text-slate-500"
+                                }`}
+                              >
+                                {formatSignedCurrency(row.priceVariance)}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-4 py-5 text-sm text-slate-500"
+                            >
+                              No purchase order spend is visible for this period.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="text-xs font-black uppercase text-slate-400">
+                      Supplier performance
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+                        <tr>
+                          <th className="px-4 py-3 font-black">Supplier</th>
+                          <th className="px-4 py-3 text-right font-black">Spend</th>
+                          <th className="px-4 py-3 text-right font-black">Receipt</th>
+                          <th className="px-4 py-3 text-right font-black">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {ownerSupplierRows.length > 0 ? (
+                          ownerSupplierRows.map((row) => (
+                            <tr key={row.supplier}>
+                              <td className="px-4 py-3 font-semibold text-slate-950">
+                                {row.supplier}
+                                <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                                  {row.orders.toLocaleString()} PO
+                                  {row.orders === 1 ? "" : "s"} / {row.partial_orders.toLocaleString()} partial
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                {formatCurrency(row.ordered_value, 0)}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-700">
+                                {row.receipt_rate.toLocaleString(undefined, {
+                                  maximumFractionDigits: 0,
+                                })}
+                                %
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <span
+                                  className={`rounded-lg px-2.5 py-1 text-xs font-black ${
+                                    row.status === "Reliable"
+                                      ? "bg-emerald-50 text-emerald-800"
+                                      : row.status === "Monitor"
+                                        ? "bg-amber-50 text-amber-800"
+                                        : "bg-red-50 text-red-800"
+                                  }`}
+                                >
+                                  {row.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-4 py-5 text-sm text-slate-500"
+                            >
+                              No supplier performance data is visible yet.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -13044,7 +13568,7 @@ function WorkspaceDashboard({
             onClick={() =>
               downloadCsvReport(
                 `supplier-intelligence-${reportDateLabel}.csv`,
-                filterRowsForReportRange(procurementSupplierReportRows),
+                procurementSupplierReportRows,
               )
             }
             disabled={procurementSupplierReportRows.length === 0}
