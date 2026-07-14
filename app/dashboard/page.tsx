@@ -12126,35 +12126,39 @@ function WorkspaceDashboard({
                       <summary className="cursor-pointer text-sm font-black text-slate-700">
                         See more price changes
                       </summary>
-                      <div className="mt-3 grid gap-2">
-                        {ownerPriceRows.slice(4).map((row) => (
-                          <div
-                            key={`extra-price-${row.id}`}
-                            className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[minmax(0,1fr)_130px_130px_160px] sm:items-center"
-                          >
-                            <span className="font-semibold text-slate-950">
-                              {row.itemName}
-                            </span>
-                            <span
-                              className={`text-right font-mono font-black ${
-                                row.tone === "healthy"
-                                  ? "text-emerald-700"
-                                  : row.tone === "attention"
-                                    ? "text-red-800"
-                                    : "text-slate-500"
-                              }`}
-                            >
-                              {row.change}
-                            </span>
-                            <span className="text-right text-sm text-slate-600">
-                              {row.affectedRecipeCount.toLocaleString()} recipe
-                              {row.affectedRecipeCount === 1 ? "" : "s"}
-                            </span>
-                            <span className="text-right font-mono font-black text-slate-950">
-                              {row.impact}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="executive-table min-w-full text-left text-sm">
+                          <tbody className="divide-y divide-slate-100">
+                            {ownerPriceRows.slice(4).map((row) => (
+                              <tr
+                                key={`extra-price-${row.id}`}
+                                className="hover:bg-[#faf9f6]"
+                              >
+                                <td className="px-4 py-3 font-semibold text-slate-950">
+                                  {row.itemName}
+                                </td>
+                                <td
+                                  className={`px-4 py-3 font-mono font-black ${
+                                    row.tone === "healthy"
+                                      ? "text-emerald-700"
+                                      : row.tone === "attention"
+                                        ? "text-red-800"
+                                        : "text-slate-500"
+                                  }`}
+                                >
+                                  {row.change}
+                                </td>
+                                <td className="px-4 py-3 text-slate-700">
+                                  {row.affectedRecipeCount.toLocaleString()} recipe
+                                  {row.affectedRecipeCount === 1 ? "" : "s"}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-slate-950">
+                                  {row.impact}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </details>
                   ) : null}
