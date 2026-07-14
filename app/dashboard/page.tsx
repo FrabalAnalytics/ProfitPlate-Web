@@ -4667,11 +4667,38 @@ function WorkspaceDashboard({
           extractUuid(selectedYieldTestItem.id),
       ).length
     : 0;
-  const activeRecipesById = new Map(
-    activeRecipes.map((recipe) => [getRecipeId(recipe), recipe]),
+  const manufacturedInventoryRecipes = recipesFromManufacturedInventory(
+    activeInventoryItems.filter(
+      (item) =>
+        item.cost_type === "manufactured" &&
+        (item.item_type === "semi_finished" || item.item_type === "final_product"),
+    ),
+  ).map((recipe) => {
+    const outputItem = activeInventoryItems.find(
+      (item) => extractUuid(item.recipe_id) === getRecipeId(recipe),
+    );
+
+    return {
+      ...recipe,
+      name:
+        outputItem?.sku && outputItem.name
+          ? `${outputItem.name} / ${outputItem.sku}`
+          : outputItem?.sku || outputItem?.name || recipe.name,
+      recipe_type:
+        outputItem?.item_type === "final_product"
+          ? ("final_menu_item" as const)
+          : recipe.recipe_type,
+    };
+  });
+  const productionRecipeCatalog = dedupeActiveRecipes(
+    [...activeRecipes, ...manufacturedInventoryRecipes],
+    recipeComponents,
   );
-  const productionPlanRecipeOptions = activeRecipes;
-  const productionRunRecipeOptions = activeRecipes;
+  const activeRecipesById = new Map(
+    productionRecipeCatalog.map((recipe) => [getRecipeId(recipe), recipe]),
+  );
+  const productionPlanRecipeOptions = productionRecipeCatalog;
+  const productionRunRecipeOptions = productionRecipeCatalog;
   const validProductionPlanRows = productionPlanRows
     .map((row) => {
       const recipe = activeRecipesById.get(extractUuid(row.recipeId));
@@ -4688,7 +4715,7 @@ function WorkspaceDashboard({
     })
     .filter((row) => row.recipe && row.targetOutputQty > 0);
   const getProductionRecipeFamily = (targetRecipe: Recipe) =>
-    activeRecipes.filter(
+    productionRecipeCatalog.filter(
       (recipe) =>
         recipe.recipe_type === targetRecipe.recipe_type &&
         recipe.name.trim().toLowerCase() ===
@@ -4893,7 +4920,7 @@ function WorkspaceDashboard({
   const hasValidTargetOutput =
     Number.isFinite(targetOutputQty) && targetOutputQty > 0;
   const selectedProductionRecipeIds = selectedProductionRecipe
-    ? activeRecipes
+    ? productionRecipeCatalog
         .filter(
           (recipe) =>
             recipe.recipe_type === selectedProductionRecipe.recipe_type &&
@@ -4903,7 +4930,7 @@ function WorkspaceDashboard({
         .map(getRecipeId)
     : [];
   const selectedProductionRecipeFamily = selectedProductionRecipe
-    ? activeRecipes.filter(
+    ? productionRecipeCatalog.filter(
         (recipe) =>
           recipe.recipe_type === selectedProductionRecipe.recipe_type &&
           recipe.name.trim().toLowerCase() ===
@@ -4954,7 +4981,7 @@ function WorkspaceDashboard({
       const rowIsFinalMenu =
         Boolean(rowRecipe) && rowRecipe?.recipe_type !== "sub_recipe";
       const rowRecipeFamily = rowRecipe
-        ? activeRecipes.filter(
+        ? productionRecipeCatalog.filter(
             (recipe) =>
               recipe.recipe_type === rowRecipe.recipe_type &&
               recipe.name.trim().toLowerCase() ===
@@ -9803,7 +9830,7 @@ function WorkspaceDashboard({
       setSelectedFocusRole(targetRole);
     }
 
-    setSelectedDashboardSection(sectionId);
+    setSelectedDashboardSection(isOwnerFocus && targetElementId ? "" : sectionId);
     setSelectedDashboardTargetId(targetElementId ?? sectionId);
     const targetNavGroup = activeWorkflowNavGroups.find((group) =>
       group.items.some(
@@ -11955,7 +11982,7 @@ function WorkspaceDashboard({
               </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="executive-table min-w-full text-left text-sm">
+                  <table className="executive-table min-w-full table-fixed text-left text-sm">
                     <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-black">Dish</th>
@@ -12330,6 +12357,12 @@ function WorkspaceDashboard({
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="executive-table min-w-full text-left text-sm">
+                    <colgroup>
+                      <col className="w-[38%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[20%]" />
+                      <col className="w-[24%]" />
+                    </colgroup>
                     <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-black">Ingredient</th>
@@ -12383,7 +12416,13 @@ function WorkspaceDashboard({
                         See more price changes
                       </summary>
                       <div className="mt-3 overflow-x-auto">
-                        <table className="executive-table min-w-full text-left text-sm">
+                        <table className="executive-table min-w-full table-fixed text-left text-sm">
+                          <colgroup>
+                            <col className="w-[38%]" />
+                            <col className="w-[18%]" />
+                            <col className="w-[20%]" />
+                            <col className="w-[24%]" />
+                          </colgroup>
                           <tbody className="divide-y divide-slate-100">
                             {ownerPriceRows.slice(4).map((row) => (
                               <tr
