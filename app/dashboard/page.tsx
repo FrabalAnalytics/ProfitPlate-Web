@@ -3099,11 +3099,46 @@ export default function DashboardPage() {
     setSaving(false);
   }
 
+  async function refreshActiveProfileForOperationalAction() {
+    const latestUserResult = await supabase.auth.getUser();
+    const latestUser = latestUserResult.data.user;
+
+    if (!latestUser) {
+      router.replace("/login");
+      return null;
+    }
+
+    setUser(latestUser);
+
+    const { data: refreshedProfile } = await supabase
+      .from("profiles")
+      .select("id, organization_id, full_name, role")
+      .eq("id", latestUser.id)
+      .maybeSingle();
+
+    if (!refreshedProfile) {
+      return profile;
+    }
+
+    const normalizedProfile = {
+      ...(refreshedProfile as Omit<Profile, "role"> & { role: unknown }),
+      role: normalizeRole((refreshedProfile as { role: unknown }).role),
+    };
+
+    setProfile(normalizedProfile);
+    return normalizedProfile;
+  }
+
   async function handleConfirmRequisitionIssue(
     requestId: string,
     issuedLines: Array<{ inventory_item_id: string; issued_quantity: number }>,
   ) {
     if (!organization) {
+      return;
+    }
+
+    const activeProfile = await refreshActiveProfileForOperationalAction();
+    if (!activeProfile) {
       return;
     }
 
@@ -3133,6 +3168,11 @@ export default function DashboardPage() {
       return;
     }
 
+    const activeProfile = await refreshActiveProfileForOperationalAction();
+    if (!activeProfile) {
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
@@ -3156,6 +3196,11 @@ export default function DashboardPage() {
 
   async function handleRejectRequisitionReceipt(requestId: string) {
     if (!organization) {
+      return;
+    }
+
+    const activeProfile = await refreshActiveProfileForOperationalAction();
+    if (!activeProfile) {
       return;
     }
 
