@@ -5432,18 +5432,45 @@ function WorkspaceDashboard({
         !event.isLikelyUnitCostCorrection &&
         event.oldCost !== event.newCost,
     );
+  const getInventoryPriceIdentity = (inventoryItemId: string | null | undefined) => {
+    const itemId = extractUuid(inventoryItemId);
+    const item =
+      allInventoryItemsById.get(itemId) ?? activeInventoryItemsById.get(itemId);
+    const originId = extractUuid(item?.origin_inventory_item_id);
+    const recipeId = extractUuid(item?.recipe_id);
+    const sku = String(item?.sku ?? "").trim().toLowerCase();
+    const name = String(item?.name ?? "").trim().toLowerCase();
+
+    if (sku) {
+      return `sku:${sku}`;
+    }
+
+    if (originId) {
+      return `origin:${originId}`;
+    }
+
+    if (recipeId) {
+      return `recipe:${recipeId}`;
+    }
+
+    if (name) {
+      return `name:${String(item?.cost_type ?? "unknown")}:${name}`;
+    }
+
+    return `id:${itemId}`;
+  };
   const purchaseOrderPriceMovementEvents = Array.from(
     purchaseOrderLines
       .filter((line) => extractUuid(line.inventory_item_id))
       .reduce((linesByItem, line) => {
-        const itemId = extractUuid(line.inventory_item_id);
-        const currentLines = linesByItem.get(itemId) ?? [];
+        const itemKey = getInventoryPriceIdentity(line.inventory_item_id);
+        const currentLines = linesByItem.get(itemKey) ?? [];
         currentLines.push(line);
-        linesByItem.set(itemId, currentLines);
+        linesByItem.set(itemKey, currentLines);
         return linesByItem;
       }, new Map<string, PurchaseOrderLine[]>())
       .entries(),
-  ).flatMap(([inventoryItemId, lines]) => {
+  ).flatMap(([, lines]) => {
     const sortedLines = [...lines].sort(
       (leftLine, rightLine) =>
         getDateMs(leftLine.created_at) - getDateMs(rightLine.created_at),
@@ -5461,6 +5488,7 @@ function WorkspaceDashboard({
       const order = allPurchaseOrders.find(
         (purchaseOrder) => purchaseOrder.id === line.purchase_order_id,
       );
+      const inventoryItemId = extractUuid(line.inventory_item_id);
 
       return [
         {
@@ -5483,7 +5511,9 @@ function WorkspaceDashboard({
     ...costEventPriceMovements,
     ...purchaseOrderPriceMovementEvents.map((event) => {
       const inventoryItemId = extractUuid(event.inventory_item_id);
-      const item = activeInventoryItemsById.get(inventoryItemId);
+      const item =
+        activeInventoryItemsById.get(inventoryItemId) ??
+        allInventoryItemsById.get(inventoryItemId);
       const oldCost = Number(event.old_cost ?? 0);
       const newCost = Number(event.new_cost ?? 0);
       const costDelta = newCost - oldCost;
@@ -9523,46 +9553,103 @@ function WorkspaceDashboard({
       </article>
     );
   };
-  const ownerMenuRows =
-    menuPerformance.length > 0
-      ? menuPerformance.slice(0, 5).map((item) => {
-          const guardrail = menuPricingGuardrails.find(
-            (guardrailItem) =>
-              guardrailItem.recipe.name.trim().toLowerCase() ===
-              item.name.trim().toLowerCase(),
-          );
-          const needsPriceAction = Number(guardrail?.priceGap ?? 0) > 0.01;
-          const needsCostReview =
-            (item.foodCostPct ?? 0) >= 40 || (item.marginPct ?? 100) < 55;
+  const ownerFoodCostRows = [...activeSubRecipes, ...activeFinalMenuItems]
+    .map((recipe) => {
+      const recipeFamily = activeRecipes.filter(
+        (familyRecipe) =>
+          familyRecipe.recipe_type === recipe.recipe_type &&
+          familyRecipe.name.trim().toLowerCase() ===
+            recipe.name.trim().toLowerCase(),
+      );
+      const recipeIds = recipeFamily.map(getRecipeId);
+      const components = dedupeRecipeComponentsByIngredient(
+        recipeComponents.filter(
+          (component) =>
+            recipeIds.includes(extractUuid(component.recipe_id)) &&
+            component.component_inventory_item_id,
+        ),
+      );
+      const batchQty = Math.max(
+        1,
+        ...recipeFamily.map((familyRecipe) =>
+          Number(familyRecipe.standard_batch_output_qty ?? 1),
+        ),
+      );
+      const totalCost = components.reduce((totalCostValue, component) => {
+        const item = activeInventoryItemsById.get(
+          extractUuid(component.component_inventory_item_id),
+        );
+        const unitCost = Number(
+          item?.current_cost_per_base_uom ?? component.ingredient_unit_cost ?? 0,
+        );
 
-          return {
-            name: item.name,
-            soldQuantity: item.quantity,
-            revenue: item.revenue,
-            marginPct: item.marginPct,
-            status: needsPriceAction
-              ? "Reprice"
-              : needsCostReview
-                ? "Review cost"
-                : "Protected",
-            tone: needsPriceAction
-              ? ("attention" as const)
-              : needsCostReview
-                ? ("critical" as const)
-                : ("healthy" as const),
-          };
-        })
-      : menuPricingGuardrails.slice(0, 5).map((item) => ({
-          name: item.recipe.name,
-          soldQuantity: item.soldQuantity,
-          revenue: item.soldQuantity * item.sellingPrice,
-          marginPct: item.marginPct,
-          status: item.priceGap > 0.01 ? "Reprice" : "Protected",
-          tone:
-            item.priceGap > 0.01
-              ? ("attention" as const)
-              : ("healthy" as const),
-        }));
+        return totalCostValue + Number(component.qty_in_recipe_uom ?? 0) * unitCost;
+      }, 0);
+      const costPerBatch = batchQty > 0 ? totalCost / batchQty : totalCost;
+      const sellingPrice = Number(recipe.selling_price ?? 0);
+      const isFinalMenu =
+        recipe.recipe_type === "final_menu_item" ||
+        recipe.recipe_type === "final_dish";
+      const foodCostPct =
+        isFinalMenu && sellingPrice > 0
+          ? (costPerBatch / sellingPrice) * 100
+          : null;
+      const grossMarginPct =
+        isFinalMenu && sellingPrice > 0
+          ? ((sellingPrice - costPerBatch) / sellingPrice) * 100
+          : null;
+      const recommendedPrice =
+        isFinalMenu && costPerBatch > 0
+          ? costPerBatch / (targetMenuFoodCostPct / 100)
+          : sellingPrice;
+
+      return {
+        recipe,
+        recipeId: getRecipeId(recipe),
+        name: recipe.name,
+        category: isFinalMenu ? "Final menu item" : "Sub-recipe",
+        batchUom: recipe.output_uom ?? "unit",
+        batchQty,
+        totalCost,
+        costPerBatch,
+        sellingPrice,
+        foodCostPct,
+        grossMarginPct,
+        recommendedPrice,
+        isFinalMenu,
+        componentCount: components.length,
+      };
+    })
+    .sort((leftRow, rightRow) => {
+      if (leftRow.category !== rightRow.category) {
+        return leftRow.category.localeCompare(rightRow.category);
+      }
+
+      return leftRow.name.localeCompare(rightRow.name);
+    });
+  const selectedOwnerFoodCostRow =
+    ownerFoodCostRows.find(
+      (row) =>
+        row.recipeId === extractUuid(selectedPricingSimulationRecipeId),
+    ) ?? ownerFoodCostRows.find((row) => row.isFinalMenu) ?? ownerFoodCostRows[0];
+  const ownerSimulationPct = Number(priceSimulationPct);
+  const normalizedOwnerSimulationPct =
+    Number.isFinite(ownerSimulationPct) && ownerSimulationPct > -95
+      ? ownerSimulationPct
+      : 0;
+  const ownerSimulatedSellingPrice =
+    selectedOwnerFoodCostRow && selectedOwnerFoodCostRow.sellingPrice > 0
+      ? selectedOwnerFoodCostRow.sellingPrice *
+        (1 + normalizedOwnerSimulationPct / 100)
+      : selectedOwnerFoodCostRow?.recommendedPrice ?? 0;
+  const ownerSimulatedGrossMarginPct =
+    selectedOwnerFoodCostRow && ownerSimulatedSellingPrice > 0
+      ? ((ownerSimulatedSellingPrice - selectedOwnerFoodCostRow.costPerBatch) /
+          ownerSimulatedSellingPrice) *
+        100
+      : null;
+  const ownerVisibleFoodCostRows = ownerFoodCostRows.slice(0, 6);
+  const ownerExtraFoodCostRows = ownerFoodCostRows.slice(6);
   const ownerPriceRows = ingredientPriceMovements.slice(0, 8).map((event) => {
     const affectedRecipeCount = new Set(
       recipeComponents
@@ -9901,7 +9988,7 @@ function WorkspaceDashboard({
                   0,
                 ).toLocaleString()}`,
           tone: fullStockCountReady ? "healthy" : "review",
-          visible: showStockCountSection,
+          visible: showStockCountSection && !isRole("procurement_manager"),
           targetElementId: "stock-control-workspace",
         },
         {
@@ -9939,7 +10026,7 @@ function WorkspaceDashboard({
         },
         {
           href: "#menu-profitability",
-          label: "Menu Profitability",
+          label: "Food Cost Overview",
           badge: `${menuProfitabilityTotals.total.toLocaleString()} items`,
           tone:
             menuProfitabilityTotals.marginRisk > 0 ||
@@ -10182,8 +10269,8 @@ function WorkspaceDashboard({
           targetElementId: "avt-location-summary",
         },
         {
-          href: "#menu-profitability",
-          label: "Menu profitability",
+          href: "#overview",
+          label: "Food cost overview",
           badge: `${menuProfitabilityTotals.total.toLocaleString()} items`,
           tone:
             menuProfitabilityTotals.marginRisk > 0 ||
@@ -10191,6 +10278,7 @@ function WorkspaceDashboard({
               ? "warning"
               : "healthy",
           visible: true,
+          targetElementId: "menu-profitability-summary",
         },
         {
           href: "#overview",
@@ -10235,7 +10323,9 @@ function WorkspaceDashboard({
   const showStockCountWorkspace =
     showStockCountSection && isSectionActive("stock-counts");
   const showFullStockCountWorkspace =
-    showStockCountSection && isSectionActive("full-stock-counts");
+    showStockCountSection &&
+    !isRole("procurement_manager") &&
+    isSectionActive("full-stock-counts");
   const showStockAdjustmentWorkspace =
     showInventoryMovementSection && isSectionActive("stock-adjustments");
   const isNavGroupOpen = (groupLabel: string) =>
@@ -10477,6 +10567,7 @@ function WorkspaceDashboard({
           line,
           item,
           itemId: extractUuid(line.inventory_item_id),
+          itemKey: getInventoryPriceIdentity(line.inventory_item_id),
           supplierKey:
             extractUuid(order.supplier_id) ||
             order.supplierName.trim().toLowerCase() ||
@@ -10499,8 +10590,8 @@ function WorkspaceDashboard({
     );
   const previousProcurementCostByItem = new Map<string, number>();
   const procurementPriceVarianceRows = procurementLineEvents.map((event) => {
-    const previousUnitCost = previousProcurementCostByItem.get(event.itemId);
-    previousProcurementCostByItem.set(event.itemId, event.unitCost);
+    const previousUnitCost = previousProcurementCostByItem.get(event.itemKey);
+    previousProcurementCostByItem.set(event.itemKey, event.unitCost);
 
     const unitDelta =
       previousUnitCost === undefined ? 0 : event.unitCost - previousUnitCost;
@@ -10662,7 +10753,7 @@ function WorkspaceDashboard({
     procurementLineEvents
       .reduce(
         (productsById, row) => {
-          const key = row.itemId || row.item?.name || "unknown";
+          const key = row.itemKey || row.itemId || row.item?.name || "unknown";
           const existingProduct = productsById.get(key);
           const varianceRow = procurementPriceVarianceRows.find(
             (candidate) => candidate.line.id === row.line.id,
@@ -12368,7 +12459,7 @@ function WorkspaceDashboard({
                 targetElementId: "waste-analysis-summary",
               },
               {
-                label: "Menu Profitability",
+                label: "Food Cost Overview",
                 section: "overview",
                 targetElementId: "menu-profitability-summary",
               },
@@ -12420,97 +12511,255 @@ function WorkspaceDashboard({
           <section className="grid gap-10">
             <div id="menu-profitability-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
-                Menu profitability
+                Food cost overview
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Which dishes are actually making money in the selected period.
+                Recipe costing, menu pricing, and margin readiness across sub-recipes and final menu items.
               </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                <div className="border-b border-slate-100 bg-[#fbfaf7] px-4 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                        Price simulation
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Select a recipe below to model selling price and gross margin impact.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_130px] lg:w-[520px]">
+                      <label className="grid gap-1 text-xs font-black uppercase tracking-widest text-slate-400">
+                        Recipe
+                        <select
+                          value={selectedOwnerFoodCostRow?.recipeId ?? ""}
+                          onChange={(event) =>
+                            setSelectedPricingSimulationRecipeId(event.target.value)
+                          }
+                          className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {ownerFoodCostRows.map((row) => (
+                            <option key={`owner-sim-option-${row.recipeId}`} value={row.recipeId}>
+                              {row.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-xs font-black uppercase tracking-widest text-slate-400">
+                        Price change
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={priceSimulationPct}
+                          onChange={(event) => setPriceSimulationPct(event.target.value)}
+                          className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="executive-table min-w-[980px] text-left text-sm">
+                      <thead className="bg-white text-xs uppercase text-slate-400">
+                        <tr>
+                          <th className="px-4 py-3 font-black">Selected recipe</th>
+                          <th className="px-4 py-3 text-right font-black">Current price</th>
+                          <th className="px-4 py-3 text-right font-black">Simulated price</th>
+                          <th className="px-4 py-3 text-right font-black">Food cost</th>
+                          <th className="px-4 py-3 text-right font-black">Gross margin</th>
+                          <th className="px-4 py-3 text-right font-black">Target price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedOwnerFoodCostRow ? (
+                          <tr className="rounded-xl border border-emerald-200 bg-emerald-50/60">
+                            <td className="px-4 py-3 font-semibold text-slate-950">
+                              {selectedOwnerFoodCostRow.name}
+                              <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                                {selectedOwnerFoodCostRow.category} / {selectedOwnerFoodCostRow.batchQty.toLocaleString(undefined, { maximumFractionDigits: 2 })} {selectedOwnerFoodCostRow.batchUom}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-slate-950">
+                              {selectedOwnerFoodCostRow.isFinalMenu
+                                ? formatCurrency(selectedOwnerFoodCostRow.sellingPrice, 0)
+                                : "N/A"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-black text-emerald-800">
+                              {selectedOwnerFoodCostRow.isFinalMenu
+                                ? formatCurrency(ownerSimulatedSellingPrice, 0)
+                                : "N/A"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-slate-950">
+                              {selectedOwnerFoodCostRow.foodCostPct === null
+                                ? "N/A"
+                                : `${selectedOwnerFoodCostRow.foodCostPct.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-black text-slate-950">
+                              {ownerSimulatedGrossMarginPct === null
+                                ? "N/A"
+                                : `${ownerSimulatedGrossMarginPct.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-slate-950">
+                              {selectedOwnerFoodCostRow.isFinalMenu
+                                ? formatCurrency(selectedOwnerFoodCostRow.recommendedPrice, 0)
+                                : "N/A"}
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-5 text-sm text-slate-500">
+                              Add recipes to start price simulation.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
-                  <table className="executive-table min-w-full table-fixed text-left text-sm">
+                  <table className="executive-table min-w-[1180px] text-left text-sm">
+                    <colgroup>
+                      <col className="w-[280px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[140px]" />
+                      <col className="w-[140px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[130px]" />
+                      <col className="w-[150px]" />
+                    </colgroup>
                     <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
-                        <th className="px-4 py-3 font-black">Dish</th>
-                        <th className="px-4 py-3 font-black">Sold</th>
-                        <th className="px-4 py-3 font-black">Revenue</th>
-                        <th className="px-4 py-3 font-black">Margin</th>
-                        <th className="px-4 py-3 font-black">Status</th>
+                        <th className="px-4 py-3 font-black">Recipe</th>
+                        <th className="px-4 py-3 font-black">Category</th>
+                        <th className="px-4 py-3 text-right font-black">Batch UOM</th>
+                        <th className="px-4 py-3 text-right font-black">Batch qty</th>
+                        <th className="px-4 py-3 text-right font-black">Total cost</th>
+                        <th className="px-4 py-3 text-right font-black">Cost / batch</th>
+                        <th className="px-4 py-3 text-right font-black">Selling price</th>
+                        <th className="px-4 py-3 text-right font-black">Food cost %</th>
+                        <th className="px-4 py-3 text-right font-black">Gross margin %</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {ownerMenuRows.slice(0, 4).map((item) => (
-                        <tr key={item.name} className="hover:bg-[#faf9f6]">
+                      {ownerVisibleFoodCostRows.map((row) => (
+                        <tr
+                          key={`owner-food-cost-${row.recipeId}`}
+                          onClick={() => setSelectedPricingSimulationRecipeId(row.recipeId)}
+                          className={`cursor-pointer hover:bg-[#faf9f6] ${
+                            selectedOwnerFoodCostRow?.recipeId === row.recipeId
+                              ? "bg-emerald-50/70"
+                              : ""
+                          }`}
+                        >
                           <td className="px-4 py-3 font-semibold text-slate-950">
-                            {item.name}
+                            {row.name}
+                            <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                              {row.componentCount.toLocaleString()} components
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-slate-700">
-                            {item.soldQuantity.toLocaleString(undefined, {
-                              maximumFractionDigits: 1,
-                            })}
+                            {row.category}
                           </td>
-                          <td className="px-4 py-3 font-mono text-slate-950">
-                            {formatCurrency(item.revenue, 0)}
+                          <td className="px-4 py-3 text-right font-mono text-slate-700">
+                            {row.batchUom}
                           </td>
-                          <td className="px-4 py-3 font-mono text-slate-950">
-                            {item.marginPct === null
+                          <td className="px-4 py-3 text-right font-mono text-slate-950">
+                            {row.batchQty.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-slate-950">
+                            {formatCurrency(row.totalCost, 0)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-slate-950">
+                            {formatCurrency(row.costPerBatch, 0)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-slate-950">
+                            {row.isFinalMenu ? formatCurrency(row.sellingPrice, 0) : "N/A"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-slate-950">
+                            {row.foodCostPct === null
                               ? "N/A"
-                              : `${item.marginPct.toLocaleString(undefined, {
+                              : `${row.foodCostPct.toLocaleString(undefined, {
                                   maximumFractionDigits: 1,
                                 })}%`}
                           </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`rounded-lg px-2.5 py-1 text-xs font-black ${
-                                item.tone === "critical"
-                                  ? "bg-red-50 text-red-800"
-                                  : item.tone === "attention"
-                                    ? "bg-amber-50 text-amber-800"
-                                    : "bg-emerald-50 text-emerald-800"
-                              }`}
-                            >
-                              {item.status}
-                            </span>
+                          <td className="px-4 py-3 text-right font-mono font-black text-slate-950">
+                            {row.grossMarginPct === null
+                              ? "N/A"
+                              : `${row.grossMarginPct.toLocaleString(undefined, {
+                                  maximumFractionDigits: 1,
+                                })}%`}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {ownerMenuRows.length > 4 ? (
+                  {ownerExtraFoodCostRows.length > 0 ? (
                     <details className="border-t border-slate-100 px-4 py-3">
                       <summary className="cursor-pointer text-sm font-black text-slate-700">
-                        See more menu items
+                        See more recipes
                       </summary>
-                      <div className="mt-3 grid gap-2">
-                        {ownerMenuRows.slice(4).map((item) => (
-                          <div
-                            key={`extra-menu-${item.name}`}
-                            className="grid gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:grid-cols-[minmax(0,1fr)_120px_160px_130px] sm:items-center"
-                          >
-                            <span className="font-semibold text-slate-950">
-                              {item.name}
-                            </span>
-                            <span className="text-right font-mono text-sm text-slate-600">
-                              {item.soldQuantity.toLocaleString(undefined, {
-                                maximumFractionDigits: 1,
-                              })}{" "}
-                              sold
-                            </span>
-                            <span className="text-right font-mono font-black text-slate-950">
-                              {formatCurrency(item.revenue, 0)}
-                            </span>
-                            <span
-                              className={`rounded-lg px-2.5 py-1 text-xs font-black ${
-                                item.tone === "critical"
-                                  ? "bg-red-50 text-red-800"
-                                  : item.tone === "attention"
-                                    ? "bg-amber-50 text-amber-800"
-                                    : "bg-emerald-50 text-emerald-800"
-                              }`}
-                            >
-                              {item.status}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="executive-table min-w-[1180px] text-left text-sm">
+                          <colgroup>
+                            <col className="w-[280px]" />
+                            <col className="w-[150px]" />
+                            <col className="w-[110px]" />
+                            <col className="w-[110px]" />
+                            <col className="w-[140px]" />
+                            <col className="w-[140px]" />
+                            <col className="w-[150px]" />
+                            <col className="w-[130px]" />
+                            <col className="w-[150px]" />
+                          </colgroup>
+                          <tbody className="divide-y divide-slate-100">
+                            {ownerExtraFoodCostRows.map((row) => (
+                              <tr
+                                key={`extra-owner-food-cost-${row.recipeId}`}
+                                onClick={() => setSelectedPricingSimulationRecipeId(row.recipeId)}
+                                className={`cursor-pointer rounded-xl border border-slate-200 hover:bg-[#faf9f6] ${
+                                  selectedOwnerFoodCostRow?.recipeId === row.recipeId
+                                    ? "bg-emerald-50/70"
+                                    : "bg-white"
+                                }`}
+                              >
+                                <td className="px-4 py-3 font-semibold text-slate-950">
+                                  {row.name}
+                                  <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                                    {row.componentCount.toLocaleString()} components
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-slate-700">{row.category}</td>
+                                <td className="px-4 py-3 text-right font-mono text-slate-700">{row.batchUom}</td>
+                                <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                  {row.batchQty.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                  {formatCurrency(row.totalCost, 0)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                  {formatCurrency(row.costPerBatch, 0)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                  {row.isFinalMenu ? formatCurrency(row.sellingPrice, 0) : "N/A"}
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono text-slate-950">
+                                  {row.foodCostPct === null
+                                    ? "N/A"
+                                    : `${row.foodCostPct.toLocaleString(undefined, {
+                                        maximumFractionDigits: 1,
+                                      })}%`}
+                                </td>
+                                <td className="px-4 py-3 text-right font-mono font-black text-slate-950">
+                                  {row.grossMarginPct === null
+                                    ? "N/A"
+                                    : `${row.grossMarginPct.toLocaleString(undefined, {
+                                        maximumFractionDigits: 1,
+                                      })}%`}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </details>
                   ) : null}
