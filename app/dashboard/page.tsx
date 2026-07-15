@@ -3705,7 +3705,16 @@ function WorkspaceDashboard({
   const [selectedDashboardTargetId, setSelectedDashboardTargetId] = useState("");
   const [mobileDashboardMenuOpen, setMobileDashboardMenuOpen] = useState(false);
   const [ownerDetailExpanded, setOwnerDetailExpanded] = useState(false);
-  const [ownerTrendLocationFilter, setOwnerTrendLocationFilter] = useState("");
+  const [ownerSalesTrendProductFilter, setOwnerSalesTrendProductFilter] =
+    useState("");
+  const [ownerLeakTrendLocationFilter, setOwnerLeakTrendLocationFilter] =
+    useState("");
+  const [ownerProcurementTrendFilter, setOwnerProcurementTrendFilter] =
+    useState("");
+  const [ownerComplianceTrendDepartmentFilter, setOwnerComplianceTrendDepartmentFilter] =
+    useState("");
+  const [ownerMarginTrendProductFilter, setOwnerMarginTrendProductFilter] =
+    useState("");
   const [openNavGroups, setOpenNavGroups] = useState<Record<string, boolean>>(
     {},
   );
@@ -3783,6 +3792,9 @@ function WorkspaceDashboard({
       countedQuantity: "",
     },
   ]);
+  const [fullStockCountQuantities, setFullStockCountQuantities] = useState<
+    Record<string, string>
+  >({});
   const [stockControlLocationId, setStockControlLocationId] = useState("");
   const [selectedYieldTestItemId, setSelectedYieldTestItemId] = useState("");
   const [productionPlanRows, setProductionPlanRows] = useState<
@@ -4264,6 +4276,30 @@ function WorkspaceDashboard({
   const countedStockCountLineCount = stockCountRows.filter(
     (row) => extractUuid(row.inventoryItemId) && row.countedQuantity.trim() !== "",
   ).length;
+  const fullStockCountRows = stockControlLocationId
+    ? [...stockControlInventoryItems].sort((leftItem, rightItem) =>
+        String(leftItem.name ?? leftItem.sku ?? "").localeCompare(
+          String(rightItem.name ?? rightItem.sku ?? ""),
+        ),
+      )
+    : [];
+  const fullStockCountLinesPayload = fullStockCountRows
+    .map((item) => ({
+      inventory_item_id: extractUuid(item.id),
+      counted_quantity: Number(fullStockCountQuantities[extractUuid(item.id)]),
+    }))
+    .filter(
+      (line) =>
+        extractUuid(line.inventory_item_id) &&
+        Number.isFinite(line.counted_quantity) &&
+        line.counted_quantity >= 0,
+    );
+  const fullStockCountCompletedLineCount = fullStockCountRows.filter(
+    (item) => fullStockCountQuantities[extractUuid(item.id)]?.trim() !== "",
+  ).length;
+  const fullStockCountReady =
+    fullStockCountRows.length > 0 &&
+    fullStockCountLinesPayload.length === fullStockCountRows.length;
   const estimatedStockCountVariance = stockCountRows.reduce((total, row) => {
     const item = allActiveInventoryItems.find(
       (inventoryItem) =>
@@ -8852,6 +8888,7 @@ function WorkspaceDashboard({
     tone: SemanticTone;
     targetRole: AppRole;
     sectionId: string;
+    targetElementId: string;
   }> = [];
 
   if (negativeStockExceptions.length > 0) {
@@ -8866,7 +8903,8 @@ function WorkspaceDashboard({
       status: "Unfavorable",
       tone: "critical",
       targetRole: "inventory_manager",
-      sectionId: "inventory",
+      sectionId: "overview",
+      targetElementId: "inventory-location-summary",
     });
   }
 
@@ -8884,7 +8922,8 @@ function WorkspaceDashboard({
       status: "Follow up",
       tone: "attention",
       targetRole: "procurement_manager",
-      sectionId: "procurement",
+      sectionId: "overview",
+      targetElementId: "supplier-performance-summary",
     });
   }
 
@@ -8898,7 +8937,8 @@ function WorkspaceDashboard({
       status: "Margin at risk",
       tone: "attention",
       targetRole: "finance_manager",
-      sectionId: "pricing",
+      sectionId: "overview",
+      targetElementId: "menu-profitability-summary",
     });
   }
 
@@ -8918,7 +8958,8 @@ function WorkspaceDashboard({
       status: "Costing changed",
       tone: "attention",
       targetRole: "kitchen_manager",
-      sectionId: "yield-tests",
+      sectionId: "overview",
+      targetElementId: "menu-profitability-summary",
     });
   }
 
@@ -8940,7 +8981,8 @@ function WorkspaceDashboard({
       status: "Unfavorable",
       tone: "attention",
       targetRole: "procurement_manager",
-      sectionId: "costing",
+      sectionId: "overview",
+      targetElementId: "ingredient-price-summary",
     });
   }
 
@@ -8956,7 +8998,8 @@ function WorkspaceDashboard({
       status: "Loss recorded",
       tone: "attention",
       targetRole: "inventory_manager",
-      sectionId: "waste",
+      sectionId: "overview",
+      targetElementId: "waste-analysis-summary",
     });
   }
 
@@ -8974,6 +9017,7 @@ function WorkspaceDashboard({
             tone: "healthy" as const,
             targetRole: "finance_manager" as AppRole,
             sectionId: "overview",
+            targetElementId: "trend-analysis-summary",
           },
         ];
   const ownerExecutiveAction = visibleOwnerAttentionItems[0];
@@ -9122,24 +9166,11 @@ function WorkspaceDashboard({
             ),
           },
         ];
-  const ownerMaxRevenue = Math.max(
-    1,
-    ...ownerRevenuePoints.map((point) => point.revenue),
-  );
-  const ownerMaxMarginMovement = Math.max(
-    1,
-    ...ownerRevenuePoints.map((point) =>
-      Math.max(point.marginLoss, point.marginRecovery),
-    ),
-  );
-  const ownerMarginLossTotal = ownerRevenuePoints.reduce(
-    (total, point) => total + point.marginLoss,
-    0,
-  );
-  const ownerMarginRecoveryTotal = ownerRevenuePoints.reduce(
-    (total, point) => total + point.marginRecovery,
-    0,
-  );
+  const ownerTrendDatePoints = ownerRevenuePoints;
+  const ownerSalesTrendProductOptions = menuPerformance
+    .map((item) => item.name)
+    .filter(Boolean)
+    .sort((leftName, rightName) => leftName.localeCompare(rightName));
   const ownerTrendLocationOptions = activeLocations
     .filter((location) => location.is_active)
     .map((location) => ({
@@ -9147,11 +9178,34 @@ function WorkspaceDashboard({
       name: location.name,
     }))
     .filter((location) => location.id);
-  const ownerTrendDatePoints = ownerRevenuePoints;
-  const ownerTrendLocationName =
-    ownerTrendLocationOptions.find(
-      (location) => location.id === ownerTrendLocationFilter,
-    )?.name ?? "All locations";
+  const ownerProcurementTrendOptions = [
+    ...Array.from(
+      new Set(
+        allPurchaseOrders
+          .map((order) => order.supplier_name?.trim())
+          .filter((supplierName): supplierName is string => Boolean(supplierName)),
+      ),
+    )
+      .sort((leftName, rightName) => leftName.localeCompare(rightName))
+      .map((supplierName) => ({
+        value: `supplier:${supplierName}`,
+        label: `Supplier: ${supplierName}`,
+      })),
+    ...ownerTrendLocationOptions.map((location) => ({
+      value: `location:${location.id}`,
+      label: `Receiving: ${location.name}`,
+    })),
+  ];
+  const ownerComplianceDepartmentOptions = Array.from(
+    new Set(
+      complianceRegisters
+        .map((register) => register.department)
+        .filter(Boolean),
+    ),
+  ).sort((leftDepartment, rightDepartment) =>
+    leftDepartment.localeCompare(rightDepartment),
+  );
+  const ownerMarginTrendProductOptions = ownerSalesTrendProductOptions;
   const ownerLeakTrendPoints = ownerTrendDatePoints.map((point) => {
     const movementWasteValue = stockMovementLedger
       .filter((movement) => {
@@ -9163,8 +9217,8 @@ function WorkspaceDashboard({
           return false;
         }
 
-        return ownerTrendLocationFilter
-          ? extractUuid(movement.location_id) === ownerTrendLocationFilter
+        return ownerLeakTrendLocationFilter
+          ? extractUuid(movement.location_id) === ownerLeakTrendLocationFilter
           : true;
       })
       .reduce(
@@ -9172,7 +9226,7 @@ function WorkspaceDashboard({
           total + Math.abs(Number(movement.movement_value ?? 0)),
         0,
       );
-    const exposureWasteValue = ownerTrendLocationFilter ? 0 : point.waste;
+    const exposureWasteValue = ownerLeakTrendLocationFilter ? 0 : point.waste;
     const wasteValue =
       movementWasteValue > 0 ? movementWasteValue : exposureWasteValue;
 
@@ -9181,12 +9235,36 @@ function WorkspaceDashboard({
       label: point.label,
       value:
         Math.max(wasteValue, 0) +
-        (ownerTrendLocationFilter ? 0 : Math.max(point.priceImpact, 0)),
+        (ownerLeakTrendLocationFilter ? 0 : Math.max(point.priceImpact, 0)),
     };
   });
   const ownerProcurementTrendPoints = ownerTrendDatePoints.map((point) => {
     const daySpend = purchaseOrderLines
-      .filter((line) => getDateKey(line.created_at) === point.dateKey)
+      .filter((line) => {
+        if (getDateKey(line.created_at) !== point.dateKey) {
+          return false;
+        }
+
+        const order = allPurchaseOrders.find(
+          (purchaseOrder) => purchaseOrder.id === line.purchase_order_id,
+        );
+
+        if (ownerProcurementTrendFilter.startsWith("supplier:")) {
+          return (
+            order?.supplier_name?.trim() ===
+            ownerProcurementTrendFilter.replace("supplier:", "")
+          );
+        }
+
+        if (ownerProcurementTrendFilter.startsWith("location:")) {
+          return (
+            extractUuid(order?.receiving_location_id) ===
+            ownerProcurementTrendFilter.replace("location:", "")
+          );
+        }
+
+        return true;
+      })
       .reduce(
         (total, line) =>
           total +
@@ -9202,7 +9280,10 @@ function WorkspaceDashboard({
   });
   const ownerComplianceTrendPoints = ownerTrendDatePoints.map((point) => {
     const dayEntries = operationRegisterEntries.filter(
-      (entry) => getDateKey(entry.operating_date || entry.submitted_at) === point.dateKey,
+      (entry) =>
+        getDateKey(entry.operating_date || entry.submitted_at) === point.dateKey &&
+        (!ownerComplianceTrendDepartmentFilter ||
+          entry.department === ownerComplianceTrendDepartmentFilter),
     );
     const dayClearEntries = dayEntries.filter(
       (entry) => entry.status === "completed" || entry.status === "clear",
@@ -9219,52 +9300,119 @@ function WorkspaceDashboard({
             : 0,
     };
   });
-  const ownerGrossMarginTrendPoints = ownerTrendDatePoints.map((point) => ({
-    dateKey: point.dateKey,
-    label: point.label,
-    value: point.revenue > 0 ? (point.grossProfit / point.revenue) * 100 : 0,
-  }));
+  const ownerGrossMarginTrendPoints = ownerTrendDatePoints.map((point) => {
+    const daySales = menuSaleSummaries.filter(
+      (sale) =>
+        getDateKey(sale.operating_date || sale.created_at) === point.dateKey &&
+        (!ownerMarginTrendProductFilter ||
+          sale.recipe_name === ownerMarginTrendProductFilter),
+    );
+    const revenue = ownerMarginTrendProductFilter
+      ? daySales.reduce((total, sale) => total + sale.total_revenue, 0)
+      : point.revenue;
+    const grossProfit = ownerMarginTrendProductFilter
+      ? daySales.reduce((total, sale) => total + sale.gross_profit, 0)
+      : point.grossProfit;
+
+    return {
+      dateKey: point.dateKey,
+      label: point.label,
+      value: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
+    };
+  });
   const ownerTrendCards = [
     {
       label: "Sales",
-      detail: "Revenue captured in the selected period.",
+      detail: ownerSalesTrendProductFilter
+        ? `Revenue for ${ownerSalesTrendProductFilter}.`
+        : "Revenue captured in the selected period.",
       points: ownerTrendDatePoints.map((point) => ({
         dateKey: point.dateKey,
         label: point.label,
-        value: point.revenue,
+        value: menuSaleSummaries
+          .filter(
+            (sale) =>
+              getDateKey(sale.operating_date || sale.created_at) ===
+                point.dateKey &&
+              (!ownerSalesTrendProductFilter ||
+                sale.recipe_name === ownerSalesTrendProductFilter),
+          )
+          .reduce((total, sale) => total + sale.total_revenue, 0),
       })),
       tone: "info" as const,
+      filterLabel: "Product",
+      filterValue: ownerSalesTrendProductFilter,
+      onFilterChange: setOwnerSalesTrendProductFilter,
+      filterOptions: ownerSalesTrendProductOptions.map((productName) => ({
+        value: productName,
+        label: productName,
+      })),
       valueFormatter: (value: number) => formatCurrency(value, 0),
     },
     {
       label: "Leaks",
-      detail: ownerTrendLocationFilter
-        ? `Waste exposure at ${ownerTrendLocationName}.`
+      detail: ownerLeakTrendLocationFilter
+        ? `Waste exposure at ${
+            ownerTrendLocationOptions.find(
+              (location) => location.id === ownerLeakTrendLocationFilter,
+            )?.name ?? "selected location"
+          }.`
         : "Waste and price inflation exposure across all locations.",
       points: ownerLeakTrendPoints,
       tone: "critical" as const,
+      filterLabel: "Location",
+      filterValue: ownerLeakTrendLocationFilter,
+      onFilterChange: setOwnerLeakTrendLocationFilter,
+      filterOptions: ownerTrendLocationOptions.map((location) => ({
+        value: location.id,
+        label: location.name,
+      })),
       valueFormatter: (value: number) => formatCurrency(value, 0),
     },
     {
       label: "Procurement",
-      detail: "Purchase order spend posted by date.",
+      detail: ownerProcurementTrendFilter
+        ? "Purchase spend for the selected supplier or receiving location."
+        : "Purchase order spend posted by date.",
       points: ownerProcurementTrendPoints,
       tone: "attention" as const,
+      filterLabel: "Supplier / receiving",
+      filterValue: ownerProcurementTrendFilter,
+      onFilterChange: setOwnerProcurementTrendFilter,
+      filterOptions: ownerProcurementTrendOptions,
       valueFormatter: (value: number) => formatCurrency(value, 0),
     },
     {
       label: "Compliance rate",
-      detail: "Daily register completion signal.",
+      detail: ownerComplianceTrendDepartmentFilter
+        ? `${ownerComplianceTrendDepartmentFilter} register completion signal.`
+        : "Daily register completion signal.",
       points: ownerComplianceTrendPoints,
       tone: "healthy" as const,
+      filterLabel: "Department",
+      filterValue: ownerComplianceTrendDepartmentFilter,
+      onFilterChange: setOwnerComplianceTrendDepartmentFilter,
+      filterOptions: ownerComplianceDepartmentOptions.map((department) => ({
+        value: department,
+        label: department,
+      })),
       valueFormatter: (value: number) =>
         `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}%`,
     },
     {
       label: "Gross margin",
-      detail: `Target benchmark: ${targetMenuMarginPct}%.`,
+      detail: ownerMarginTrendProductFilter
+        ? `Margin trend for ${ownerMarginTrendProductFilter}.`
+        : `Target benchmark: ${targetMenuMarginPct}%.`,
       points: ownerGrossMarginTrendPoints,
       tone: "healthy" as const,
+      filterLabel: "Product",
+      filterValue: ownerMarginTrendProductFilter,
+      onFilterChange: setOwnerMarginTrendProductFilter,
+      filterOptions: ownerMarginTrendProductOptions.map((productName) => ({
+        value: productName,
+        label: productName,
+      })),
       valueFormatter: (value: number) =>
         `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`,
     },
@@ -9274,8 +9422,8 @@ function WorkspaceDashboard({
     const maxValue = Math.max(1, ...values);
     const minValue = Math.min(0, ...values);
     const range = Math.max(maxValue - minValue, 1);
-    const width = 240;
-    const height = 84;
+    const width = 360;
+    const height = 140;
     const xStep = card.points.length > 1 ? width / (card.points.length - 1) : width;
     const linePoints = card.points
       .map((point, index) => {
@@ -9298,9 +9446,9 @@ function WorkspaceDashboard({
     return (
       <article
         key={card.label}
-        className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+        className="grid min-h-[360px] content-between rounded-xl border border-slate-100 bg-white p-5 shadow-sm"
       >
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
           <span>
             <span className="block text-sm font-black text-slate-950">
               {card.label}
@@ -9313,7 +9461,22 @@ function WorkspaceDashboard({
             {latestPoint ? card.valueFormatter(latestPoint.value) : card.valueFormatter(0)}
           </span>
         </div>
-        <div className="mt-4 h-28 overflow-hidden rounded-lg border border-slate-100 bg-[#faf9f6] p-3">
+        <label className="mt-4 grid gap-1 text-xs font-black uppercase tracking-widest text-slate-400">
+          {card.filterLabel}
+          <select
+            value={card.filterValue}
+            onChange={(event) => card.onFilterChange(event.target.value)}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+          >
+            <option value="">All</option>
+            {card.filterOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="mt-4 h-44 overflow-hidden rounded-lg border border-slate-100 bg-[#faf9f6] p-3">
           {card.points.length > 0 ? (
             <svg
               viewBox={`0 0 ${width} ${height}`}
@@ -9343,6 +9506,19 @@ function WorkspaceDashboard({
               No trend data yet.
             </div>
           )}
+        </div>
+        <div className="mt-3 grid gap-2" style={{
+          gridTemplateColumns: `repeat(${Math.max(card.points.length, 1)}, minmax(0, 1fr))`,
+        }}>
+          {card.points.map((point) => (
+            <span
+              key={`${card.label}-${point.dateKey || point.label}`}
+              className="truncate text-center text-[10px] font-black text-slate-400"
+              title={point.label}
+            >
+              {point.label}
+            </span>
+          ))}
         </div>
       </article>
     );
@@ -9709,10 +9885,24 @@ function WorkspaceDashboard({
         },
         {
           href: "#stock-counts",
-          label: "Stock Counts",
+          label: "Cycle Counts",
           badge: `${latestDayStockCountCount.toLocaleString()} counts`,
           tone: latestDayStockLoss > 0 ? "warning" : "healthy",
           visible: showStockCountSection,
+        },
+        {
+          href: "#full-stock-counts",
+          label: "Full Stock Count",
+          badge:
+            fullStockCountReady && stockControlLocationId
+              ? "Ready"
+              : `${fullStockCountCompletedLineCount.toLocaleString()}/${Math.max(
+                  fullStockCountRows.length,
+                  0,
+                ).toLocaleString()}`,
+          tone: fullStockCountReady ? "healthy" : "review",
+          visible: showStockCountSection,
+          targetElementId: "stock-control-workspace",
         },
         {
           href: "#stock-adjustments",
@@ -10044,6 +10234,8 @@ function WorkspaceDashboard({
     showProcurementSection && isSectionActive("purchase-orders");
   const showStockCountWorkspace =
     showStockCountSection && isSectionActive("stock-counts");
+  const showFullStockCountWorkspace =
+    showStockCountSection && isSectionActive("full-stock-counts");
   const showStockAdjustmentWorkspace =
     showInventoryMovementSection && isSectionActive("stock-adjustments");
   const isNavGroupOpen = (groupLabel: string) =>
@@ -11049,6 +11241,7 @@ function WorkspaceDashboard({
     const recorded = await onCreateStockCount(event);
 
     if (recorded) {
+      setFullStockCountQuantities({});
       setStockCountRows([
         {
           id: "stock-count-line-1",
@@ -11841,7 +12034,11 @@ function WorkspaceDashboard({
                   key={`${item.label}-${item.title}`}
                   type="button"
                   onClick={() =>
-                    openDashboardSection(item.sectionId)
+                    openDashboardSection(
+                      item.sectionId,
+                      undefined,
+                      item.targetElementId,
+                    )
                   }
                   className={`grid gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:grid-cols-[1fr_auto] sm:items-center ${
                     item.tone === "critical"
@@ -11875,7 +12072,7 @@ function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+          <section className="grid gap-4">
             <div id="inventory-location-summary" className="scroll-mt-24">
               <h2 className="text-base font-black text-slate-950">
                 Inventory position
@@ -11981,36 +12178,6 @@ function WorkspaceDashboard({
                     </div>
                   </details>
                 ) : null}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-base font-black text-slate-950">
-                Revenue, last 7 days
-              </h2>
-              <div className="mt-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex h-28 items-end gap-2">
-                  {ownerRevenuePoints.map((point) => (
-                    <div
-                      key={`${point.dateKey}-${point.label}`}
-                      className="flex min-w-0 flex-1 flex-col items-center gap-2"
-                    >
-                      <div
-                        className="w-full rounded-t bg-blue-500"
-                        style={{
-                          height: `${Math.max(
-                            8,
-                            (point.revenue / ownerMaxRevenue) * 100,
-                          )}%`,
-                        }}
-                        title={`${point.label}: ${formatCurrency(point.revenue)}`}
-                      />
-                      <span className="max-w-full truncate text-[10px] font-bold text-slate-400">
-                        {point.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </section>
@@ -12230,9 +12397,9 @@ function WorkspaceDashboard({
 
           <section
             id="trend-analysis-summary"
-            className="scroll-mt-24 rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+            className="scroll-mt-24"
           >
-            <div className="grid gap-3 border-b border-slate-100 pb-4 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="grid gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">
                   Trend analysis
@@ -12241,28 +12408,11 @@ function WorkspaceDashboard({
                   What changed across {selectedPeriodLabel}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Separate trend lines for the signals owners should review before asking teams for detail.
+                  Separate trend lines for the signals owners should review before asking teams for detail. Each chart has its own operating filter.
                 </p>
               </div>
-              <label className="grid gap-1 text-xs font-black uppercase tracking-widest text-slate-400">
-                Waste location
-                <select
-                  value={ownerTrendLocationFilter}
-                  onChange={(event) =>
-                    setOwnerTrendLocationFilter(event.target.value)
-                  }
-                  className="h-10 min-w-[210px] rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">All locations</option>
-                  {ownerTrendLocationOptions.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 grid gap-5 lg:grid-cols-2">
               {ownerTrendCards.map((card) => renderOwnerTrendCard(card))}
             </div>
           </section>
@@ -18598,19 +18748,23 @@ function WorkspaceDashboard({
 
           <h3
             id="stock-control-workspace"
-            className={`${showStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-6 scroll-mt-24 text-lg font-semibold text-foreground`}
+            className={`${showStockCountWorkspace || showFullStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-6 scroll-mt-24 text-lg font-semibold text-foreground`}
           >
-            {showStockCountWorkspace ? "Physical Count Workspace" : "Stock Adjustment Workspace"}
+            {showFullStockCountWorkspace
+              ? "Full Stock Count Workspace"
+              : showStockCountWorkspace
+                ? "Cycle Count Workspace"
+                : "Stock Adjustment Workspace"}
           </h3>
           <p
-            className={`${showStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-1 text-sm text-text-muted`}
+            className={`${showStockCountWorkspace || showFullStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-1 text-sm text-text-muted`}
           >
             Select the target storage location first. Counts and adjustments
             are submitted to Finance for approval before stock balance, AvT
             variance, or margin impact is trusted.
           </p>
           <div
-            className={`${showStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 rounded-sm border border-border-system bg-background p-4`}
+            className={`${showStockCountWorkspace || showFullStockCountWorkspace || showStockAdjustmentWorkspace ? "" : "hidden"} mt-5 rounded-sm border border-border-system bg-background p-4`}
           >
             <label className="grid gap-2 text-[10px] font-bold uppercase tracking-widest text-text-ghost">
               Target storage location
@@ -18619,6 +18773,7 @@ function WorkspaceDashboard({
                 value={stockControlLocationId}
                 onChange={(event) => {
                   setStockControlLocationId(event.target.value);
+                  setFullStockCountQuantities({});
                   setStockCountRows((currentRows) =>
                     currentRows.map((currentRow) => ({
                       ...currentRow,
@@ -18652,7 +18807,11 @@ function WorkspaceDashboard({
               />
               <MetricPill
                 label="Lines ready"
-                value={`${countedStockCountLineCount.toLocaleString()} / ${stockCountRows.length.toLocaleString()}`}
+                value={
+                  showFullStockCountWorkspace
+                    ? `${fullStockCountCompletedLineCount.toLocaleString()} / ${fullStockCountRows.length.toLocaleString()}`
+                    : `${countedStockCountLineCount.toLocaleString()} / ${stockCountRows.length.toLocaleString()}`
+                }
               />
               <MetricPill
                 label="Pending Finance"
@@ -18665,6 +18824,151 @@ function WorkspaceDashboard({
               />
             </div>
           </div>
+
+          <h4
+            id="full-stock-counts"
+            className={`${showFullStockCountWorkspace ? "" : "hidden"} mt-6 scroll-mt-24 text-base font-semibold text-foreground`}
+          >
+            Full Monthly Stock Count
+          </h4>
+          <p
+            className={`${showFullStockCountWorkspace ? "" : "hidden"} mt-1 text-sm text-text-muted`}
+          >
+            Use this for full month-end counts. The system intentionally hides
+            current on-hand quantities so the physical count is independent.
+          </p>
+          <form
+            onSubmit={handleStockCountFormSubmit}
+            className={`${showFullStockCountWorkspace ? "" : "hidden"} mt-5 overflow-hidden rounded-sm border border-border-system bg-background`}
+          >
+            <input
+              type="hidden"
+              name="target_location_id"
+              value={stockControlLocationId}
+            />
+            <input
+              type="hidden"
+              name="stock_count_lines"
+              value={JSON.stringify(fullStockCountLinesPayload)}
+            />
+            <div className="grid gap-3 border-b border-border-system bg-card px-4 py-4 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <p className="font-semibold text-foreground">
+                  {selectedStockControlLocation?.name ?? "Select a location"}
+                </p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-text-muted">
+                  {fullStockCountRows.length.toLocaleString()} SKU
+                  {fullStockCountRows.length === 1 ? "" : "s"} in count scope.
+                  Count every row before submitting to Finance.
+                </p>
+              </div>
+              <span
+                className={`rounded-full border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${
+                  fullStockCountReady
+                    ? "border-accent-muted-border bg-accent-muted-bg text-accent"
+                    : "border-status-attention-border bg-status-attention-bg text-status-attention-text"
+                }`}
+              >
+                {fullStockCountCompletedLineCount.toLocaleString()} /{" "}
+                {fullStockCountRows.length.toLocaleString()} counted
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed text-left text-sm">
+                <thead className="sticky top-0 bg-card font-mono text-[10px] uppercase tracking-widest text-text-ghost">
+                  <tr>
+                    <th className="w-[30%] px-4 py-3">SKU name</th>
+                    <th className="w-[18%] px-4 py-3">SKU code</th>
+                    <th className="w-[12%] px-4 py-3">Unit</th>
+                    <th className="w-[16%] px-4 py-3 text-right">Unit cost</th>
+                    <th className="w-[24%] px-4 py-3">Physical count</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-system">
+                  {fullStockCountRows.length > 0 ? (
+                    fullStockCountRows.map((item) => {
+                      const itemId = extractUuid(item.id);
+                      const uom =
+                        item.on_hand_uom ||
+                        item.base_uom ||
+                        item.recipe_uom ||
+                        "unit";
+
+                      return (
+                        <tr key={itemId} className="bg-background hover:bg-card">
+                          <td className="px-4 py-3 font-semibold text-foreground">
+                            {item.name ?? "Unnamed item"}
+                            <span className="mt-0.5 block text-xs font-medium text-text-ghost">
+                              {item.cost_type?.replaceAll("_", " ") ?? "inventory"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs font-semibold text-text-muted">
+                            {item.sku || "No SKU"}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-text-muted">
+                            {uom}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-semibold text-foreground">
+                            {formatCurrency(
+                              Number(item.current_cost_per_base_uom ?? 0),
+                              2,
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder={`Count in ${uom}`}
+                              value={fullStockCountQuantities[itemId] ?? ""}
+                              onChange={(event) =>
+                                setFullStockCountQuantities((currentValues) => ({
+                                  ...currentValues,
+                                  [itemId]: event.target.value,
+                                }))
+                              }
+                              disabled={!stockControlLocationId}
+                              required
+                              className={formControlClass}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 py-6 text-sm font-semibold text-text-muted"
+                      >
+                        Select a storage location to load the full SKU count
+                        sheet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-3 border-t border-border-system bg-card px-4 py-4 md:grid-cols-[1fr_auto] md:items-center">
+              <p className="text-xs font-semibold leading-5 text-text-muted">
+                The variance is calculated only after submission and Finance
+                approval. Counters should not see the system balance during
+                the count.
+              </p>
+              <button
+                type="submit"
+                disabled={
+                  stockCountSaving ||
+                  !canRecordOperations ||
+                  !stockControlLocationId ||
+                  !fullStockCountReady
+                }
+                className={primaryButtonClass}
+              >
+                Submit full count to Finance
+              </button>
+            </div>
+          </form>
 
           <h4
             id="stock-adjustments"
@@ -18801,12 +19105,13 @@ function WorkspaceDashboard({
             id="stock-counts"
             className={`${showStockCountWorkspace ? "" : "hidden"} mt-6 scroll-mt-24 text-base font-semibold text-foreground`}
           >
-            Physical Count
+            Cycle Count
           </h4>
           <p
             className={`${showStockCountWorkspace ? "" : "hidden"} mt-1 text-sm text-text-muted`}
           >
-            Count all high-value items daily where applicable. Finance compares
+            Use this for focused location checks, high-value spot checks, and
+            operational cycle counts. Finance compares
             the physical count against expected stock after receipts, issues,
             production, sales depletion, and waste confirmations are complete.
           </p>
