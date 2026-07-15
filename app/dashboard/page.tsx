@@ -12215,7 +12215,7 @@ function WorkspaceDashboard({
                 ))}
               </div>
               <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-                <table className="executive-table min-w-full text-left text-sm">
+                <table className="executive-table w-full table-fixed text-left text-sm">
                   <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                     <tr>
                       <th className="px-4 py-3 font-black">Type</th>
@@ -12340,7 +12340,7 @@ function WorkspaceDashboard({
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="executive-table min-w-full text-left text-sm">
+              <table className="executive-table w-full table-fixed text-left text-sm">
                 <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-black">Location</th>
@@ -12557,7 +12557,7 @@ function WorkspaceDashboard({
                     </div>
                   </div>
                   <div className="owner-table-scroll mt-4 overflow-x-auto">
-                    <table className="executive-table w-full min-w-[820px] table-fixed text-left text-sm">
+                    <table className="executive-table w-full table-fixed text-left text-sm">
                       <colgroup>
                         <col className="w-[260px]" />
                         <col className="w-[120px]" />
@@ -12623,7 +12623,7 @@ function WorkspaceDashboard({
                   </div>
                 </div>
                 <div className="owner-table-scroll overflow-x-auto">
-                  <table className="executive-table w-full min-w-[980px] table-fixed text-left text-sm">
+                  <table className="executive-table w-full table-fixed text-left text-sm">
                     <colgroup>
                       <col className="w-[210px]" />
                       <col className="w-[120px]" />
@@ -12707,7 +12707,7 @@ function WorkspaceDashboard({
                         See more recipes
                       </summary>
                       <div className="owner-table-scroll mt-3 overflow-x-auto">
-                        <table className="executive-table w-full min-w-[980px] table-fixed text-left text-sm">
+                        <table className="executive-table w-full table-fixed text-left text-sm">
                           <colgroup>
                             <col className="w-[210px]" />
                             <col className="w-[120px]" />
@@ -12846,7 +12846,7 @@ function WorkspaceDashboard({
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="executive-table min-w-full text-left text-sm">
+                    <table className="executive-table w-full table-fixed text-left text-sm">
                       <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Product</th>
@@ -12945,7 +12945,7 @@ function WorkspaceDashboard({
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="executive-table min-w-full text-left text-sm">
+                    <table className="executive-table w-full table-fixed text-left text-sm">
                       <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Supplier</th>
@@ -13058,7 +13058,7 @@ function WorkspaceDashboard({
               </p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="executive-table min-w-full text-left text-sm">
+                  <table className="executive-table w-full table-fixed text-left text-sm">
                     <colgroup>
                       <col className="w-[38%]" />
                       <col className="w-[18%]" />
@@ -13118,7 +13118,7 @@ function WorkspaceDashboard({
                         See more price changes
                       </summary>
                       <div className="mt-3 overflow-x-auto">
-                        <table className="executive-table min-w-full table-fixed text-left text-sm">
+                        <table className="executive-table w-full table-fixed text-left text-sm">
                           <colgroup>
                             <col className="w-[38%]" />
                             <col className="w-[18%]" />

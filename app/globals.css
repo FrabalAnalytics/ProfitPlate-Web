@@ -242,13 +242,46 @@ body {
 }
 
 .dashboard-readable .owner-dashboard-shell .executive-table {
-  max-width: none;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.dashboard-readable .owner-dashboard-shell col {
+  width: auto !important;
+}
+
+.dashboard-readable .owner-dashboard-shell input,
+.dashboard-readable .owner-dashboard-shell select,
+.dashboard-readable .owner-dashboard-shell textarea {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .dashboard-readable .owner-dashboard-shell .executive-table thead th,
 .dashboard-readable .owner-dashboard-shell .executive-table tbody td {
-  padding-left: 12px;
-  padding-right: 12px;
+  overflow-wrap: anywhere;
+  padding-left: 10px;
+  padding-right: 10px;
+  white-space: normal;
+  word-break: normal;
+}
+
+.dashboard-readable .owner-dashboard-shell .executive-table thead th {
+  font-size: 11px;
+}
+
+.dashboard-readable .owner-dashboard-shell .executive-table tbody td {
+  font-size: 13px;
+}
+
+.dashboard-readable .owner-dashboard-shell .executive-table tbody td:first-child {
+  font-size: 14px;
+}
+
+.dashboard-readable .owner-dashboard-shell .executive-table .font-mono {
+  font-size: 12px;
 }
 
 .dashboard-readable .shadow-2xl {
