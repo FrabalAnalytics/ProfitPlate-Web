@@ -16118,6 +16118,7 @@ function WorkspaceDashboard({
           showRequisitionWorkspace ||
           showPurchaseOrderWorkspace ||
           showStockCountWorkspace ||
+          showFullStockCountWorkspace ||
           showStockAdjustmentWorkspace
             ? ""
             : "hidden"
@@ -17359,6 +17360,7 @@ function WorkspaceDashboard({
             showRequisitionWorkspace ||
             showPurchaseOrderWorkspace ||
             showStockCountWorkspace ||
+            showFullStockCountWorkspace ||
             showStockAdjustmentWorkspace
               ? ""
               : "hidden"
@@ -17369,8 +17371,10 @@ function WorkspaceDashboard({
               ? "Requisition Control"
               : showPurchaseOrderWorkspace
                 ? "Purchase Order / GRN Control"
-                : showStockCountWorkspace
-                  ? "Physical Count Control"
+                : showFullStockCountWorkspace
+                  ? "Full Stock Count Control"
+                  : showStockCountWorkspace
+                    ? "Cycle Count Control"
                   : "Stock Adjustment Control"}
           </p>
           <h2 className="mt-2 font-serif text-2xl font-normal text-foreground">
@@ -17378,8 +17382,10 @@ function WorkspaceDashboard({
               ? "Requisitions and Transfer Requests"
               : showPurchaseOrderWorkspace
                 ? "Purchase Orders and GRN Receipts"
-                : showStockCountWorkspace
-                  ? "Physical Stock Counts"
+                : showFullStockCountWorkspace
+                  ? "Full Monthly Stock Count"
+                  : showStockCountWorkspace
+                    ? "Cycle Counts"
                   : "Controlled Stock Adjustments"}
           </h2>
 
