@@ -3705,6 +3705,7 @@ function WorkspaceDashboard({
   const [selectedDashboardTargetId, setSelectedDashboardTargetId] = useState("");
   const [mobileDashboardMenuOpen, setMobileDashboardMenuOpen] = useState(false);
   const [ownerDetailExpanded, setOwnerDetailExpanded] = useState(false);
+  const [ownerTrendLocationFilter, setOwnerTrendLocationFilter] = useState("");
   const [openNavGroups, setOpenNavGroups] = useState<Record<string, boolean>>(
     {},
   );
@@ -7471,6 +7472,19 @@ function WorkspaceDashboard({
         Number(item.current_cost_per_base_uom ?? 0),
     0,
   );
+  const ownerInventorySkuKeys = new Set(
+    inventoryValuationItems.map((item) => {
+      const stableIdentity =
+        String(item.sku ?? "").trim().toLowerCase() ||
+        extractUuid(item.recipe_id) ||
+        String(item.name ?? "").trim().toLowerCase() ||
+        extractUuid(item.origin_inventory_item_id) ||
+        extractUuid(item.id);
+
+      return `${String(item.cost_type ?? "unknown")}:${stableIdentity}`;
+    }),
+  );
+  const ownerUniqueSkuCount = ownerInventorySkuKeys.size;
   const reorderTodayCount =
     negativeStockExceptions.length + lowStockExceptions.length;
   const potentialLossExposure =
@@ -7480,6 +7494,8 @@ function WorkspaceDashboard({
     priceIncreaseImpact +
     menuMarginRecovery;
   const visibleMarginLeakage = Math.max(potentialLossExposure, 0);
+  const ownerOverallLeakValue =
+    Math.max(directWasteImpact, 0) + Math.max(priceIncreaseImpact, 0);
   const visibleLeakageRate =
     totalSalesRevenue > 0 ? (visibleMarginLeakage / totalSalesRevenue) * 100 : null;
   const marginBaseScore =
@@ -8737,16 +8753,16 @@ function WorkspaceDashboard({
               : ("critical" as const),
     },
     {
-      label: "Visible leakage",
-      value: formatCurrency(visibleMarginLeakage),
+      label: "Overall leak",
+      value: formatCurrency(ownerOverallLeakValue),
       detail:
-        visibleMarginLeakage > 0
-          ? "Current controllable loss exposure"
-          : "No visible activity leakage in the selected period",
+        ownerOverallLeakValue > 0
+          ? "Waste and price inflation exposure"
+          : "No waste or price inflation exposure",
       tone:
-        visibleMarginLeakage > Math.max(1000, totalSalesRevenue * 0.08)
+        ownerOverallLeakValue > Math.max(1000, totalSalesRevenue * 0.08)
           ? ("critical" as const)
-          : visibleMarginLeakage > 0
+          : ownerOverallLeakValue > 0
             ? ("attention" as const)
             : ("healthy" as const),
     },
@@ -9034,20 +9050,29 @@ function WorkspaceDashboard({
           const key = String(item.item_type ?? item.cost_type ?? "unclassified")
             .replaceAll("_", " ")
             .trim();
+          const stableIdentity =
+            String(item.sku ?? "").trim().toLowerCase() ||
+            extractUuid(item.recipe_id) ||
+            String(item.name ?? "").trim().toLowerCase() ||
+            extractUuid(item.origin_inventory_item_id) ||
+            extractUuid(item.id);
+          const skuKey = `${String(item.cost_type ?? "unknown")}:${stableIdentity}`;
           const quantity = Math.max(Number(item.on_hand_qty ?? 0), 0);
           const stockValue =
             quantity * Number(item.current_cost_per_base_uom ?? 0);
           const existingType = typesByName.get(key);
 
           if (existingType) {
-            existingType.skuCount += 1;
-            existingType.highValueCount += item.is_high_value ? 1 : 0;
+            existingType.skuKeys.add(skuKey);
+            if (item.is_high_value) {
+              existingType.highValueKeys.add(skuKey);
+            }
             existingType.stockValue += stockValue;
           } else {
             typesByName.set(key, {
               type: key || "Unclassified",
-              skuCount: 1,
-              highValueCount: item.is_high_value ? 1 : 0,
+              skuKeys: new Set([skuKey]),
+              highValueKeys: new Set(item.is_high_value ? [skuKey] : []),
               stockValue,
             });
           }
@@ -9058,14 +9083,21 @@ function WorkspaceDashboard({
           string,
           {
             type: string;
-            skuCount: number;
-            highValueCount: number;
+            skuKeys: Set<string>;
+            highValueKeys: Set<string>;
             stockValue: number;
           }
         >(),
       )
       .values(),
-  ).sort((first, second) => second.stockValue - first.stockValue);
+  )
+    .map((row) => ({
+      type: row.type,
+      skuCount: row.skuKeys.size,
+      highValueCount: row.highValueKeys.size,
+      stockValue: row.stockValue,
+    }))
+    .sort((first, second) => second.stockValue - first.stockValue);
   const ownerRevenuePoints =
     financialTrendPoints.length > 0
       ? financialTrendPoints.slice(-7)
@@ -9108,6 +9140,213 @@ function WorkspaceDashboard({
     (total, point) => total + point.marginRecovery,
     0,
   );
+  const ownerTrendLocationOptions = activeLocations
+    .filter((location) => location.is_active)
+    .map((location) => ({
+      id: extractUuid(location.id),
+      name: location.name,
+    }))
+    .filter((location) => location.id);
+  const ownerTrendDatePoints = ownerRevenuePoints;
+  const ownerTrendLocationName =
+    ownerTrendLocationOptions.find(
+      (location) => location.id === ownerTrendLocationFilter,
+    )?.name ?? "All locations";
+  const ownerLeakTrendPoints = ownerTrendDatePoints.map((point) => {
+    const movementWasteValue = stockMovementLedger
+      .filter((movement) => {
+        const isWasteMovement =
+          String(movement.event_type ?? "").toLowerCase().includes("waste") ||
+          String(movement.source_table ?? "").toLowerCase() === "waste_events";
+
+        if (!isWasteMovement || getDateKey(movement.created_at) !== point.dateKey) {
+          return false;
+        }
+
+        return ownerTrendLocationFilter
+          ? extractUuid(movement.location_id) === ownerTrendLocationFilter
+          : true;
+      })
+      .reduce(
+        (total, movement) =>
+          total + Math.abs(Number(movement.movement_value ?? 0)),
+        0,
+      );
+    const exposureWasteValue = ownerTrendLocationFilter ? 0 : point.waste;
+    const wasteValue =
+      movementWasteValue > 0 ? movementWasteValue : exposureWasteValue;
+
+    return {
+      dateKey: point.dateKey,
+      label: point.label,
+      value:
+        Math.max(wasteValue, 0) +
+        (ownerTrendLocationFilter ? 0 : Math.max(point.priceImpact, 0)),
+    };
+  });
+  const ownerProcurementTrendPoints = ownerTrendDatePoints.map((point) => {
+    const daySpend = purchaseOrderLines
+      .filter((line) => getDateKey(line.created_at) === point.dateKey)
+      .reduce(
+        (total, line) =>
+          total +
+          Number(line.qty ?? 0) * Number(line.landed_unit_cost ?? 0),
+        0,
+      );
+
+    return {
+      dateKey: point.dateKey,
+      label: point.label,
+      value: daySpend,
+    };
+  });
+  const ownerComplianceTrendPoints = ownerTrendDatePoints.map((point) => {
+    const dayEntries = operationRegisterEntries.filter(
+      (entry) => getDateKey(entry.operating_date || entry.submitted_at) === point.dateKey,
+    );
+    const dayClearEntries = dayEntries.filter(
+      (entry) => entry.status === "completed" || entry.status === "clear",
+    );
+
+    return {
+      dateKey: point.dateKey,
+      label: point.label,
+      value:
+        dayEntries.length > 0
+          ? (dayClearEntries.length / dayEntries.length) * 100
+          : point.dateKey === currentOperatingDate
+            ? readinessScore
+            : 0,
+    };
+  });
+  const ownerGrossMarginTrendPoints = ownerTrendDatePoints.map((point) => ({
+    dateKey: point.dateKey,
+    label: point.label,
+    value: point.revenue > 0 ? (point.grossProfit / point.revenue) * 100 : 0,
+  }));
+  const ownerTrendCards = [
+    {
+      label: "Sales",
+      detail: "Revenue captured in the selected period.",
+      points: ownerTrendDatePoints.map((point) => ({
+        dateKey: point.dateKey,
+        label: point.label,
+        value: point.revenue,
+      })),
+      tone: "info" as const,
+      valueFormatter: (value: number) => formatCurrency(value, 0),
+    },
+    {
+      label: "Leaks",
+      detail: ownerTrendLocationFilter
+        ? `Waste exposure at ${ownerTrendLocationName}.`
+        : "Waste and price inflation exposure across all locations.",
+      points: ownerLeakTrendPoints,
+      tone: "critical" as const,
+      valueFormatter: (value: number) => formatCurrency(value, 0),
+    },
+    {
+      label: "Procurement",
+      detail: "Purchase order spend posted by date.",
+      points: ownerProcurementTrendPoints,
+      tone: "attention" as const,
+      valueFormatter: (value: number) => formatCurrency(value, 0),
+    },
+    {
+      label: "Compliance rate",
+      detail: "Daily register completion signal.",
+      points: ownerComplianceTrendPoints,
+      tone: "healthy" as const,
+      valueFormatter: (value: number) =>
+        `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}%`,
+    },
+    {
+      label: "Gross margin",
+      detail: `Target benchmark: ${targetMenuMarginPct}%.`,
+      points: ownerGrossMarginTrendPoints,
+      tone: "healthy" as const,
+      valueFormatter: (value: number) =>
+        `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`,
+    },
+  ];
+  const renderOwnerTrendCard = (card: (typeof ownerTrendCards)[number]) => {
+    const values = card.points.map((point) => point.value);
+    const maxValue = Math.max(1, ...values);
+    const minValue = Math.min(0, ...values);
+    const range = Math.max(maxValue - minValue, 1);
+    const width = 240;
+    const height = 84;
+    const xStep = card.points.length > 1 ? width / (card.points.length - 1) : width;
+    const linePoints = card.points
+      .map((point, index) => {
+        const x = card.points.length > 1 ? index * xStep : width / 2;
+        const y = height - ((point.value - minValue) / range) * (height - 10) - 5;
+
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+    const latestPoint = card.points[card.points.length - 1];
+    const toneClass =
+      card.tone === "critical"
+        ? "text-red-800 stroke-red-600"
+        : card.tone === "attention"
+          ? "text-amber-800 stroke-amber-500"
+          : card.tone === "healthy"
+            ? "text-emerald-800 stroke-emerald-600"
+            : "text-blue-800 stroke-blue-500";
+
+    return (
+      <article
+        key={card.label}
+        className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+      >
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+          <span>
+            <span className="block text-sm font-black text-slate-950">
+              {card.label}
+            </span>
+            <span className="mt-1 block text-xs font-medium text-slate-500">
+              {card.detail}
+            </span>
+          </span>
+          <span className={`font-mono text-lg font-black ${toneClass}`}>
+            {latestPoint ? card.valueFormatter(latestPoint.value) : card.valueFormatter(0)}
+          </span>
+        </div>
+        <div className="mt-4 h-28 overflow-hidden rounded-lg border border-slate-100 bg-[#faf9f6] p-3">
+          {card.points.length > 0 ? (
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              preserveAspectRatio="none"
+              className="h-full w-full"
+              aria-hidden="true"
+            >
+              <line
+                x1="0"
+                y1={height - 6}
+                x2={width}
+                y2={height - 6}
+                className="stroke-slate-200"
+                strokeWidth="1"
+              />
+              <polyline
+                points={linePoints}
+                fill="none"
+                className={toneClass}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">
+              No trend data yet.
+            </div>
+          )}
+        </div>
+      </article>
+    );
+  };
   const ownerMenuRows =
     menuPerformance.length > 0
       ? menuPerformance.slice(0, 5).map((item) => {
@@ -9666,16 +9905,20 @@ function WorkspaceDashboard({
       items: [
         {
           href: "#overview",
-          label: "Margin & AvT",
+          label: "Margin & leak",
           badge:
-            totalSalesMarginPct === null
-              ? `${marginHealthScore}%`
-              : `${totalSalesMarginPct.toLocaleString(undefined, {
-                  maximumFractionDigits: 1,
-                })}%`,
+            ownerOverallLeakValue > 0
+              ? formatCurrency(ownerOverallLeakValue, 0)
+              : totalSalesMarginPct === null
+                ? `${marginHealthScore}%`
+                : `${totalSalesMarginPct.toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  })}%`,
           tone:
-            totalSalesMarginPct === null ||
-            totalSalesMarginPct >= targetMenuMarginPct
+            ownerOverallLeakValue > 0
+              ? "warning"
+              : totalSalesMarginPct === null ||
+                  totalSalesMarginPct >= targetMenuMarginPct
               ? "healthy"
               : "warning",
           visible: true,
@@ -9698,70 +9941,48 @@ function WorkspaceDashboard({
       ],
     },
     {
-      label: "Management Tables",
+      label: "Decision Tables",
       defaultOpen: true,
       items: [
         {
           href: "#inventory",
-          label: "Inventory value",
+          label: "Inventory position",
           badge: formatCurrency(currentStockValue, 0),
           tone: reorderTodayCount > 0 ? "warning" : "healthy",
-          visible: true,
-        },
-        {
-          href: "#inventory",
-          label: "Stock by location",
-          badge: `${ownerLocationRows.length.toLocaleString()} areas`,
-          tone: negativeStockExceptions.length > 0 ? "critical" : "healthy",
           visible: true,
           targetElementId: "inventory-location-summary",
         },
         {
           href: "#procurement-intelligence",
-          label: "Procurement spend",
+          label: "Procurement intelligence",
           badge:
-            todayPurchaseOrderCount > 0
-              ? `${todayPurchaseOrderCount.toLocaleString()} POs`
-              : "Review",
+            priceIncreaseImpact > 0
+              ? formatCurrency(priceIncreaseImpact, 0)
+              : todayPurchaseOrderCount > 0
+                ? `${todayPurchaseOrderCount.toLocaleString()} POs`
+                : "Review",
           tone:
             priceIncreaseImpact > 0 ||
             partialPurchaseOrders.length > 0
               ? "warning"
               : "healthy",
           visible: true,
-        },
-        {
-          href: "#procurement-intelligence",
-          label: "Supplier risk",
-          badge:
-            partialPurchaseOrders.length > 0
-              ? `${partialPurchaseOrders.length.toLocaleString()} partial`
-              : "Stable",
-          tone: partialPurchaseOrders.length > 0 ? "warning" : "healthy",
-          visible: true,
-          targetElementId: "supplier-performance-summary",
-        },
-        {
-          href: "#procurement-intelligence",
-          label: "Price inflation",
-          badge: formatCurrency(priceIncreaseImpact, 0),
-          tone: priceIncreaseImpact > 0 ? "warning" : "healthy",
-          visible: true,
-          targetElementId: "ingredient-price-summary",
+          targetElementId: "procurement-intelligence-summary",
         },
         {
           href: "#waste",
-          label: "Waste Analysis",
+          label: "Waste & leaks",
           badge:
-            directWasteImpact > 0
-              ? formatCurrency(directWasteImpact, 0)
+            ownerOverallLeakValue > 0
+              ? formatCurrency(ownerOverallLeakValue, 0)
               : "Clear",
-          tone: directWasteImpact > 0 ? "critical" : "healthy",
+          tone: ownerOverallLeakValue > 0 ? "critical" : "healthy",
           visible: true,
+          targetElementId: "waste-analysis-summary",
         },
         {
           href: "#overview",
-          label: "AvT by location",
+          label: "AvT locations",
           badge:
             visibleAvtSummary.length > 0
               ? formatCurrency(avtVarianceExposure, 0)
@@ -9772,7 +9993,7 @@ function WorkspaceDashboard({
         },
         {
           href: "#menu-profitability",
-          label: "Menu Profitability",
+          label: "Menu profitability",
           badge: `${menuProfitabilityTotals.total.toLocaleString()} items`,
           tone:
             menuProfitabilityTotals.marginRisk > 0 ||
@@ -9780,6 +10001,14 @@ function WorkspaceDashboard({
               ? "warning"
               : "healthy",
           visible: true,
+        },
+        {
+          href: "#overview",
+          label: "Trend analysis",
+          badge: `${ownerTrendCards.length.toLocaleString()} KPIs`,
+          tone: "healthy",
+          visible: true,
+          targetElementId: "trend-analysis-summary",
         },
       ],
     },
@@ -11534,8 +11763,8 @@ function WorkspaceDashboard({
                 {
                   label: "Inventory",
                   value: formatCurrency(currentStockValue, 0),
-                  detail: `${inventoryValuationItems.length.toLocaleString()} SKU${
-                    inventoryValuationItems.length === 1 ? "" : "s"
+                  detail: `${ownerUniqueSkuCount.toLocaleString()} unique SKU${
+                    ownerUniqueSkuCount === 1 ? "" : "s"
                   } valued`,
                   tone:
                     negativeStockExceptions.length > 0
@@ -11554,15 +11783,16 @@ function WorkspaceDashboard({
                       : ("healthy" as const),
                 },
                 {
-                  label: "Open issues",
-                  value: (
-                    criticalExceptionCount + visibleOwnerAttentionItems.length
-                  ).toLocaleString(),
-                  detail: "Needs attention today",
+                  label: "Overall leak",
+                  value: formatCurrency(ownerOverallLeakValue, 0),
+                  detail:
+                    ownerOverallLeakValue > 0
+                      ? "Waste plus price inflation"
+                      : "No leak in selected period",
                   tone:
-                    criticalExceptionCount > 0
+                    ownerOverallLeakValue > Math.max(1000, totalSalesRevenue * 0.08)
                       ? ("critical" as const)
-                      : visibleOwnerAttentionItems.length > 0
+                      : ownerOverallLeakValue > 0
                         ? ("attention" as const)
                         : ("healthy" as const),
                 },
@@ -11955,21 +12185,86 @@ function WorkspaceDashboard({
 
           <section className="grid gap-4 md:grid-cols-5">
             {[
-              { label: "Inventory Position", section: "inventory" },
-              { label: "Procurement Intel", section: "procurement-intelligence" },
-              { label: "Waste Analysis", section: "waste" },
-              { label: "Menu Profitability", section: "menu-profitability" },
-              { label: "AvT Locations", section: "overview" },
+              {
+                label: "Inventory Position",
+                section: "overview",
+                targetElementId: "inventory-location-summary",
+              },
+              {
+                label: "Procurement Intel",
+                section: "overview",
+                targetElementId: "procurement-intelligence-summary",
+              },
+              {
+                label: "Waste & Leaks",
+                section: "overview",
+                targetElementId: "waste-analysis-summary",
+              },
+              {
+                label: "Menu Profitability",
+                section: "overview",
+                targetElementId: "menu-profitability-summary",
+              },
+              {
+                label: "Trend Analysis",
+                section: "overview",
+                targetElementId: "trend-analysis-summary",
+              },
             ].map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onClick={() => openDashboardSection(item.section)}
+                onClick={() =>
+                  openDashboardSection(
+                    item.section,
+                    undefined,
+                    item.targetElementId,
+                  )
+                }
                 className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:shadow-md"
               >
                 {item.label}
               </button>
             ))}
+          </section>
+
+          <section
+            id="trend-analysis-summary"
+            className="scroll-mt-24 rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+          >
+            <div className="grid gap-3 border-b border-slate-100 pb-4 md:grid-cols-[1fr_auto] md:items-end">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  Trend analysis
+                </p>
+                <h2 className="mt-1 text-base font-black text-slate-950">
+                  What changed across {selectedPeriodLabel}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Separate trend lines for the signals owners should review before asking teams for detail.
+                </p>
+              </div>
+              <label className="grid gap-1 text-xs font-black uppercase tracking-widest text-slate-400">
+                Waste location
+                <select
+                  value={ownerTrendLocationFilter}
+                  onChange={(event) =>
+                    setOwnerTrendLocationFilter(event.target.value)
+                  }
+                  className="h-10 min-w-[210px] rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="">All locations</option>
+                  {ownerTrendLocationOptions.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {ownerTrendCards.map((card) => renderOwnerTrendCard(card))}
+            </div>
           </section>
 
           <section className="grid gap-10">
