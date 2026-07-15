@@ -11981,7 +11981,7 @@ function WorkspaceDashboard({
         </div>
       ) : null}
       {ownerOverviewActive ? (
-        <div className="mx-auto grid max-w-[1080px] gap-6 rounded-[18px] bg-[#f4f2ee] p-4 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-6">
+        <div className="owner-dashboard-shell mx-auto grid w-full max-w-[1080px] gap-6 rounded-[18px] bg-[#f4f2ee] p-4 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-6">
           <section className="grid gap-4 border-b border-slate-200 pb-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3">
@@ -12556,8 +12556,16 @@ function WorkspaceDashboard({
                       </label>
                     </div>
                   </div>
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="executive-table min-w-[980px] text-left text-sm">
+                  <div className="owner-table-scroll mt-4 overflow-x-auto">
+                    <table className="executive-table w-full min-w-[820px] table-fixed text-left text-sm">
+                      <colgroup>
+                        <col className="w-[260px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[135px]" />
+                        <col className="w-[100px]" />
+                        <col className="w-[115px]" />
+                        <col className="w-[120px]" />
+                      </colgroup>
                       <thead className="bg-white text-xs uppercase text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-black">Selected recipe</th>
@@ -12614,18 +12622,18 @@ function WorkspaceDashboard({
                     </table>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="executive-table min-w-[1180px] text-left text-sm">
+                <div className="owner-table-scroll overflow-x-auto">
+                  <table className="executive-table w-full min-w-[980px] table-fixed text-left text-sm">
                     <colgroup>
-                      <col className="w-[280px]" />
-                      <col className="w-[150px]" />
-                      <col className="w-[110px]" />
-                      <col className="w-[110px]" />
-                      <col className="w-[140px]" />
-                      <col className="w-[140px]" />
-                      <col className="w-[150px]" />
-                      <col className="w-[130px]" />
-                      <col className="w-[150px]" />
+                      <col className="w-[210px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[85px]" />
+                      <col className="w-[85px]" />
+                      <col className="w-[115px]" />
+                      <col className="w-[115px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[95px]" />
+                      <col className="w-[105px]" />
                     </colgroup>
                     <thead className="sticky top-0 bg-[#faf9f6] text-xs uppercase text-slate-400">
                       <tr>
@@ -12698,18 +12706,18 @@ function WorkspaceDashboard({
                       <summary className="cursor-pointer text-sm font-black text-slate-700">
                         See more recipes
                       </summary>
-                      <div className="mt-3 overflow-x-auto">
-                        <table className="executive-table min-w-[1180px] text-left text-sm">
+                      <div className="owner-table-scroll mt-3 overflow-x-auto">
+                        <table className="executive-table w-full min-w-[980px] table-fixed text-left text-sm">
                           <colgroup>
-                            <col className="w-[280px]" />
-                            <col className="w-[150px]" />
-                            <col className="w-[110px]" />
-                            <col className="w-[110px]" />
-                            <col className="w-[140px]" />
-                            <col className="w-[140px]" />
-                            <col className="w-[150px]" />
-                            <col className="w-[130px]" />
-                            <col className="w-[150px]" />
+                            <col className="w-[210px]" />
+                            <col className="w-[120px]" />
+                            <col className="w-[85px]" />
+                            <col className="w-[85px]" />
+                            <col className="w-[115px]" />
+                            <col className="w-[115px]" />
+                            <col className="w-[120px]" />
+                            <col className="w-[95px]" />
+                            <col className="w-[105px]" />
                           </colgroup>
                           <tbody className="divide-y divide-slate-100">
                             {ownerExtraFoodCostRows.map((row) => (
