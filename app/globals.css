@@ -344,6 +344,51 @@ body {
     min-width: 640px;
   }
 
+  .dashboard-readable .owner-dashboard-shell {
+    border-radius: 14px;
+    overflow: hidden;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .dashboard-readable .owner-dashboard-shell .overflow-x-auto,
+  .dashboard-readable .owner-dashboard-shell .overflow-auto,
+  .dashboard-readable .owner-dashboard-shell .owner-table-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 6px;
+  }
+
+  .dashboard-readable .owner-dashboard-shell .executive-table {
+    display: table;
+    min-width: 720px !important;
+    max-width: none !important;
+    table-layout: auto !important;
+    width: max-content !important;
+  }
+
+  .dashboard-readable .owner-dashboard-shell .executive-table th,
+  .dashboard-readable .owner-dashboard-shell .executive-table td {
+    min-width: 112px;
+    overflow-wrap: normal;
+    white-space: normal;
+    word-break: normal;
+  }
+
+  .dashboard-readable .owner-dashboard-shell .executive-table th:first-child,
+  .dashboard-readable .owner-dashboard-shell .executive-table td:first-child {
+    min-width: 190px;
+  }
+
+  .dashboard-readable .owner-dashboard-shell .executive-table th:last-child,
+  .dashboard-readable .owner-dashboard-shell .executive-table td:last-child {
+    min-width: 125px;
+  }
+
+  .dashboard-readable .owner-dashboard-shell .executive-table .font-mono {
+    white-space: nowrap;
+  }
+
   .dashboard-readable td,
   .dashboard-readable th {
     white-space: normal;

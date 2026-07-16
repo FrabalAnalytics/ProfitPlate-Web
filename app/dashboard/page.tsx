@@ -12214,7 +12214,7 @@ function WorkspaceDashboard({
                   </button>
                 ))}
               </div>
-              <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
                 <table className="executive-table w-full table-fixed text-left text-sm">
                   <thead className="bg-[#faf9f6] text-xs uppercase text-slate-400">
                     <tr>
