@@ -48,12 +48,12 @@ export default function SignupPage() {
           <Link href="/" className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-accent/15 bg-white shadow-sm">
               <Image
-                src="/ProfitPlate logo.png.png"
+                src="/profitplate-logo.png"
                 alt="ProfitPlate Logo"
                 width={72}
                 height={72}
                 priority
-                className="h-8 w-8 object-contain"
+                className="h-8 w-8 object-cover object-center"
               />
             </span>
             <span className="min-w-0">
@@ -61,7 +61,7 @@ export default function SignupPage() {
                 ProfitPlate
               </span>
               <span className="mt-1 hidden font-mono text-[9px] uppercase tracking-widest text-text-ghost sm:block">
-                Daily margin control for restaurants
+                Restaurant margin control system
               </span>
             </span>
           </Link>

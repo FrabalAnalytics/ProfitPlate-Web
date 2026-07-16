@@ -314,12 +314,12 @@ export default function PlatformAdminPage() {
           <Link href="/" className="flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-card shadow-sm">
               <Image
-                src="/ProfitPlate logo.png.png"
+                src="/profitplate-logo.png"
                 alt="ProfitPlate Logo"
                 width={72}
                 height={72}
                 priority
-                className="h-8 w-8 object-contain"
+                className="h-8 w-8 object-cover object-center"
               />
             </span>
             <span>
@@ -327,7 +327,7 @@ export default function PlatformAdminPage() {
                 ProfitPlate
               </span>
               <span className="mt-1 hidden font-mono text-[9px] uppercase tracking-widest text-text-ghost sm:block">
-                Platform command
+                Restaurant margin control system
               </span>
             </span>
           </Link>

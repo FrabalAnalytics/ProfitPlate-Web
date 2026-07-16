@@ -267,12 +267,12 @@ export default function Home() {
           <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-card shadow-sm">
               <Image
-                src="/ProfitPlate logo.png.png"
+                src="/profitplate-logo.png"
                 alt="ProfitPlate Logo"
                 width={72}
                 height={72}
                 priority
-                className="h-8 w-8 object-contain"
+                className="h-8 w-8 object-cover object-center"
               />
             </span>
             <span className="min-w-0">
@@ -280,7 +280,7 @@ export default function Home() {
                 ProfitPlate
               </span>
               <span className="mt-1 hidden font-mono text-[9px] uppercase tracking-widest text-text-ghost sm:block">
-                Daily margin control for restaurants
+                Restaurant margin control system
               </span>
             </span>
           </Link>
@@ -808,11 +808,11 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-background shadow-sm">
                 <Image
-                  src="/ProfitPlate logo.png.png"
+                  src="/profitplate-logo.png"
                   alt="ProfitPlate Logo"
                   width={48}
                   height={48}
-                  className="h-5 w-5 object-contain"
+                  className="h-5 w-5 object-cover object-center"
                 />
               </span>
               <span className="font-sans font-extrabold text-sm tracking-tight text-foreground">

@@ -3319,12 +3319,12 @@ export default function DashboardPage() {
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-accent/15 bg-card shadow-sm">
               <Image
-                src="/ProfitPlate logo.png.png"
+                src="/profitplate-logo.png"
                 alt=""
                 width={72}
                 height={72}
                 priority
-                className="h-16 w-16 max-w-none object-cover object-left"
+                className="h-8 w-8 object-cover object-center"
               />
               </span>
               <span>
@@ -3332,7 +3332,7 @@ export default function DashboardPage() {
                   ProfitPlate
                 </span>
                 <span className="mt-1 hidden font-mono text-[9px] uppercase tracking-widest text-text-ghost sm:block">
-                  Live margin tracking for restaurants
+                  Restaurant margin control system
                 </span>
               </span>
             </Link>
